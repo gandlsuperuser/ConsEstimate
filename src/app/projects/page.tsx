@@ -67,7 +67,7 @@ export default function ProjectsPage() {
       .eq('id', editingProject.id);
     setSaving(false);
     if (!error) {
-      setProjects(projects.map(p => p.id === editingProject.id ? formData : p));
+      setProjects(projects.map(p => p.id === editingProject.id ? { ...formData, id: editingProject.id } : p));
       setEditingProject(null);
     }
   };
