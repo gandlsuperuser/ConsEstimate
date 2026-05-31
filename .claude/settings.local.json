@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/bin/bash -c 'ls -la \"/Users/moli/Desktop/ConsEstimate/\" 2>/dev/null || echo \"Does not exist\"')",
+      "Bash(/bin/bash -c 'find \"/Users/moli/Desktop/ConsEstimate/src\" -type f')",
+      "Bash(/bin/bash -c 'cd \"/Users/moli/Desktop/ConsEstimate/src\" && mkdir -p app/projects/\\\\[id\\\\]/estimate app/projects/\\\\[id\\\\]/receipts app/projects/\\\\[id\\\\]/dashboard app/api/scan-receipt components lib types && ls -la')",
+      "Bash(/bin/bash -c 'mkdir -p \"/Users/moli/Desktop/ConsEstimate/src/app/api/projects\"')",
+      "Bash(/bin/bash -c 'mkdir -p \"/Users/moli/Desktop/ConsEstimate/src/app/api/estimate-lines/[id]\"')",
+      "Bash(/bin/bash -c 'mkdir -p \"/Users/moli/Desktop/ConsEstimate/src/app/api/projects/[id]\"')",
+      "Bash(/bin/bash -c 'mkdir -p \"/Users/moli/Desktop/ConsEstimate/src/app/api/expenses\"')",
+      "Bash(/bin/bash -c 'find \"/Users/moli/Desktop/ConsEstimate/src\" -type f -name \"*.ts\" -o -name \"*.tsx\" | sort')",
+      "Bash(/bin/bash -c 'cd \"/Users/moli/Desktop/ConsEstimate\" && npm run build 2>&1 | tail -50')",
+      "Bash(/bin/bash -c 'cd \"/Users/moli/Desktop/ConsEstimate\" && npm run build 2>&1 | tail -80')",
+      "Bash(/bin/bash -c 'cd \"/Users/moli/Desktop/ConsEstimate\" && npm run build 2>&1 | tail -40')",
+      "Bash(/bin/bash -c 'cd \"/Users/moli/Desktop/ConsEstimate\" && npm run build 2>&1 | tail -25')",
+      "Bash(/bin/bash -c 'cd \"/Users/moli/Desktop/ConsEstimate\" && npx tsx -e \"\nimport { createClient } from \\\\\"@supabase/supabase-js\\\\\";\nconst supabase = createClient\\(\\\\\"https://sqqlrbfjhluxpypajjcu.supabase.co\\\\\", \\\\\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxcWxyYmZqaGx1eHB5cGFqamN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MzEzMTEsImV4cCI6MjA5NTUwNzMxMX0.3OaGn90XCo0EQuhCx02SzfCA5RyZ_LMSUGMn7ss2Xls\\\\\"\\);\nconst { data, error } = await supabase.from\\(\\\\\"projects\\\\\"\\).select\\(\\\\\"id\\\\\"\\).limit\\(1\\);\nif \\(error\\) { console.error\\(\\\\\"Connection FAILED:\\\\\", error.message\\); process.exit\\(1\\); }\nconsole.log\\(\\\\\"Supabase connection OK. Tables accessible:\\\\\", data\\);\n\" 2>&1')",
+      "Bash(/bin/bash -c 'curl -s \"https://sqqlrbfjhluxpypajjcu.supabase.co/rest/v1/projects?select=id&limit=1\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxcWxyYmZqaGx1eHB5cGFqamN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MzEzMTEsImV4cCI6MjA5NTUwNzMxMX0.3OaGn90XCo0EQuhCx02SzfCA5RyZ_LMSUGMn7ss2Xls\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxcWxyYmZqaGx1eHB5cGFqamN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MzEzMTEsImV4cCI6MjA5NTUwNzMxMX0.3OaGn90XCo0EQuhCx02SzfCA5RyZ_LMSUGMn7ss2Xls\" 2>&1')",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(npm list:*)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
