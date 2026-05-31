@@ -72,7 +72,7 @@ export default function ProjectPage() {
       .eq('id', id);
     setSaving(false);
     if (!error) {
-      setProject(formData);
+      setProject({ ...formData, id });
       setEditing(false);
     }
   };
