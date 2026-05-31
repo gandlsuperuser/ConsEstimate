@@ -5,12 +5,7 @@ import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
 import Link from 'next/link';
 import ProjectCard from '@/components/ProjectCard';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
 
 interface Project {
   id: string;
