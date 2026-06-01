@@ -23,6 +23,7 @@ export default function ProjectsPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -38,10 +39,15 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Supabase fetch error:', error);
+        setErrorMsg(error.message);
+      }
       setProjects(data || []);
       setLoading(false);
     };
@@ -111,6 +117,16 @@ export default function ProjectsPage() {
 
   if (loading) {
     return <div className="text-center py-8">Loading projects...</div>;
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="text-center py-12 text-red-600 bg-red-50 rounded-lg border border-red-200 p-6 max-w-2xl mx-auto">
+        <h2 className="text-xl font-bold mb-2">Error Loading Projects</h2>
+        <p className="mb-4 text-sm font-mono text-left bg-white p-3 rounded border text-red-800">{errorMsg}</p>
+        <p className="text-sm text-gray-700">If you are on Vercel, check that <b>NEXT_PUBLIC_SUPABASE_URL</b> and <b>NEXT_PUBLIC_SUPABASE_ANON_KEY</b> are correct and that the URL does not end in `/rest/v1/`.</p>
+      </div>
+    );
   }
 
   return (
