@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-server';
 
 export async function GET() {
+  const supabase = await createClient();
   const { data: projects, error } = await supabase
     .from('projects')
     .select('*')
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   console.log('Creating project with data:', body);
 
+  const supabase = await createClient();
   const { data: project, error } = await supabase
     .from('projects')
     .insert(body)

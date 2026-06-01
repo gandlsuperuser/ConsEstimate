@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-server';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -8,6 +8,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
+  const supabase = await createClient();
   const { data: project, error } = await supabase
     .from('projects')
     .select('*')
@@ -29,6 +30,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const body = await request.json();
 
+  const supabase = await createClient();
   const { data: project, error } = await supabase
     .from('projects')
     .update(body)
@@ -46,6 +48,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
+  const supabase = await createClient();
   const { error } = await supabase
     .from('projects')
     .delete()
