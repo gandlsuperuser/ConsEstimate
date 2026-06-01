@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} h-full`} data-scroll-behavior="smooth">
       <body className="h-full bg-slate-50 font-sans antialiased">
         <Sidebar />
         <div className="md:ml-64 min-h-screen">
