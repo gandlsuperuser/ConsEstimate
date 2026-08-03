@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Realistic construction roles/names
 const EMPLOYEES = [
   { first_name: 'Mike', last_name: 'Rodriguez', role: 'Project Manager', department: 'Management', hourly_rate: 85 },

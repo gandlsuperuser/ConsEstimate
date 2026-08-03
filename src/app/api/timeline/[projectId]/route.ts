@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /** GET /api/timeline/[projectId] — Fetch all timeline data for a project */
 export async function GET(
   _request: NextRequest,
