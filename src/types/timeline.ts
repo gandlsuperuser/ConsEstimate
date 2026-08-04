@@ -416,11 +416,11 @@ export const TASK_STATUS_COLORS: Record<TaskStatus, { bg: string; text: string; 
   delayed: { bg: 'bg-orange-100', text: 'text-orange-700', ring: 'ring-orange-300', bar: '#f97316' },
 };
 
-export const PRIORITY_COLORS: Record<TaskPriority, { bg: string; text: string }> = {
-  low: { bg: 'bg-slate-100', text: 'text-slate-600' },
-  medium: { bg: 'bg-blue-100', text: 'text-blue-700' },
-  high: { bg: 'bg-amber-100', text: 'text-amber-700' },
-  critical: { bg: 'bg-red-100', text: 'text-red-700' },
+export const PRIORITY_COLORS: Record<TaskPriority, { bg: string; text: string; dot: string }> = {
+  low: { bg: 'bg-slate-100', text: 'text-slate-600', dot: '#94a3b8' },
+  medium: { bg: 'bg-blue-100', text: 'text-blue-700', dot: '#3b82f6' },
+  high: { bg: 'bg-amber-100', text: 'text-amber-700', dot: '#f59e0b' },
+  critical: { bg: 'bg-red-100', text: 'text-red-700', dot: '#ef4444' },
 };
 
 export const HEALTH_STATUS_CONFIG: Record<ProjectHealthStatus, { label: string; emoji: string; color: string }> = {

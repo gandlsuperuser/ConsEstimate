@@ -16,6 +16,21 @@ import GanttChart from '@/components/timeline/GanttChart';
 import GanttToolbar from '@/components/timeline/GanttToolbar';
 import TimelineHeader from '@/components/timeline/TimelineHeader';
 import TaskDetailPanel from '@/components/timeline/TaskDetailPanel';
+import AddTaskModal from '@/components/timeline/AddTaskModal';
+import CalendarView from '@/components/timeline/CalendarView';
+import ListView from '@/components/timeline/ListView';
+import KanbanView from '@/components/timeline/KanbanView';
+import MilestoneView from '@/components/timeline/MilestoneView';
+
+type ViewMode = 'gantt' | 'calendar' | 'list' | 'kanban' | 'milestones';
+
+const VIEW_OPTIONS: { key: ViewMode; label: string; icon: string }[] = [
+  { key: 'gantt', label: 'Gantt', icon: '📊' },
+  { key: 'list', label: 'List', icon: '📋' },
+  { key: 'kanban', label: 'Board', icon: '📌' },
+  { key: 'calendar', label: 'Calendar', icon: '📅' },
+  { key: 'milestones', label: 'Milestones', icon: '◆' },
+];
 
 export default function TimelinePage() {
   const params = useParams();
@@ -34,6 +49,9 @@ export default function TimelinePage() {
   const [projectStartDate, setProjectStartDate] = useState<string>('2026-08-01');
   const [projectName, setProjectName] = useState<string>('Project Timeline');
 
+  // View mode
+  const [viewMode, setViewMode] = useState<ViewMode>('gantt');
+
   // Gantt controls
   const [zoom, setZoom] = useState<ZoomLevel>('week');
   const [showBaseline, setShowBaseline] = useState(true);
@@ -41,6 +59,9 @@ export default function TimelinePage() {
 
   // Selected task panel
   const [selectedTask, setSelectedTask] = useState<ProjectTask | null>(null);
+
+  // Add task modal
+  const [showAddTask, setShowAddTask] = useState(false);
 
   // Fetch timeline data
   const fetchTimeline = useCallback(async () => {
@@ -91,6 +112,29 @@ export default function TimelinePage() {
   // Generate from estimate lines
   const handleGenerateFromEstimate = async () => {
     await handleSeedDemo();
+  };
+
+  // Add task handler
+  const handleAddTask = async (taskData: Partial<ProjectTask>) => {
+    try {
+      const res = await fetch('/api/timeline/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskData),
+      });
+
+      if (res.ok) {
+        const { task } = await res.json();
+        setData((prev) => ({ ...prev, tasks: [...prev.tasks, task] }));
+      }
+    } catch (err) {
+      console.error('Failed to add task:', err);
+    }
+  };
+
+  // Quick add task (from toolbar)
+  const handleQuickAddTask = () => {
+    setShowAddTask(true);
   };
 
   // Task update handler
@@ -156,37 +200,6 @@ export default function TimelinePage() {
     }
   };
 
-  // Add new task
-  const handleAddTask = async () => {
-    const defaultPhase = data.phases[0];
-    const today = new Date().toISOString().split('T')[0];
-
-    const newTask = {
-      project_id: projectId,
-      phase_id: defaultPhase?.id || null,
-      name: 'New Task',
-      start_date: today,
-      end_date: today,
-      duration: 1,
-      working_days: 1,
-      status: 'not_started',
-      priority: 'medium',
-      progress: 0,
-    };
-
-    const res = await fetch('/api/timeline/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newTask),
-    });
-
-    if (res.ok) {
-      const { task } = await res.json();
-      setData((prev) => ({ ...prev, tasks: [...prev.tasks, task] }));
-      setSelectedTask(task);
-    }
-  };
-
   // Compute overall project health
   const health = useMemo(
     () => calculateProjectHealth(data.tasks, data.milestones, projectStartDate),
@@ -212,32 +225,116 @@ export default function TimelinePage() {
       {/* Header metrics */}
       <TimelineHeader health={health} projectName={projectName} />
 
-      {/* Toolbar */}
-      <GanttToolbar
-        zoom={zoom}
-        onZoomChange={setZoom}
-        showBaseline={showBaseline}
-        onBaselineToggle={() => setShowBaseline(!showBaseline)}
-        showCriticalPath={showCriticalPath}
-        onCriticalPathToggle={() => setShowCriticalPath(!showCriticalPath)}
-        onAddTask={handleAddTask}
-        onGenerateTimeline={handleGenerateFromEstimate}
-        onSeedDemo={handleSeedDemo}
-        isSeeding={isSeeding}
-        taskCount={data.tasks.length}
-      />
+      {/* View switcher + Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {/* View mode tabs */}
+        <div className="flex items-center bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          {VIEW_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setViewMode(opt.key)}
+              className={`px-3 py-2 text-[12px] font-medium transition-all duration-150 ${
+                viewMode === opt.key
+                  ? 'bg-indigo-600 text-white shadow-inner'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <span className="mr-1">{opt.icon}</span>
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Gantt Chart */}
+        <div className="w-px h-7 bg-slate-200" />
+
+        {/* Gantt-specific controls (only show in gantt mode) */}
+        {viewMode === 'gantt' && (
+          <GanttToolbar
+            zoom={zoom}
+            onZoomChange={setZoom}
+            showBaseline={showBaseline}
+            onBaselineToggle={() => setShowBaseline(!showBaseline)}
+            showCriticalPath={showCriticalPath}
+            onCriticalPathToggle={() => setShowCriticalPath(!showCriticalPath)}
+            onAddTask={handleQuickAddTask}
+            onGenerateTimeline={handleGenerateFromEstimate}
+            onSeedDemo={handleSeedDemo}
+            isSeeding={isSeeding}
+            taskCount={data.tasks.length}
+          />
+        )}
+
+        {/* Non-gantt toolbar: just add task + count */}
+        {viewMode !== 'gantt' && (
+          <>
+            <div className="flex-1" />
+            {data.tasks.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+                {data.tasks.length} tasks
+              </span>
+            )}
+            <button
+              onClick={handleQuickAddTask}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-all duration-150 hover:shadow-md"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Task
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* View Content */}
       {data.tasks.length > 0 ? (
-        <GanttChart
-          data={data}
-          zoom={zoom}
-          showBaseline={showBaseline}
-          showCriticalPath={showCriticalPath}
-          onTaskClick={(task) => setSelectedTask(task)}
-          onTaskUpdate={handleTaskUpdate}
-          onPhaseToggle={handlePhaseToggle}
-        />
+        <>
+          {viewMode === 'gantt' && (
+            <GanttChart
+              data={data}
+              zoom={zoom}
+              showBaseline={showBaseline}
+              showCriticalPath={showCriticalPath}
+              onTaskClick={(task) => setSelectedTask(task)}
+              onTaskUpdate={handleTaskUpdate}
+              onPhaseToggle={handlePhaseToggle}
+            />
+          )}
+
+          {viewMode === 'calendar' && (
+            <CalendarView
+              tasks={data.tasks}
+              phases={data.phases}
+              onTaskClick={(task) => setSelectedTask(task)}
+            />
+          )}
+
+          {viewMode === 'list' && (
+            <ListView
+              tasks={data.tasks}
+              phases={data.phases}
+              onTaskClick={(task) => setSelectedTask(task)}
+              onTaskUpdate={handleTaskUpdate}
+            />
+          )}
+
+          {viewMode === 'kanban' && (
+            <KanbanView
+              tasks={data.tasks}
+              phases={data.phases}
+              onTaskClick={(task) => setSelectedTask(task)}
+              onTaskUpdate={handleTaskUpdate}
+            />
+          )}
+
+          {viewMode === 'milestones' && (
+            <MilestoneView
+              milestones={data.milestones}
+              tasks={data.tasks}
+              phases={data.phases}
+            />
+          )}
+        </>
       ) : (
         <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center shadow-xs">
           <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
@@ -257,6 +354,12 @@ export default function TimelinePage() {
             >
               {isSeeding ? 'Generating Schedule...' : '⚡ Populate Commercial Demo Data'}
             </button>
+            <button
+              onClick={handleQuickAddTask}
+              className="px-5 py-2.5 rounded-xl font-semibold text-sm bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm transition-all"
+            >
+              + Add First Task
+            </button>
           </div>
         </div>
       )}
@@ -268,6 +371,15 @@ export default function TimelinePage() {
         onClose={() => setSelectedTask(null)}
         onUpdate={handleTaskUpdate}
         onDelete={handleTaskDelete}
+      />
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={showAddTask}
+        onClose={() => setShowAddTask(false)}
+        onSave={handleAddTask}
+        phases={data.phases}
+        projectId={projectId}
       />
     </div>
   );
