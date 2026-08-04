@@ -52,7 +52,7 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
 
     return (
         <div className="bg-white rounded-xl border border-slate-200 mb-8 overflow-hidden">
-            <nav className="flex">
+            <nav className="flex overflow-x-auto scrollbar-none whitespace-nowrap">
                 {tabs.map((tab) => {
                     const isActive = tab.exact
                         ? pathname === tab.href
@@ -61,7 +61,7 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
                         <Link
                             key={tab.href}
                             href={tab.href}
-                            className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all duration-150 border-b-2 flex-1 justify-center ${isActive
+                            className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all duration-150 border-b-2 flex-1 justify-center whitespace-nowrap min-w-[120px] ${isActive
                                     ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
                                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
