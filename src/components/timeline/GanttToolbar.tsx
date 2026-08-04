@@ -36,7 +36,7 @@ export default function GanttToolbar({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-4">
+    <div className="flex items-center gap-3 mb-4 overflow-x-auto scrollbar-none whitespace-nowrap pb-1">
       {/* Zoom selector */}
       <div className="flex items-center bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         {zoomOptions.map((opt) => (
