@@ -50,7 +50,7 @@ export default function TimelinePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('gantt');
 
   // Gantt controls
-  const [zoom, setZoom] = useState<ZoomLevel>('week');
+  const [zoom, setZoom] = useState<ZoomLevel>('day');
   const [showBaseline, setShowBaseline] = useState(true);
   const [showCriticalPath, setShowCriticalPath] = useState(true);
 
