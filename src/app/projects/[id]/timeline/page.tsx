@@ -203,6 +203,10 @@ export default function TimelinePage() {
     [data.tasks, data.milestones, projectStartDate]
   );
 
+  const handleExportPDF = () => {
+    window.print();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -218,12 +222,74 @@ export default function TimelinePage() {
   }
 
   return (
-    <div>
+    <div className="print:p-0">
+      {/* Global Print Styles */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: landscape;
+            margin: 8mm;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+          .print\\:block {
+            display: block !important;
+          }
+          /* Remove layout constraints and scroll boundaries */
+          main, .max-w-7xl {
+            max-width: none !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          /* Ensure Gantt chart container and scrollables expand fully for print */
+          .overflow-hidden,
+          .overflow-auto,
+          .overflow-x-auto,
+          .overflow-y-auto {
+            overflow: visible !important;
+            max-height: none !important;
+            height: auto !important;
+          }
+          .sticky {
+            position: static !important;
+          }
+          /* Force Gantt grid and timeline width to fit printed area with full task names */
+          div[style*="width: 480px"], div[style*="width: 340px"], div[style*="width: 180px"] {
+            width: 440px !important;
+            min-width: 400px !important;
+          }
+        }
+      `}</style>
+
+      {/* Print header visible only when printing */}
+      <div className="hidden print:block mb-6 border-b border-slate-200 pb-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{projectName}</h1>
+            <p className="text-sm text-slate-500">Project Schedule & Timeline Report (Client Copy)</p>
+          </div>
+          <div className="text-right text-xs text-slate-400">
+            <p>Generated: {new Date().toLocaleDateString()}</p>
+            <p className="capitalize">View: {viewMode}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Header metrics */}
-      <TimelineHeader health={health} projectName={projectName} />
+      <div className="print:hidden">
+        <TimelineHeader health={health} projectName={projectName} />
+      </div>
 
       {/* View switcher + Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4 print:hidden">
         {/* View mode tabs */}
         <div className="flex items-center bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
           {VIEW_OPTIONS.map((opt) => (
@@ -258,12 +324,23 @@ export default function TimelinePage() {
             onSeedDemo={handleSeedDemo}
             isSeeding={isSeeding}
             taskCount={data.tasks.length}
+            onExportPDF={handleExportPDF}
           />
         )}
 
-        {/* Non-gantt toolbar: just add task + count */}
+        {/* Non-gantt toolbar: add task + export PDF + count */}
         {viewMode !== 'gantt' && (
           <>
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-xs transition-all duration-150"
+              title="Export view as PDF for client sharing"
+            >
+              <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export PDF
+            </button>
             <div className="flex-1" />
             {data.tasks.length > 0 && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
@@ -285,7 +362,7 @@ export default function TimelinePage() {
 
       {/* View Content */}
       {data.tasks.length > 0 ? (
-        <>
+        <div className="print:w-full">
           {viewMode === 'gantt' && (
             <GanttChart
               data={data}
@@ -331,7 +408,7 @@ export default function TimelinePage() {
               phases={data.phases}
             />
           )}
-        </>
+        </div>
       ) : (
         <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center shadow-xs">
           <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
@@ -362,22 +439,26 @@ export default function TimelinePage() {
       )}
 
       {/* Task Detail Slide-Out */}
-      <TaskDetailPanel
-        task={selectedTask}
-        isOpen={!!selectedTask}
-        onClose={() => setSelectedTask(null)}
-        onUpdate={handleTaskUpdate}
-        onDelete={handleTaskDelete}
-      />
+      <div className="print:hidden">
+        <TaskDetailPanel
+          task={selectedTask}
+          isOpen={!!selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={handleTaskUpdate}
+          onDelete={handleTaskDelete}
+        />
+      </div>
 
       {/* Add Task Modal */}
-      <AddTaskModal
-        isOpen={showAddTask}
-        onClose={() => setShowAddTask(false)}
-        onSave={handleAddTask}
-        phases={data.phases}
-        projectId={projectId}
-      />
+      <div className="print:hidden">
+        <AddTaskModal
+          isOpen={showAddTask}
+          onClose={() => setShowAddTask(false)}
+          onSave={handleAddTask}
+          phases={data.phases}
+          projectId={projectId}
+        />
+      </div>
     </div>
   );
 }

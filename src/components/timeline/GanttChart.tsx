@@ -58,7 +58,7 @@ export default function GanttChart({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const leftPanelWidth = panelCollapsed ? 44 : isMobile ? 180 : 340;
+  const leftPanelWidth = panelCollapsed ? 44 : isMobile ? 240 : 480;
   const [dragState, setDragState] = useState<{
     taskId: string;
     mode: 'move' | 'resize-end';
@@ -238,10 +238,10 @@ export default function GanttChart({
   };
 
   return (
-    <div className="flex border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm relative">
+    <div className="flex border border-slate-200 rounded-xl overflow-hidden print:overflow-visible bg-white shadow-sm relative print:border-none print:shadow-none">
       {/* Left panel — task list */}
       <div
-        className="flex-shrink-0 border-r border-slate-200 bg-slate-50/80 transition-all duration-200 relative flex flex-col z-20"
+        className="flex-shrink-0 border-r border-slate-200 bg-slate-50/80 transition-all duration-200 relative flex flex-col z-20 print:!w-72 print:!min-w-[280px] print:!max-w-none"
         style={{ width: leftPanelWidth }}
       >
         {/* Header */}
@@ -249,14 +249,14 @@ export default function GanttChart({
           className="flex items-center px-3 border-b border-slate-200 bg-slate-100/80 text-xs font-semibold text-slate-500 uppercase tracking-wider justify-between"
           style={{ height: HEADER_HEIGHT }}
         >
-          {!panelCollapsed && <span className="flex-1 truncate">Task Name</span>}
-          {!panelCollapsed && leftPanelWidth >= 250 && <span className="w-14 text-center">Status</span>}
-          {!panelCollapsed && leftPanelWidth >= 250 && <span className="w-10 text-right">%</span>}
+          <span className={`flex-1 truncate ${panelCollapsed ? 'hidden print:block' : ''}`}>Task Name</span>
+          <span className={`w-14 text-center ${panelCollapsed || leftPanelWidth < 250 ? 'hidden print:block' : ''}`}>Status</span>
+          <span className={`w-10 text-right ${panelCollapsed || leftPanelWidth < 250 ? 'hidden print:block' : ''}`}>%</span>
 
           {/* Panel collapse toggle button */}
           <button
             onClick={() => setPanelCollapsed(!panelCollapsed)}
-            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors ml-auto"
+            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors ml-auto print:hidden"
             title={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
           >
             {panelCollapsed ? '▶' : '◀'}
@@ -267,7 +267,7 @@ export default function GanttChart({
         <div
           ref={leftScrollRef}
           onScroll={handleLeftScroll}
-          className="overflow-y-auto overflow-x-hidden scrollbar-none flex-1"
+          className="overflow-y-auto overflow-x-hidden scrollbar-none flex-1 print:overflow-visible print:max-h-none"
           style={{ maxHeight: `calc(100vh - 320px)` }}
         >
           {visibleRows.map((row) => (
@@ -317,54 +317,51 @@ export default function GanttChart({
               )}
 
               {/* Name */}
-              {!panelCollapsed && (
-                <span
-                  className={`flex-1 truncate text-[12px] ${
-                    row.type === 'phase'
-                      ? 'font-bold text-slate-800'
-                      : 'text-slate-700'
-                  } ${row.isCritical && showCriticalPath ? 'text-red-600 font-semibold' : ''}`}
-                >
-                  {row.name}
-                </span>
-              )}
+              <span
+                className={`flex-1 text-[12px] leading-tight ${
+                  row.type === 'phase'
+                    ? 'font-bold text-slate-800'
+                    : 'text-slate-700'
+                } ${row.isCritical && showCriticalPath ? 'text-red-600 font-semibold' : ''} ${
+                  panelCollapsed ? 'hidden print:block' : 'print:whitespace-normal print:break-words'
+                }`}
+                title={row.name}
+              >
+                {row.name}
+              </span>
 
               {/* Status chip */}
-              {!panelCollapsed && leftPanelWidth >= 250 && (
-                <span className="w-14 flex justify-center flex-shrink-0">
-                  <span
-                    className={`inline-flex items-center rounded-full px-1 py-0.5 text-[9px] font-medium ring-1 ring-inset ${
-                      TASK_STATUS_COLORS[row.status]?.bg || 'bg-slate-100'
-                    } ${TASK_STATUS_COLORS[row.status]?.text || 'text-slate-600'} ${
-                      TASK_STATUS_COLORS[row.status]?.ring || 'ring-slate-300'
-                    }`}
-                  >
-                    {row.status === 'in_progress' ? 'Active' :
-                     row.status === 'not_started' ? 'New' :
-                     row.status === 'completed' ? '✓' :
-                     row.status === 'delayed' ? 'Late' :
-                     row.status === 'on_hold' ? 'Hold' : '—'}
-                  </span>
+              <span className={`w-14 flex justify-center flex-shrink-0 ${panelCollapsed || leftPanelWidth < 250 ? 'hidden print:flex' : ''}`}>
+                <span
+                  className={`inline-flex items-center rounded-full px-1 py-0.5 text-[9px] font-medium ring-1 ring-inset ${
+                    TASK_STATUS_COLORS[row.status]?.bg || 'bg-slate-100'
+                  } ${TASK_STATUS_COLORS[row.status]?.text || 'text-slate-600'} ${
+                    TASK_STATUS_COLORS[row.status]?.ring || 'ring-slate-300'
+                  }`}
+                >
+                  {row.status === 'in_progress' ? 'Active' :
+                   row.status === 'not_started' ? 'New' :
+                   row.status === 'completed' ? '✓' :
+                   row.status === 'delayed' ? 'Late' :
+                   row.status === 'on_hold' ? 'Hold' : '—'}
                 </span>
-              )}
+              </span>
 
               {/* Progress */}
-              {!panelCollapsed && leftPanelWidth >= 250 && (
-                <span className="w-10 text-right text-[11px] font-medium text-slate-500 flex-shrink-0">
-                  {Math.round(row.progress)}%
-                </span>
-              )}
+              <span className={`w-10 text-right text-[11px] font-medium text-slate-500 flex-shrink-0 ${panelCollapsed || leftPanelWidth < 250 ? 'hidden print:block' : ''}`}>
+                {Math.round(row.progress)}%
+              </span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Right panel — Gantt bars */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden print:overflow-visible">
         <div
           ref={scrollContainerRef}
           onScroll={handleRightScroll}
-          className="overflow-auto touch-pan-x touch-pan-y"
+          className="overflow-auto touch-pan-x touch-pan-y print:overflow-visible print:max-h-none"
           style={{ maxHeight: `calc(100vh - 264px)` }}
         >
           <div style={{ width: totalWidth, position: 'relative' }}>

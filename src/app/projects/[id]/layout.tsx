@@ -31,7 +31,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
     return (
         <div>
             {/* Project Header */}
-            <div className="mb-6">
+            <div className="mb-6 print:hidden">
                 <Link
                     href="/projects"
                     className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-indigo-600 transition-colors mb-4 group"
@@ -70,7 +70,9 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
             </div>
 
             {/* Sub Navigation */}
-            <ProjectSubNav projectId={id} />
+            <div className="print:hidden">
+                <ProjectSubNav projectId={id} />
+            </div>
 
             {/* Page Content */}
             {children}

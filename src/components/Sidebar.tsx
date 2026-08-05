@@ -47,7 +47,7 @@ export default function Sidebar() {
 
             {/* Sidebar */}
             <aside
-                className={`fixed top-0 left-0 bottom-0 w-64 bg-slate-900 z-50 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'
+                className={`fixed top-0 left-0 bottom-0 w-64 bg-slate-900 z-50 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 print:hidden ${open ? 'translate-x-0' : '-translate-x-full'
                     }`}
             >
                 {/* Logo */}
