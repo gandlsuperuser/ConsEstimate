@@ -228,7 +228,7 @@ export default function TimelinePage() {
         @media print {
           @page {
             size: landscape;
-            margin: 8mm;
+            margin: 4mm;
           }
           body {
             background: white !important;
@@ -242,14 +242,17 @@ export default function TimelinePage() {
           .print\\:block {
             display: block !important;
           }
-          /* Remove layout constraints and scroll boundaries */
+          /* Remove all vertical and horizontal scroll/height limits */
+          html, body, main, .max-w-7xl, div {
+            max-height: none !important;
+          }
           main, .max-w-7xl {
             max-width: none !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
           }
-          /* Ensure Gantt chart container and scrollables expand fully for print */
+          /* Ensure Gantt chart container and all row scrollables expand fully across all print pages */
           .overflow-hidden,
           .overflow-auto,
           .overflow-x-auto,
@@ -261,10 +264,27 @@ export default function TimelinePage() {
           .sticky {
             position: static !important;
           }
-          /* Force Gantt grid and timeline width to fit printed area with full task names */
+          /* High contrast grid borders for print output */
+          .border-slate-100, .border-slate-200 {
+            border-color: #94a3b8 !important;
+          }
+          /* Allow multi-page printed document flow */
+          .print-gantt-wrapper {
+            width: 100% !important;
+            overflow: visible !important;
+            height: auto !important;
+            page-break-inside: auto !important;
+          }
+          .print-gantt-wrapper > div {
+            width: 100% !important;
+            display: flex !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
           div[style*="width: 480px"], div[style*="width: 340px"], div[style*="width: 180px"] {
-            width: 440px !important;
-            min-width: 400px !important;
+            width: 240px !important;
+            min-width: 200px !important;
+            flex-shrink: 0 !important;
           }
         }
       `}</style>
@@ -362,7 +382,7 @@ export default function TimelinePage() {
 
       {/* View Content */}
       {data.tasks.length > 0 ? (
-        <div className="print:w-full">
+        <div className="print:w-full print-gantt-wrapper">
           {viewMode === 'gantt' && (
             <GanttChart
               data={data}

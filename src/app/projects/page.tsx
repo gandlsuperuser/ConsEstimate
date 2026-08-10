@@ -14,9 +14,12 @@ interface Project {
   client_name: string;
   address: string;
   start_date: string;
-  status: 'active' | 'bidding' | 'complete';
+  end_date?: string;
+  status: 'active' | 'planning' | 'bidding' | 'complete' | string;
   overhead_pct: number;
   profit_pct: number;
+  budget?: string | number;
+  project_code?: string;
 }
 
 export default function ProjectsPage() {
@@ -56,7 +59,16 @@ export default function ProjectsPage() {
 
   const handleEdit = (project: Project) => {
     setEditingProject(project);
-    setFormData(project);
+    setFormData({
+      name: project.name,
+      type: project.type as 'commercial' | 'residential',
+      client_name: project.client_name,
+      address: project.address,
+      start_date: project.start_date,
+      status: project.status as 'active' | 'bidding' | 'complete',
+      overhead_pct: project.overhead_pct,
+      profit_pct: project.profit_pct,
+    });
   };
 
   const handleSave = async () => {

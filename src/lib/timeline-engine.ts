@@ -675,16 +675,17 @@ export function buildDateColumns(
         isToday: formatDate(current) === today,
         isWeekend: current.getDay() === 0 || current.getDay() === 6,
         isMonthStart: current.getDate() === 1,
-        width: 36,
+        width: 30,
       });
       current = new Date(current.getTime() + DAY_MS);
     }
   } else if (zoom === 'week') {
     let current = new Date(start);
-    // Align to Monday
-    while (current.getDay() !== 1) {
-      current = new Date(current.getTime() - DAY_MS);
-    }
+    // Align current start date to Monday
+    const day = current.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    current = new Date(current.getTime() + diffToMonday * DAY_MS);
+
     while (current <= end) {
       const weekEnd = new Date(current.getTime() + 6 * DAY_MS);
       columns.push({
@@ -694,7 +695,7 @@ export function buildDateColumns(
         isToday: formatDate(current) <= today && formatDate(weekEnd) >= today,
         isWeekend: false,
         isMonthStart: current.getDate() <= 7,
-        width: 100,
+        width: 70,
       });
       current = new Date(current.getTime() + 7 * DAY_MS);
     }
@@ -709,7 +710,7 @@ export function buildDateColumns(
         isToday: current.getMonth() === new Date().getMonth() && current.getFullYear() === new Date().getFullYear(),
         isWeekend: false,
         isMonthStart: true,
-        width: Math.max(80, daysInMonth * 4),
+        width: Math.max(65, daysInMonth * 2.5),
       });
       current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
     }
@@ -748,11 +749,16 @@ export function getBarPosition(
       width: Math.max(duration * columnWidth, columnWidth),
     };
   } else if (zoom === 'week') {
-    const startOffset = (taskStart.getTime() - gridStart.getTime()) / (7 * DAY_MS);
-    const durationWeeks = (taskEnd.getTime() - taskStart.getTime()) / (7 * DAY_MS) + 1 / 7;
+    const mondayGridStart = new Date(gridStart);
+    const day = mondayGridStart.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    mondayGridStart.setDate(mondayGridStart.getDate() + diffToMonday);
+
+    const startOffset = (taskStart.getTime() - mondayGridStart.getTime()) / (7 * DAY_MS);
+    const durationWeeks = Math.max(1, Math.ceil((taskEnd.getTime() - taskStart.getTime() + DAY_MS) / DAY_MS)) / 7;
     return {
-      x: startOffset * columnWidth,
-      width: Math.max(durationWeeks * columnWidth, 12),
+      x: Math.round(startOffset * columnWidth),
+      width: Math.max(Math.round(durationWeeks * columnWidth), 18),
     };
   } else {
     // month — approximate

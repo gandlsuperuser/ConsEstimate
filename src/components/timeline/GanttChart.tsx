@@ -79,7 +79,7 @@ export default function GanttChart({
       minDate = visibleRows.reduce((min, r) => r.startDate < min ? r.startDate : min, visibleRows[0].startDate);
       maxDate = visibleRows.reduce((max, r) => r.endDate > max ? r.endDate : max, visibleRows[0].endDate);
     }
-    const pad = zoom === 'month' ? 30 : zoom === 'week' ? 14 : 7;
+    const pad = zoom === 'month' ? 7 : zoom === 'week' ? 4 : 2;
     const gs = new Date(minDate.getTime() - pad * 86400000);
     const ge = new Date(maxDate.getTime() + pad * 86400000);
     return { gridStart: gs, gridEnd: ge };
@@ -241,7 +241,7 @@ export default function GanttChart({
     <div className="flex border border-slate-200 rounded-xl overflow-hidden print:overflow-visible bg-white shadow-sm relative print:border-none print:shadow-none">
       {/* Left panel — task list */}
       <div
-        className="flex-shrink-0 border-r border-slate-200 bg-slate-50/80 transition-all duration-200 relative flex flex-col z-20 print:!w-72 print:!min-w-[280px] print:!max-w-none"
+        className="flex-shrink-0 border-r border-slate-200 bg-slate-50/80 transition-all duration-200 relative flex flex-col z-20 print:!w-64 print:!min-w-[240px] print:!max-w-none"
         style={{ width: leftPanelWidth }}
       >
         {/* Header */}
@@ -267,7 +267,7 @@ export default function GanttChart({
         <div
           ref={leftScrollRef}
           onScroll={handleLeftScroll}
-          className="overflow-y-auto overflow-x-hidden scrollbar-none flex-1 print:overflow-visible print:max-h-none"
+          className="overflow-y-auto overflow-x-hidden scrollbar-none flex-1 print:overflow-visible print:!max-h-none print:!h-auto"
           style={{ maxHeight: `calc(100vh - 320px)` }}
         >
           {visibleRows.map((row) => (
@@ -357,11 +357,11 @@ export default function GanttChart({
       </div>
 
       {/* Right panel — Gantt bars */}
-      <div className="flex-1 overflow-hidden print:overflow-visible">
+      <div className="flex-1 overflow-hidden print:overflow-visible print:!h-auto">
         <div
           ref={scrollContainerRef}
           onScroll={handleRightScroll}
-          className="overflow-auto touch-pan-x touch-pan-y print:overflow-visible print:max-h-none"
+          className="overflow-auto touch-pan-x touch-pan-y print:overflow-visible print:!max-h-none print:!h-auto"
           style={{ maxHeight: `calc(100vh - 264px)` }}
         >
           <div style={{ width: totalWidth, position: 'relative' }}>
@@ -451,28 +451,33 @@ export default function GanttChart({
                       className="absolute transition-all duration-100"
                       style={{
                         left: bar.x,
-                        top: y + 4,
-                        width: Math.max(bar.width, 20),
-                        height: TASK_BAR_HEIGHT - 8,
+                        top: y + 2,
+                        width: Math.max(bar.width, 24),
+                        height: TASK_BAR_HEIGHT - 4,
                       }}
                       onMouseEnter={() => setHoveredRow(row.id)}
                       onMouseLeave={() => setHoveredRow(null)}
                     >
                       {/* Phase summary bar */}
                       <div
-                        className="h-full rounded-sm relative overflow-hidden"
-                        style={{ backgroundColor: row.color + '30' }}
+                        className="h-full rounded relative overflow-hidden border border-slate-700/40 shadow-xs"
+                        style={{ backgroundColor: row.color }}
                       >
                         <div
-                          className="absolute inset-y-0 left-0 rounded-sm"
+                          className="absolute inset-y-0 left-0 rounded-l"
                           style={{
                             width: `${row.progress}%`,
-                            backgroundColor: row.color + '80',
+                            backgroundColor: '#1e293b',
+                            opacity: 0.4,
                           }}
                         />
+                        {/* Phase label inside bar if wide enough */}
+                        <span className="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-white drop-shadow-sm truncate">
+                          {row.name}
+                        </span>
                         {/* Bookend markers */}
-                        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-sm" style={{ backgroundColor: row.color }} />
-                        <div className="absolute right-0 top-0 bottom-0 w-1 rounded-r-sm" style={{ backgroundColor: row.color }} />
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l bg-slate-900" />
+                        <div className="absolute right-0 top-0 bottom-0 w-1.5 rounded-r bg-slate-900" />
                       </div>
                     </div>
                   );
@@ -495,9 +500,9 @@ export default function GanttChart({
                       <svg width={MILESTONE_SIZE * 2} height={MILESTONE_SIZE * 2} viewBox="0 0 20 20">
                         <polygon
                           points="10,0 20,10 10,20 0,10"
-                          fill={row.status === 'completed' ? '#10b981' : '#f59e0b'}
-                          stroke={isHovered ? '#1e293b' : 'white'}
-                          strokeWidth={2}
+                          fill={row.status === 'completed' ? '#059669' : '#d97706'}
+                          stroke={isHovered ? '#0f172a' : '#1e293b'}
+                          strokeWidth={2.5}
                         />
                       </svg>
                     </div>
@@ -505,7 +510,7 @@ export default function GanttChart({
                 }
 
                 // Normal task bar
-                const barColor = TASK_STATUS_COLORS[row.status]?.bar || '#94a3b8';
+                const barColor = TASK_STATUS_COLORS[row.status]?.bar || row.color || '#4f46e5';
                 const isCritical = row.isCritical && showCriticalPath;
 
                 return (
@@ -517,7 +522,7 @@ export default function GanttChart({
                     style={{
                       left: bar.x,
                       top: y,
-                      width: Math.max(bar.width, 12),
+                      width: Math.max(bar.width, 16),
                       height: TASK_BAR_HEIGHT,
                     }}
                     onMouseEnter={() => setHoveredRow(row.id)}
@@ -530,12 +535,12 @@ export default function GanttChart({
                         const baseBar = getBarPosition(row.baselineStart, row.baselineEnd, gridStart, colWidth, zoom);
                         return (
                           <div
-                            className="absolute rounded-full opacity-25"
+                            className="absolute rounded-full opacity-40 border border-slate-700"
                             style={{
                               left: baseBar.x - bar.x,
-                              top: TASK_BAR_HEIGHT - 4,
+                              top: TASK_BAR_HEIGHT - 3,
                               width: Math.max(baseBar.width, 8),
-                              height: 3,
+                              height: 4,
                               backgroundColor: barColor,
                             }}
                           />
@@ -545,35 +550,33 @@ export default function GanttChart({
 
                     {/* Main bar */}
                     <div
-                      className={`h-full rounded-md relative overflow-hidden transition-shadow duration-150 ${
-                        isHovered ? 'shadow-lg ring-2 ring-indigo-400/50' : 'shadow-sm'
-                      } ${isCritical ? 'ring-2 ring-red-500' : ''}`}
+                      className={`h-full rounded-md relative overflow-hidden transition-shadow duration-150 border-2 ${
+                        isHovered ? 'shadow-lg ring-2 ring-indigo-500' : 'shadow-xs'
+                      } ${isCritical ? 'ring-2 ring-red-600 border-red-600' : ''}`}
                       style={{
-                        backgroundColor: barColor + '25',
-                        border: `1px solid ${barColor}50`,
+                        backgroundColor: barColor,
+                        borderColor: '#1e293b',
                       }}
                       onMouseDown={(e) => handleBarMouseDown(e, row, 'move')}
                     >
-                      {/* Progress fill */}
+                      {/* Progress fill overlay */}
                       <div
-                        className="absolute inset-y-0 left-0 rounded-l-md transition-all duration-300"
+                        className="absolute inset-y-0 left-0 rounded-l-md bg-slate-900/30 transition-all duration-300"
                         style={{
                           width: `${row.progress}%`,
-                          backgroundColor: barColor,
-                          opacity: 0.7,
                         }}
                       />
 
-                      {/* Label */}
-                      {bar.width > 60 && (
-                        <span className="absolute inset-0 flex items-center px-2 text-[11px] font-medium text-slate-800 truncate z-10">
+                      {/* Label inside bar */}
+                      {bar.width > 50 && (
+                        <span className="absolute inset-0 flex items-center px-2 text-[11px] font-bold text-white drop-shadow-md truncate z-10">
                           {row.name}
                         </span>
                       )}
 
                       {/* Progress text */}
                       {bar.width > 30 && row.progress > 0 && row.progress < 100 && (
-                        <span className="absolute right-1.5 inset-y-0 flex items-center text-[10px] font-bold text-slate-600 z-10">
+                        <span className="absolute right-1.5 inset-y-0 flex items-center text-[10px] font-extrabold text-white drop-shadow-md z-10">
                           {Math.round(row.progress)}%
                         </span>
                       )}
