@@ -15,6 +15,8 @@ interface GanttToolbarProps {
   isSeeding: boolean;
   taskCount: number;
   onExportPDF?: () => void;
+  onOpenPhotos?: () => void;
+  photosCount?: number;
 }
 
 export default function GanttToolbar({
@@ -30,6 +32,8 @@ export default function GanttToolbar({
   isSeeding,
   taskCount,
   onExportPDF,
+  onOpenPhotos,
+  photosCount,
 }: GanttToolbarProps) {
   const zoomOptions: { value: ZoomLevel; label: string; icon: string }[] = [
     { value: 'day', label: 'Daily', icon: '📅' },
@@ -103,6 +107,22 @@ export default function GanttToolbar({
       )}
 
       {/* Action buttons */}
+      {onOpenPhotos && (
+        <button
+          onClick={onOpenPhotos}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:bg-indigo-200 border border-indigo-200/80 shadow-xs transition-all duration-150 flex-shrink-0"
+          title="View and upload project site photos"
+        >
+          <span>📸</span>
+          <span>Photos</span>
+          {typeof photosCount === 'number' && photosCount > 0 && (
+            <span className="px-1.5 py-0.2 bg-indigo-600 text-white rounded-full text-[10px] font-bold">
+              {photosCount}
+            </span>
+          )}
+        </button>
+      )}
+
       {onExportPDF && (
         <button
           onClick={onExportPDF}

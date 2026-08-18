@@ -18,6 +18,7 @@ import CalendarView from '@/components/timeline/CalendarView';
 import ListView from '@/components/timeline/ListView';
 import KanbanView from '@/components/timeline/KanbanView';
 import MilestoneView from '@/components/timeline/MilestoneView';
+import ProjectPhotoModal from '@/components/ProjectPhotoModal';
 
 type ViewMode = 'gantt' | 'calendar' | 'list' | 'kanban' | 'milestones';
 
@@ -60,26 +61,38 @@ export default function TimelinePage() {
   // Add task modal
   const [showAddTask, setShowAddTask] = useState(false);
 
+  // Photos modal
+  const [photosCount, setPhotosCount] = useState(0);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+
   // Fetch timeline data
   const fetchTimeline = useCallback(async () => {
     try {
-      const [timelineRes, projectRes] = await Promise.all([
+      const [timelineRes, projectRes, photosRes] = await Promise.all([
         fetch(`/api/timeline/${projectId}`),
         fetch(`/api/projects/${projectId}`),
+        fetch(`/api/projects/photos?projectId=${projectId}`),
       ]);
 
       const timeline = await timelineRes.json();
       const proj = await projectRes.json();
+      const photosData = await photosRes.json();
+
+      if (photosData.photos) {
+        setPhotosCount(photosData.photos.length);
+      }
 
       if (timeline.phases || timeline.tasks) {
         setData(timeline);
       }
-      if (proj.project) {
+      if (proj.project?.start_date) {
         setProjectStartDate(proj.project.start_date);
+      }
+      if (proj.project?.name) {
         setProjectName(proj.project.name);
       }
     } catch (err) {
-      console.error('Failed to load timeline:', err);
+      console.error('Error fetching timeline:', err);
     } finally {
       setLoading(false);
     }
@@ -334,12 +347,28 @@ export default function TimelinePage() {
             isSeeding={isSeeding}
             taskCount={data.tasks.length}
             onExportPDF={handleExportPDF}
+            onOpenPhotos={() => setIsPhotoModalOpen(true)}
+            photosCount={photosCount}
           />
         )}
 
-        {/* Non-gantt toolbar: add task + export PDF + count */}
+        {/* Non-gantt toolbar: add task + export PDF + photos + count */}
         {viewMode !== 'gantt' && (
           <>
+            <button
+              onClick={() => setIsPhotoModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:bg-indigo-200 border border-indigo-200/80 shadow-xs transition-all duration-150"
+              title="View and upload project site photos"
+            >
+              <span>📸</span>
+              <span>Photos</span>
+              {photosCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-indigo-600 text-white rounded-full text-[10px] font-bold">
+                  {photosCount}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={handleExportPDF}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-xs transition-all duration-150"
@@ -466,6 +495,23 @@ export default function TimelinePage() {
           onSave={handleAddTask}
           phases={data.phases}
           projectId={projectId}
+        />
+      </div>
+
+      {/* Project Photos Modal */}
+      <div className="print:hidden">
+        <ProjectPhotoModal
+          projectId={projectId}
+          projectName={projectName}
+          isOpen={isPhotoModalOpen}
+          onClose={() => {
+            setIsPhotoModalOpen(false);
+            fetch(`/api/projects/photos?projectId=${projectId}`)
+              .then((r) => r.json())
+              .then((d) => setPhotosCount(d.photos?.length || 0))
+              .catch(console.error);
+          }}
+          onPhotoCountChange={(count) => setPhotosCount(count)}
         />
       </div>
     </div>

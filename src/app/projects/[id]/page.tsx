@@ -18,6 +18,7 @@ import {
   Cell,
   ResponsiveContainer,
 } from 'recharts';
+import ProjectPhotoModal from '@/components/ProjectPhotoModal';
 
 interface Project {
   id: string;
@@ -38,6 +39,8 @@ export default function ProjectOverviewPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [estimateLines, setEstimateLines] = useState<EstimateLine[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [photosCount, setPhotosCount] = useState(0);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,26 +58,41 @@ export default function ProjectOverviewPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [projRes, linesRes, expensesRes] = await Promise.all([
+      const [projRes, linesRes, expensesRes, photosRes] = await Promise.all([
         supabase.from('projects').select('*').eq('id', id).single(),
         fetch(`/api/estimate-lines?projectId=${id}`),
         fetch(`/api/expenses?projectId=${id}`),
+        fetch(`/api/projects/photos?projectId=${id}`),
       ]);
 
       if (projRes.data) {
         setProject(projRes.data);
-        setFormData(projRes.data);
+        setFormData({
+          name: projRes.data.name,
+          type: projRes.data.type,
+          client_name: projRes.data.client_name,
+          address: projRes.data.address,
+          start_date: projRes.data.start_date,
+          status: projRes.data.status,
+          overhead_pct: projRes.data.overhead_pct,
+          profit_pct: projRes.data.profit_pct,
+        });
       }
 
-      try {
+      if (linesRes.ok) {
         const linesData = await linesRes.json();
         setEstimateLines(linesData.lines || []);
-      } catch (e) { console.error(e); }
+      }
 
-      try {
+      if (expensesRes.ok) {
         const expensesData = await expensesRes.json();
         setExpenses(expensesData.expenses || []);
-      } catch (e) { console.error(e); }
+      }
+
+      if (photosRes.ok) {
+        const photosData = await photosRes.json();
+        setPhotosCount(photosData.photos?.length || 0);
+      }
 
       setLoading(false);
     };
@@ -188,7 +206,20 @@ export default function ProjectOverviewPage() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsPhotoModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-xl transition-all border border-indigo-200/80 shadow-xs"
+            >
+              <span>📸</span>
+              <span>Project Photos</span>
+              {photosCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-indigo-600 text-white rounded-full text-[10px] font-bold">
+                  {photosCount}
+                </span>
+              )}
+            </button>
+
             {editing ? (
               <>
                 <button
@@ -210,7 +241,7 @@ export default function ProjectOverviewPage() {
                 onClick={() => setEditing(true)}
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
                 Edit Project
@@ -392,6 +423,22 @@ export default function ProjectOverviewPage() {
           )}
         </div>
       </div>
+
+      {/* Project Photo Modal */}
+      <ProjectPhotoModal
+        projectId={id}
+        projectName={project.name}
+        isOpen={isPhotoModalOpen}
+        onClose={() => {
+          setIsPhotoModalOpen(false);
+          // refresh photo count
+          fetch(`/api/projects/photos?projectId=${id}`)
+            .then((r) => r.json())
+            .then((data) => setPhotosCount(data.photos?.length || 0))
+            .catch(console.error);
+        }}
+        onPhotoCountChange={(count) => setPhotosCount(count)}
+      />
     </div>
   );
 }

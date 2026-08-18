@@ -96,3 +96,16 @@ export interface ReceiptScanResult {
   confidence: 'high' | 'medium' | 'low';
   notes: string;
 }
+
+export interface ProjectPhoto {
+  id: string;
+  project_id: string;
+  url: string;
+  storage_path: string;
+  file_name: string;
+  caption?: string;
+  category?: 'site' | 'progress' | 'before_after' | 'issue' | 'other';
+  uploaded_at: string;
+  file_size?: number;
+}
+
