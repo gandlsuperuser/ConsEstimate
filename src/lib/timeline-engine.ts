@@ -695,7 +695,7 @@ export function buildDateColumns(
         isToday: formatDate(current) <= today && formatDate(weekEnd) >= today,
         isWeekend: false,
         isMonthStart: current.getDate() <= 7,
-        width: 70,
+        width: 42,
       });
       current = new Date(current.getTime() + 7 * DAY_MS);
     }

@@ -241,7 +241,7 @@ export default function GanttChart({
     <div className="flex border border-slate-200 rounded-xl overflow-hidden print:overflow-visible bg-white shadow-sm relative print:border-none print:shadow-none">
       {/* Left panel — task list */}
       <div
-        className="flex-shrink-0 border-r border-slate-200 bg-slate-50/80 transition-all duration-200 relative flex flex-col z-20 print:!w-64 print:!min-w-[240px] print:!max-w-none"
+        className="flex-shrink-0 border-r border-slate-200 bg-slate-50/80 transition-all duration-200 relative flex flex-col z-20 print:w-auto print:max-w-none"
         style={{ width: leftPanelWidth }}
       >
         {/* Header */}

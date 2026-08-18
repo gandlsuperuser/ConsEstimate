@@ -228,7 +228,7 @@ export default function TimelinePage() {
         @media print {
           @page {
             size: landscape;
-            margin: 4mm;
+            margin: 5mm;
           }
           body {
             background: white !important;
@@ -242,17 +242,14 @@ export default function TimelinePage() {
           .print\\:block {
             display: block !important;
           }
-          /* Remove all vertical and horizontal scroll/height limits */
-          html, body, main, .max-w-7xl, div {
-            max-height: none !important;
-          }
-          main, .max-w-7xl {
+          /* Expand outer layout containers */
+          html, body, main, .max-w-7xl {
             max-width: none !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
           }
-          /* Ensure Gantt chart container and all row scrollables expand fully across all print pages */
+          /* Allow scrollables to expand vertically for multi-page output */
           .overflow-hidden,
           .overflow-auto,
           .overflow-x-auto,
@@ -268,21 +265,13 @@ export default function TimelinePage() {
           .border-slate-100, .border-slate-200 {
             border-color: #94a3b8 !important;
           }
-          /* Allow multi-page printed document flow */
           .print-gantt-wrapper {
             width: 100% !important;
             overflow: visible !important;
-            height: auto !important;
-            page-break-inside: auto !important;
           }
-          .print-gantt-wrapper > div {
-            width: 100% !important;
-            display: flex !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
+          /* Streamline left panel width on print so 100% of weekly date columns (Aug to Dec 31) fit horizontally */
           div[style*="width: 480px"], div[style*="width: 340px"], div[style*="width: 180px"] {
-            width: 240px !important;
+            width: 250px !important;
             min-width: 200px !important;
             flex-shrink: 0 !important;
           }

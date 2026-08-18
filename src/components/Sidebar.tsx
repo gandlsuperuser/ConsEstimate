@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import VoiceExpenseModal from './VoiceExpenseModal';
 
 export default function Sidebar() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
+    const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
     const isActive = (href: string) => pathname.startsWith(href);
 
@@ -66,7 +68,7 @@ export default function Sidebar() {
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 px-3 py-5">
+                <nav className="flex-1 px-3 py-5 space-y-1">
                     <p className="px-3 mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
                         Menu
                     </p>
@@ -84,6 +86,22 @@ export default function Sidebar() {
                         </svg>
                         Projects
                     </Link>
+
+                    <div className="pt-4">
+                        <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                            Quick Actions
+                        </p>
+                        <button
+                            onClick={() => {
+                                setOpen(false);
+                                setIsVoiceOpen(true);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-indigo-300 bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-800/40 transition-all duration-150 group text-left"
+                        >
+                            <span className="text-base group-hover:scale-110 transition-transform">🎙️</span>
+                            <span>Voice Expense</span>
+                        </button>
+                    </div>
                 </nav>
 
                 {/* Footer */}
@@ -91,6 +109,12 @@ export default function Sidebar() {
                     <p className="text-[10px] font-medium text-slate-600 tracking-wide">v0.1.0</p>
                 </div>
             </aside>
+
+            {/* Global Voice Expense Modal */}
+            <VoiceExpenseModal
+                isOpen={isVoiceOpen}
+                onClose={() => setIsVoiceOpen(false)}
+            />
         </>
     );
 }
