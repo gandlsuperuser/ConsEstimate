@@ -345,12 +345,18 @@ export interface ProjectDrawing {
 export interface DrawingMarkup {
   id: string;
   drawing_id: string;
-  markup_type: 'cloud' | 'arrow' | 'callout' | 'measurement' | 'rfi_pin' | 'obs_pin';
+  markup_type: 'cloud' | 'arrow' | 'callout' | 'measurement' | 'dimension' | 'pen' | 'rectangle' | 'rfi_pin' | 'obs_pin';
   x: number;
   y: number;
+  x2?: number;
+  y2?: number;
+  width?: number;
+  height?: number;
+  points?: { x: number; y: number }[];
   text?: string;
   linked_record_id?: string;
   color?: string;
+  strokeWidth?: number;
   author_name: string;
   created_at?: string;
 }
