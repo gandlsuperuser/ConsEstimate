@@ -24,22 +24,37 @@ interface ProjectCardProps {
   onDelete?: (id: string) => void;
 }
 
-export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
-  // Generate or format project code (e.g. PRJ-2026-002)
-  const projectCode = project.project_code || `PRJ-${new Date().getFullYear()}-${project.id.slice(0, 3).toUpperCase()}`;
+// Color palette for project placeholder thumbnails
+const PROJECT_COLORS = [
+  'from-orange-400 to-amber-500',
+  'from-blue-500 to-indigo-600',
+  'from-emerald-400 to-teal-600',
+  'from-rose-400 to-pink-600',
+  'from-violet-500 to-purple-700',
+  'from-cyan-400 to-blue-500',
+  'from-amber-500 to-orange-600',
+  'from-green-500 to-emerald-700',
+];
 
-  // Map status badges
-  const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-    active: { label: 'active', bg: 'bg-emerald-100/80', text: 'text-emerald-700' },
-    planning: { label: 'planning', bg: 'bg-blue-100/80', text: 'text-blue-700' },
-    bidding: { label: 'bidding', bg: 'bg-amber-100/80', text: 'text-amber-700' },
-    complete: { label: 'complete', bg: 'bg-slate-100', text: 'text-slate-700' },
+export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
+  // Generate or format project code
+  const projectCode = project.project_code || `B-${project.id.slice(0, 4).toUpperCase()}`;
+
+  // Get a consistent color for the project based on id
+  const colorIndex = project.id.charCodeAt(0) % PROJECT_COLORS.length;
+  const gradientColor = PROJECT_COLORS[colorIndex];
+
+  // Map status badges — Procore-style
+  const statusConfig: Record<string, { label: string; bg: string }> = {
+    active: { label: 'Active', bg: 'bg-green-100 text-green-800' },
+    planning: { label: 'Planning', bg: 'bg-blue-100 text-blue-800' },
+    bidding: { label: 'Bidding', bg: 'bg-amber-100 text-amber-800' },
+    complete: { label: 'Complete', bg: 'bg-gray-200 text-gray-700' },
   };
 
-  const currentStatus = statusConfig[project.status.toLowerCase()] || {
+  const currentStatus = statusConfig[project.status?.toLowerCase()] || {
     label: project.status,
-    bg: 'bg-slate-100',
-    text: 'text-slate-700',
+    bg: 'bg-gray-100 text-gray-700',
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -50,104 +65,88 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
     }
   };
 
-  // Format budget or budget placeholder
-  const formattedBudget = typeof project.budget === 'number'
-    ? `$${(project.budget / 1000000).toFixed(1)}M`
-    : project.budget || '$72.0M';
-
-  // Format dates
-  const dateRange = project.start_date
-    ? `${new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} – ${
-        project.end_date
-          ? new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : 'Jun 29, 2028'
-      }`
-    : 'Jan 14, 2026 – Jun 29, 2028';
+  // Type badge
+  const typeLabel = project.type === 'commercial' ? 'Commercial' : 'Residential';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 p-6 flex flex-col justify-between group">
-      {/* Top Header: Code, Status Badge, Trash Icon */}
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="text-[13px] font-medium text-slate-500 tracking-wide">
-              {projectCode}
-            </span>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${currentStatus.bg} ${currentStatus.text}`}
-            >
-              {currentStatus.label}
-            </span>
-          </div>
-
-          <button
-            onClick={handleDelete}
-            className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-slate-50"
-            title="Delete Project"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-              />
-            </svg>
-          </button>
+    <Link
+      href={`/projects/${project.id}`}
+      className="block bg-white rounded-lg border border-procore-border hover:shadow-lg hover:border-procore-orange/30 transition-all duration-200 overflow-hidden group"
+    >
+      {/* Thumbnail area */}
+      <div className={`h-28 bg-gradient-to-br ${gradientColor} relative`}>
+        {/* Project icon */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-20">
+          <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+          </svg>
         </div>
 
-        {/* Project Title */}
-        <h3 className="text-lg font-bold text-slate-900 tracking-tight mb-4 group-hover:text-indigo-600 transition-colors">
+        {/* Status badge — top right */}
+        <div className="absolute top-2 right-2">
+          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-sm ${currentStatus.bg}`}>
+            {currentStatus.label}
+          </span>
+        </div>
+
+        {/* Project code — bottom left */}
+        <div className="absolute bottom-2 left-2">
+          <span className="bg-black/40 backdrop-blur-sm text-white text-[11px] font-bold px-2 py-0.5 rounded">
+            {projectCode}
+          </span>
+        </div>
+
+        {/* Delete button — top left */}
+        <button
+          onClick={handleDelete}
+          className="absolute top-2 left-2 w-6 h-6 rounded bg-black/30 backdrop-blur-sm text-white/70 hover:text-white hover:bg-red-500/80 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
+          title="Delete Project"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Info section */}
+      <div className="p-3.5">
+        <h3 className="text-sm font-bold text-procore-text tracking-tight mb-1.5 group-hover:text-procore-orange transition-colors line-clamp-1">
           {project.name}
         </h3>
 
-        {/* Info List */}
-        <div className="space-y-2 text-[13px] text-slate-500 mb-6">
+        <div className="space-y-1 text-[12px] text-procore-text-secondary">
           {/* Client */}
-          <div className="flex items-center gap-2.5">
-            <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h9m-9 0V9a2 2 0 012-2h2a2 2 0 012 2v12" />
-            </svg>
-            <span className="truncate">{project.client_name || 'HealthFirst Partners'}</span>
-          </div>
+          {project.client_name && (
+            <div className="flex items-center gap-1.5 truncate">
+              <svg className="w-3 h-3 text-procore-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+              </svg>
+              <span className="truncate">{project.client_name}</span>
+            </div>
+          )}
 
           {/* Location */}
-          <div className="flex items-center gap-2.5">
-            <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-            </svg>
-            <span className="truncate">{project.address || 'Denver, CO'}</span>
-          </div>
+          {project.address && (
+            <div className="flex items-center gap-1.5 truncate">
+              <svg className="w-3 h-3 text-procore-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+              </svg>
+              <span className="truncate">{project.address}</span>
+            </div>
+          )}
+        </div>
 
-          {/* Date Range */}
-          <div className="flex items-center gap-2.5">
-            <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 3h.008v.008H12V18z" />
-            </svg>
-            <span>{dateRange}</span>
-          </div>
-
-          {/* Budget */}
-          <div className="flex items-center gap-2.5 font-medium text-slate-600">
-            <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v12m-3-6h6" />
-            </svg>
-            <span>{formattedBudget}</span>
-          </div>
+        {/* Footer: type */}
+        <div className="mt-2.5 pt-2.5 border-t border-procore-border-light flex items-center justify-between">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-procore-text-muted">
+            {typeLabel}
+          </span>
+          <svg className="w-4 h-4 text-procore-text-muted group-hover:text-procore-orange transition-colors group-hover:translate-x-0.5 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+          </svg>
         </div>
       </div>
-
-      {/* Bottom Button */}
-      <Link
-        href={`/projects/${project.id}`}
-        className="w-full py-2.5 px-4 rounded-xl border border-slate-200 text-slate-800 text-[13px] font-semibold flex items-center justify-center gap-1.5 hover:bg-slate-50 hover:border-slate-300 transition-all duration-150 shadow-2xs"
-      >
-        Open Project
-        <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-        </svg>
-      </Link>
-    </div>
+    </Link>
   );
 }

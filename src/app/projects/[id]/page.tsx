@@ -44,6 +44,7 @@ export default function ProjectOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -56,47 +57,47 @@ export default function ProjectOverviewPage() {
     profit_pct: 10,
   });
 
+  const fetchData = async () => {
+    const [projRes, linesRes, expensesRes, photosRes] = await Promise.all([
+      supabase.from('projects').select('*').eq('id', id).single(),
+      fetch(`/api/estimate-lines?projectId=${id}`),
+      fetch(`/api/expenses?projectId=${id}`),
+      fetch(`/api/projects/photos?projectId=${id}`),
+    ]);
+
+    if (projRes.data) {
+      setProject(projRes.data);
+      setFormData({
+        name: projRes.data.name,
+        type: projRes.data.type,
+        client_name: projRes.data.client_name,
+        address: projRes.data.address,
+        start_date: projRes.data.start_date,
+        status: projRes.data.status,
+        overhead_pct: projRes.data.overhead_pct,
+        profit_pct: projRes.data.profit_pct,
+      });
+    }
+
+    if (linesRes.ok) {
+      const linesData = await linesRes.json();
+      setEstimateLines(linesData.lines || []);
+    }
+
+    if (expensesRes.ok) {
+      const expensesData = await expensesRes.json();
+      setExpenses(expensesData.expenses || []);
+    }
+
+    if (photosRes.ok) {
+      const photosData = await photosRes.json();
+      setPhotosCount(photosData.photos?.length || 0);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      const [projRes, linesRes, expensesRes, photosRes] = await Promise.all([
-        supabase.from('projects').select('*').eq('id', id).single(),
-        fetch(`/api/estimate-lines?projectId=${id}`),
-        fetch(`/api/expenses?projectId=${id}`),
-        fetch(`/api/projects/photos?projectId=${id}`),
-      ]);
-
-      if (projRes.data) {
-        setProject(projRes.data);
-        setFormData({
-          name: projRes.data.name,
-          type: projRes.data.type,
-          client_name: projRes.data.client_name,
-          address: projRes.data.address,
-          start_date: projRes.data.start_date,
-          status: projRes.data.status,
-          overhead_pct: projRes.data.overhead_pct,
-          profit_pct: projRes.data.profit_pct,
-        });
-      }
-
-      if (linesRes.ok) {
-        const linesData = await linesRes.json();
-        setEstimateLines(linesData.lines || []);
-      }
-
-      if (expensesRes.ok) {
-        const expensesData = await expensesRes.json();
-        setExpenses(expensesData.expenses || []);
-      }
-
-      if (photosRes.ok) {
-        const photosData = await photosRes.json();
-        setPhotosCount(photosData.photos?.length || 0);
-      }
-
-      setLoading(false);
-    };
-
     fetchData();
   }, [id]);
 
@@ -120,20 +121,39 @@ export default function ProjectOverviewPage() {
     setEditing(false);
   };
 
+  const handleSeedLifecycle = async () => {
+    setIsSeeding(true);
+    try {
+      const res = await fetch('/api/workflow-seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: id }),
+      });
+      if (res.ok) {
+        alert('Seeded complete Procore lifecycle workflow across all 11 modules!');
+        await fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-slate-500 font-medium">
-        <svg className="w-5 h-5 animate-spin text-indigo-600 mr-2" fill="none" viewBox="0 0 24 24">
+      <div className="flex items-center justify-center py-16">
+        <svg className="w-5 h-5 animate-spin text-procore-orange mr-2" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
-        Loading project overview & dashboard...
+        <span className="text-procore-text-secondary text-sm font-medium">Loading project overview...</span>
       </div>
     );
   }
 
   if (!project) {
-    return <div className="text-center py-12 text-slate-500 font-medium">Project not found</div>;
+    return <div className="text-center py-12 text-procore-text-secondary font-medium">Project not found</div>;
   }
 
   // Financial calculations
@@ -147,10 +167,7 @@ export default function ProjectOverviewPage() {
   const cost = totalEstimated + totalExpenses + overheadAmount;
   const profit = revenue - cost;
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-
   const budgetUsedPct = totalEstimated > 0 ? (totalExpenses / totalEstimated) * 100 : 0;
-  const statusBg = budgetUsedPct < 90 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : budgetUsedPct <= 100 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200';
-  const statusLabel = budgetUsedPct < 90 ? 'Under Budget' : budgetUsedPct <= 100 ? 'At Budget' : 'Over Budget';
 
   // Category breakdown for bar chart
   const categoryBreakdown = RESIDENTIAL_CATEGORIES.map(cat => {
@@ -169,235 +186,289 @@ export default function ProjectOverviewPage() {
     value: expenses.filter(e => e.category === cat).reduce((sum, e) => sum + e.amount, 0),
   })).filter(d => d.value > 0);
 
-  const CHART_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#f59e0b', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#d946ef'];
+  const CHART_COLORS = ['#F47E20', '#2E7D32', '#1565C0', '#D32F2F', '#F57C00', '#7B1FA2', '#00838F', '#C62828', '#558B2F', '#4527A0'];
 
-  const statusBadgeColors: Record<string, string> = {
-    active: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    bidding: 'bg-amber-50 text-amber-700 border-amber-200',
-    complete: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  };
+  const recentExpenses = [...expenses].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+
+  const workflowSteps = [
+    { label: 'Estimate', href: `/projects/${id}/estimate`, step: '1' },
+    { label: 'Bid', href: `/projects/${id}/bidding`, step: '2' },
+    { label: 'Contract', href: `/projects/${id}/contracts`, step: '3' },
+    { label: 'Submittal', href: `/projects/${id}/submittals`, step: '4' },
+    { label: 'RFI', href: `/projects/${id}/rfis`, step: '5' },
+    { label: 'Change Event', href: `/projects/${id}/change-events`, step: '6' },
+    { label: 'Change Order', href: `/projects/${id}/change-orders`, step: '7' },
+    { label: 'Field Work', href: `/projects/${id}/observations`, step: '8' },
+    { label: 'Pay App', href: `/projects/${id}/pay-apps`, step: '9' },
+    { label: 'Payment', href: `/projects/${id}/receipts`, step: '10' },
+    { label: 'Analytics', href: `/projects/${id}/analytics`, step: '11' },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Back button & Title bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/projects"
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <div>
-              {editing ? (
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="text-2xl font-bold border border-slate-300 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-indigo-500"
-                />
-              ) : (
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{project.name}</h1>
-              )}
-              <p className="text-xs text-slate-500 mt-0.5">Project Overview & Financial Dashboard</p>
-            </div>
+      {/* Procore Construction Lifecycle Flow Banner */}
+      <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-3 pb-3 border-b border-procore-border-light">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-procore-orange">Procore Lifecycle Navigation</span>
+            <h2 className="text-sm font-bold text-procore-text">Construction Project Workflow Sequence</h2>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsPhotoModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-xl transition-all border border-indigo-200/80 shadow-xs"
-            >
-              <span>📸</span>
-              <span>Project Photos</span>
-              {photosCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-indigo-600 text-white rounded-full text-[10px] font-bold">
-                  {photosCount}
-                </span>
-              )}
-            </button>
-
-            {editing ? (
-              <>
-                <button
-                  onClick={handleCancel}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-                Edit Project
-              </button>
-            )}
-          </div>
+          <button
+            onClick={handleSeedLifecycle}
+            disabled={isSeeding}
+            className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3 py-1.5 rounded shadow-2xs transition-colors flex items-center gap-1"
+          >
+            <span>⚡</span> {isSeeding ? 'Seeding...' : 'Seed Rooftop HVAC Lifecycle Demo'}
+          </button>
         </div>
 
-        {/* Project Meta Info */}
-        <div className="flex flex-wrap gap-4 text-xs items-center pt-3 border-t border-slate-100">
+        {/* Horizontal Workflow Stepper */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-1.5 text-center">
+          {workflowSteps.map((s, idx) => (
+            <Link
+              key={s.label}
+              href={s.href}
+              className="p-2 rounded border border-procore-border-light bg-gray-50/60 hover:bg-procore-orange-light hover:border-procore-orange transition-all group"
+            >
+              <span className="w-5 h-5 rounded-full bg-white border border-procore-border text-[10px] font-bold text-procore-text-muted mx-auto flex items-center justify-center group-hover:border-procore-orange group-hover:text-procore-orange">
+                {s.step}
+              </span>
+              <span className="block text-[11px] font-bold text-procore-text group-hover:text-procore-orange mt-1 truncate">
+                {s.label}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Header Bar */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-bold text-procore-text">Project Overview & Control Center</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsPhotoModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-procore-text-secondary bg-white hover:bg-gray-50 border border-procore-border rounded-md transition-colors"
+          >
+            <span>📸</span>
+            Photos
+            {photosCount > 0 && (
+              <span className="px-1.5 py-0.5 bg-procore-orange text-white rounded-full text-[9px] font-bold leading-none">{photosCount}</span>
+            )}
+          </button>
           {editing ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Type</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'commercial' | 'residential' })}
-                  className="w-full text-xs border border-slate-200 rounded-lg p-2"
-                >
-                  <option value="residential">Residential</option>
-                  <option value="commercial">Commercial</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Client</label>
-                <input
-                  type="text"
-                  value={formData.client_name}
-                  onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                  className="w-full text-xs border border-slate-200 rounded-lg p-2"
-                  placeholder="Client name"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Address</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full text-xs border border-slate-200 rounded-lg p-2"
-                  placeholder="Address"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Start Date</label>
-                <input
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="w-full text-xs border border-slate-200 rounded-lg p-2"
-                />
+            <>
+              <button onClick={handleCancel} className="px-3 py-1.5 text-[12px] font-medium text-procore-text-secondary border border-procore-border rounded-md hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 text-[12px] font-bold bg-procore-orange text-white rounded-md hover:bg-procore-orange-hover disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-procore-text-secondary bg-white hover:bg-gray-50 border border-procore-border rounded-md transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Edit Details
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Top Row: KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          label="Estimated Cost"
+          value={`$${totalEstimated.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          subtitle="From estimate lines"
+          color="text-procore-text"
+        />
+        <KPICard
+          label="Actual Spend"
+          value={`$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          subtitle={`${budgetUsedPct.toFixed(1)}% of budget`}
+          color="text-procore-orange"
+        />
+        <KPICard
+          label="Total Revenue"
+          value={`$${revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          subtitle={`${project.overhead_pct}% OH + ${project.profit_pct}% Profit`}
+          color="text-procore-text"
+        />
+        <KPICard
+          label="Gross Profit"
+          value={`$${profit.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          subtitle={`${margin.toFixed(1)}% margin`}
+          color={profit >= 0 ? 'text-procore-success' : 'text-procore-danger'}
+        />
+      </div>
+
+      {/* Middle: Project Details + Quick Create Cards */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        {/* Project Details Card */}
+        <DashboardCard title="Project Details" className="lg:col-span-1">
+          {editing ? (
+            <div className="space-y-3">
+              <EditField label="Type" value={formData.type} type="select" options={[{ value: 'residential', label: 'Residential' }, { value: 'commercial', label: 'Commercial' }]} onChange={(v) => setFormData({ ...formData, type: v as 'commercial' | 'residential' })} />
+              <EditField label="Client" value={formData.client_name} onChange={(v) => setFormData({ ...formData, client_name: v })} />
+              <EditField label="Address" value={formData.address} onChange={(v) => setFormData({ ...formData, address: v })} />
+              <EditField label="Start Date" value={formData.start_date} type="date" onChange={(v) => setFormData({ ...formData, start_date: v })} />
+              <div className="grid grid-cols-2 gap-3">
+                <EditField label="Overhead %" value={String(formData.overhead_pct)} type="number" onChange={(v) => setFormData({ ...formData, overhead_pct: parseFloat(v) || 0 })} />
+                <EditField label="Profit %" value={String(formData.profit_pct)} type="number" onChange={(v) => setFormData({ ...formData, profit_pct: parseFloat(v) || 0 })} />
               </div>
             </div>
           ) : (
-            <>
-              <span className="capitalize px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-semibold text-[11px]">
-                {project.type}
-              </span>
-              <span className="text-slate-600 font-medium">👤 {project.client_name || 'No Client'}</span>
-              <span className="text-slate-600 font-medium">📍 {project.address || 'No Address'}</span>
-              <span className="text-slate-600 font-medium">📅 Start: {project.start_date}</span>
-              <span className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold ${statusBadgeColors[project.status] || 'bg-slate-100'}`}>
-                {project.status.toUpperCase()}
-              </span>
-              <span className={`ml-auto px-3 py-1 rounded-full border text-[11px] font-bold ${statusBg}`}>
-                {statusLabel} ({budgetUsedPct.toFixed(1)}% used)
-              </span>
-            </>
+            <div className="space-y-3">
+              <DetailRow icon="👤" label="Client" value={project.client_name} />
+              <DetailRow icon="📍" label="Location" value={project.address} />
+              <DetailRow icon="📅" label="Start Date" value={project.start_date} />
+              <DetailRow icon="🏗️" label="Type" value={project.type === 'commercial' ? 'Commercial' : 'Residential'} />
+              <DetailRow icon="📊" label="Overhead" value={`${project.overhead_pct}%`} />
+              <DetailRow icon="💰" label="Profit" value={`${project.profit_pct}%`} />
+            </div>
           )}
-        </div>
+        </DashboardCard>
 
-        {/* Overhead & Profit Settings */}
-        {editing && (
-          <div className="grid grid-cols-2 gap-4 mt-4 pt-3 border-t border-slate-100">
-            <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Overhead %</label>
-              <input
-                type="number"
-                value={formData.overhead_pct}
-                onChange={(e) => setFormData({ ...formData, overhead_pct: parseFloat(e.target.value) || 0 })}
-                className="w-full text-xs border border-slate-200 rounded-lg p-2"
-                step="0.1"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Profit %</label>
-              <input
-                type="number"
-                value={formData.profit_pct}
-                onChange={(e) => setFormData({ ...formData, profit_pct: parseFloat(e.target.value) || 0 })}
-                className="w-full text-xs border border-slate-200 rounded-lg p-2"
-                step="0.1"
-              />
-            </div>
+        {/* Quick Tools & Workflow Navigation */}
+        <DashboardCard title="Workflow Modules" className="lg:col-span-1">
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href={`/projects/${id}/bidding`}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+            >
+              <span className="w-7 h-7 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-bold">
+                📋
+              </span>
+              <div>
+                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Bidding</p>
+                <p className="text-[10px] text-procore-text-muted">Bid Leveling</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/projects/${id}/contracts`}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+            >
+              <span className="w-7 h-7 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold">
+                📝
+              </span>
+              <div>
+                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Contracts</p>
+                <p className="text-[10px] text-procore-text-muted">Commitments</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/projects/${id}/rfis`}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+            >
+              <span className="w-7 h-7 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                ❓
+              </span>
+              <div>
+                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">RFIs</p>
+                <p className="text-[10px] text-procore-text-muted">→ Change Events</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/projects/${id}/change-orders`}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+            >
+              <span className="w-7 h-7 rounded bg-orange-50 text-procore-orange flex items-center justify-center text-xs font-bold">
+                🔄
+              </span>
+              <div>
+                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Change Orders</p>
+                <p className="text-[10px] text-procore-text-muted">PCOs / CCOs</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/projects/${id}/observations`}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+            >
+              <span className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold">
+                🔍
+              </span>
+              <div>
+                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Observations</p>
+                <p className="text-[10px] text-procore-text-muted">Quality & Safety</p>
+              </div>
+            </Link>
+
+            <Link
+              href={`/projects/${id}/pay-apps`}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+            >
+              <span className="w-7 h-7 rounded bg-teal-50 text-teal-600 flex items-center justify-center text-xs font-bold">
+                💵
+              </span>
+              <div>
+                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Pay Apps</p>
+                <p className="text-[10px] text-procore-text-muted">SOV Billing</p>
+              </div>
+            </Link>
           </div>
-        )}
-      </div>
+        </DashboardCard>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Estimated Cost</span>
-          <div className="text-2xl font-bold text-slate-800 mt-1">${totalEstimated.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          <span className="text-[11px] text-slate-500 mt-1 block">From estimate lines</span>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Actual Spend</span>
-          <div className="text-2xl font-bold text-indigo-600 mt-1">${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          <span className="text-[11px] text-slate-500 mt-1 block">From logged receipts</span>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Revenue</span>
-          <div className="text-2xl font-bold text-slate-800 mt-1">${revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          <span className="text-[11px] text-slate-500 mt-1 block">Incl. {project.overhead_pct}% OH + {project.profit_pct}% Profit</span>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Gross Profit</span>
-          <div className={`text-2xl font-bold mt-1 ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            ${profit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-          </div>
-          <span className="text-[11px] font-semibold text-slate-500 mt-1 block">{margin.toFixed(1)}% margin</span>
-        </div>
+        {/* Recent Activity Card */}
+        <DashboardCard title="Recent Expenses & Spend" className="lg:col-span-1">
+          {recentExpenses.length > 0 ? (
+            <div className="space-y-2">
+              {recentExpenses.map((exp) => (
+                <div key={exp.id} className="flex items-center justify-between py-1.5 border-b border-procore-border-light last:border-0">
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold text-procore-text truncate">{exp.vendor}</p>
+                    <p className="text-[11px] text-procore-text-muted truncate">{exp.category} · {exp.expense_date}</p>
+                  </div>
+                  <span className="text-[12px] font-bold text-procore-text ml-2 flex-shrink-0">
+                    ${exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))}
+              <Link
+                href={`/projects/${id}/receipts`}
+                className="block text-center text-[11px] font-semibold text-procore-orange hover:text-procore-orange-hover mt-1"
+              >
+                View Full Budget & Receipts →
+              </Link>
+            </div>
+          ) : (
+            <p className="text-sm text-procore-text-muted italic text-center py-6">No expenses recorded yet</p>
+          )}
+        </DashboardCard>
       </div>
 
       {/* Financial Charts */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-4">
         {/* Bar Chart — Estimated vs Actual */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-800 mb-4">Estimated vs. Actual Spend by Category</h3>
+        <DashboardCard title="Estimated vs. Actual Spend by Category">
           {categoryBreakdown.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={280}>
               <BarChart data={categoryBreakdown}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="category" tick={{ fontSize: 10, fill: '#64748b' }} angle={-45} textAnchor="end" height={80} />
-                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+                <XAxis dataKey="category" tick={{ fontSize: 10, fill: '#757575' }} angle={-45} textAnchor="end" height={80} />
+                <YAxis tick={{ fontSize: 10, fill: '#757575' }} />
                 <Tooltip formatter={(val: any) => `$${Number(val).toLocaleString()}`} />
                 <Legend />
-                <Bar dataKey="estimated" name="Estimated" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="actual" name="Actual" fill="#f97316" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="estimated" name="Estimated" fill="#F47E20" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="actual" name="Actual" fill="#1565C0" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[300px] text-xs text-slate-400 italic">
-              No category estimate or expense data available yet.
+            <div className="flex items-center justify-center h-[280px] text-sm text-procore-text-muted italic">
+              No category data available yet
             </div>
           )}
-        </div>
+        </DashboardCard>
 
         {/* Pie Chart — Expenses Breakdown */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-800 mb-4">Expense Distribution by Category</h3>
+        <DashboardCard title="Expense Distribution by Category">
           {expensesByCategory.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={expensesByCategory}
@@ -405,7 +476,7 @@ export default function ProjectOverviewPage() {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  outerRadius={95}
                   label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
                   labelLine={false}
                 >
@@ -417,11 +488,11 @@ export default function ProjectOverviewPage() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[300px] text-xs text-slate-400 italic">
-              No expenses logged for this project yet.
+            <div className="flex items-center justify-center h-[280px] text-sm text-procore-text-muted italic">
+              No expenses logged yet
             </div>
           )}
-        </div>
+        </DashboardCard>
       </div>
 
       {/* Project Photo Modal */}
@@ -431,7 +502,6 @@ export default function ProjectOverviewPage() {
         isOpen={isPhotoModalOpen}
         onClose={() => {
           setIsPhotoModalOpen(false);
-          // refresh photo count
           fetch(`/api/projects/photos?projectId=${id}`)
             .then((r) => r.json())
             .then((data) => setPhotosCount(data.photos?.length || 0))
@@ -439,6 +509,75 @@ export default function ProjectOverviewPage() {
         }}
         onPhotoCountChange={(count) => setPhotosCount(count)}
       />
+    </div>
+  );
+}
+
+// Subcomponents
+function DashboardCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`bg-white rounded-lg border border-procore-border shadow-xs ${className}`}>
+      <div className="px-4 py-3 border-b border-procore-border-light">
+        <h3 className="text-[13px] font-bold text-procore-text">{title}</h3>
+      </div>
+      <div className="p-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function KPICard({ label, value, subtitle, color }: { label: string; value: string; subtitle: string; color: string }) {
+  return (
+    <div className="bg-white rounded-lg border border-procore-border shadow-xs p-4">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">{label}</p>
+      <p className={`text-xl font-bold ${color}`}>{value}</p>
+      <p className="text-[11px] text-procore-text-muted mt-0.5">{subtitle}</p>
+    </div>
+  );
+}
+
+function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2 text-[12px]">
+      <span className="flex-shrink-0 mt-0.5">{icon}</span>
+      <div>
+        <span className="font-semibold text-procore-text-muted">{label}</span>
+        <p className="text-procore-text">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function EditField({
+  label, value, type = 'text', options, onChange
+}: {
+  label: string;
+  value: string;
+  type?: 'text' | 'select' | 'date' | 'number';
+  options?: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-[10px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">{label}</label>
+      {type === 'select' && options ? (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full text-sm border border-procore-border rounded-md p-2 focus:border-procore-orange"
+        >
+          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full text-sm border border-procore-border rounded-md p-2 focus:border-procore-orange"
+          step={type === 'number' ? '0.1' : undefined}
+        />
+      )}
     </div>
   );
 }

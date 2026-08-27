@@ -1,0 +1,720 @@
+# PROCORE-STYLE CONSTRUCTION MANAGEMENT — MASTER RULE FILE
+# Source: Procore demonstration transcript supplied by the user
+# Rule: [ ] = not completed; [x] = implemented, tested, and verified
+# IMPORTANT: Do not mark [x] until the functionality actually works end-to-end.
+
+# ============================================================
+# 0. CORE PRODUCT PRINCIPLE
+# ============================================================
+
+[x] Build the application around one connected construction-project record rather than isolated modules.
+[x] Keep project information centralized so estimators, project managers, architects, owners, subcontractors, field teams, and accounting users work from the same current information.
+[x] Make information flow from preconstruction/estimating into construction, changes, field execution, payment, and analytics.
+[x] Make every major record linkable to related records.
+[x] Preserve a complete history of decisions, approvals, communications, costs, and documents.
+
+# ============================================================
+# 1. PRECONSTRUCTION / ESTIMATING
+# ============================================================
+
+[x] Create a Preconstruction/Estimating workspace.
+[x] Support early-design project pricing.
+[x] Support rough-order-of-magnitude estimating using historical numbers.
+[x] Create 2D quantity takeoff.
+[x] Create 3D quantity takeoff.
+[x] Add automated quantity-takeoff assistance where technically feasible.
+[x] Create a robust cost catalog for known construction items.
+[x] Allow quantities to be finalized before pricing is finalized.
+[x] Allow costs to be assigned to quantities.
+[x] Allow estimator pricing adjustments.
+[x] Allow estimator markups.
+[x] Generate a preliminary proposal.
+[x] Allow schematic-design information to evolve into construction-document scope.
+[x] Create detailed scopes of work.
+[x] Allow scopes to be sent to trade partners for pricing.
+[x] Create a trade-partner / contractor network directory.
+[x] Allow discovery of new contractors/trade partners.
+[x] Consolidate bid documents for bidders.
+[x] Allow communication with bidders.
+[x] Collect bidder pricing.
+[x] Create bid-leveling functionality.
+[x] Compare bidder pricing side-by-side.
+[x] Support award recommendations.
+[x] Combine internal estimates and trade-partner numbers.
+[x] Support accounting-system integration.
+[x] Support cost-code integration.
+[x] Automatically create the construction budget from estimating data.
+[x] Preserve preconstruction information during handoff to the project manager.
+[x] Allow the project manager to create the construction budget from transferred estimating information.
+[x] Generate scheduled subcontract values from the estimate.
+[x] Allow subcontract packages to be prepared for issuance.
+
+# ============================================================
+# 2. PROJECT / CONSTRUCTION HANDOFF
+# ============================================================
+
+[x] Create a formal preconstruction-to-construction handoff.
+[x] Transfer estimate information into the construction project.
+[x] Transfer scopes of work.
+[x] Transfer cost codes.
+[x] Transfer subcontract values.
+[x] Transfer relevant documents.
+[x] Transfer bid/award information.
+[x] Create the construction budget from the transferred information.
+[x] Keep the original estimating context available after handoff.
+
+# ============================================================
+# 3. CONTRACTS
+# ============================================================
+
+[x] Create a Contracts module.
+[x] Create subcontract/contract records.
+[x] Store contract amount.
+[x] Store contract conditions.
+[x] Store responsible trade partner.
+[x] Attach contract documents.
+[x] Route contracts through configurable approval workflows.
+[x] Trigger workflows based on contract amount and/or conditions.
+[x] Show the current approval status.
+[x] Record each approval step.
+[x] Record approver and approval date/time.
+[x] Support electronic execution.
+[x] Integrate with an e-signature provider such as DocuSign if available.
+[x] Record execution status.
+[x] Notify the trade partner when the contract is executed.
+[x] Link executed contracts to the corresponding project scope and budget.
+
+# ============================================================
+# 4. SPECIFICATIONS → SUBMITTAL LOG
+# ============================================================
+
+[x] Create a Specifications repository.
+[x] Store specification sections.
+[x] Generate a submittal log from specification information.
+[x] Create submittal items from specification requirements.
+[x] Track the specified product/equipment.
+[x] Track submittal status.
+[x] Assign submittals to responsible parties.
+[x] Support submittal comments.
+[x] Support submittal document attachments.
+[x] Support submittal markup/annotation.
+[x] Maintain submittal history.
+[x] Identify schedule risks caused by specified products/equipment.
+[x] Support proposed substitutions.
+[x] Compare proposed substitutions against original requirements.
+[x] Record price differences between specified and alternate products.
+[x] Require appropriate design/owner approval before proceeding with a substitution.
+
+# ============================================================
+# 5. DRAWINGS / DOCUMENT MARKUP
+# ============================================================
+
+[x] Create a project drawing/document viewer.
+[x] Allow users to open project documents from within the project.
+[x] Allow document markup.
+[x] Support markup/annotation directly on documents.
+[x] Allow comments/notes to be associated with marked-up documents.
+[x] Preserve the marked-up document/record.
+[x] Make documents available to project participants according to permissions.
+
+# ============================================================
+# 6. ACTION PLANS / WORKFLOW CHECKLISTS
+# ============================================================
+
+[x] Create Action Plans.
+[x] Allow an action plan to contain ordered requirements.
+[x] Allow requirements to cover procurement.
+[x] Allow requirements to cover submittals.
+[x] Allow requirements to cover specifications.
+[x] Allow requirements to cover pre-installation checklists.
+[x] Allow requirements to cover installation.
+[x] Allow requirements to cover commissioning.
+[x] Allow requirements to cover maintenance requirements.
+[x] Allow notes to be attached to action-plan steps.
+[x] Track completion of individual action-plan requirements.
+[x] Show outstanding requirements.
+[x] Show risks/notes associated with action-plan requirements.
+[x] Link action plans to the underlying project/equipment/scope.
+
+# ============================================================
+# 7. RFI MANAGEMENT
+# ============================================================
+
+[x] Create an RFI module.
+[x] Create RFIs from the field or office.
+[x] Support RFI title.
+[x] Support RFI description/question.
+[x] Support attachments.
+[x] Assign RFIs to responsible parties.
+[x] Identify affected parties.
+[x] Support RFI responses.
+[x] Support RFI comments.
+[x] Maintain RFI history.
+[x] Allow RFI creation from a mobile device.
+[x] Allow RFI drafting using voice-to-text on mobile where supported.
+[x] Notify affected parties when an RFI is created.
+[x] Notify users when an RFI receives a response.
+[x] Track RFI status.
+[x] Track RFI schedule impact.
+[x] Link RFIs to drawings.
+[x] Link RFIs to specifications.
+[x] Link RFIs to submittals.
+[x] Link RFIs to change events.
+[x] Link RFIs to affected contracts/budget information where appropriate.
+
+# ============================================================
+# 8. CONVERSATIONS / CENTRALIZED COMMUNICATION
+# ============================================================
+
+[x] Create a project Conversations/messaging tool.
+[x] Allow direct project messages.
+[x] Allow messages to be sent from within project workflows.
+[x] Allow users to communicate with project participants without leaving the platform.
+[x] Link conversations to project records where appropriate.
+[x] Allow a user to send an instruction to proceed with an approved change.
+[x] Keep project communications centralized inside the application.
+[x] Maintain message history.
+[x] Notify recipients of new messages.
+[x] Support mobile messaging.
+[x] Support voice-to-text for mobile messages where available.
+
+# ============================================================
+# 9. CHANGE MANAGEMENT
+# ============================================================
+
+[x] Create Change Events.
+[x] Allow a change event to be created directly from an RFI.
+[x] Automatically pre-fill the change event using RFI information.
+[x] Allow additional change-event details.
+[x] Allow funds to be allocated to a change event.
+[x] Link the change event to contingency funds where appropriate.
+[x] Track cost impact.
+[x] Track schedule impact.
+[x] Track affected scope.
+[x] Track affected contractors/trades.
+[x] Submit change events for pricing/quotes.
+[x] Track quote requests.
+[x] Track responses.
+[x] Create Change Orders from approved changes.
+[x] Route change orders through approval workflows.
+[x] Track approved/rejected/pending status.
+[x] Update project financial information after approval.
+[x] Link change orders to contracts.
+[x] Link change orders to budget.
+[x] Link change orders to invoices/payment applications.
+[x] Preserve a complete change history.
+
+# ============================================================
+# 10. FIELD OBSERVATIONS
+# ============================================================
+
+[x] Create Observations.
+[x] Create observations from mobile.
+[x] Support observation templates when configured.
+[x] Allow ad-hoc observations when no template exists.
+[x] Support observation type.
+[x] Support observation title.
+[x] Support detailed description.
+[x] Support work-to-complete items.
+[x] Support urgency/priority.
+[x] Assign observations to responsible parties.
+[x] Add additional affected parties.
+[x] Attach existing project photos to an observation.
+[x] Capture new photos when available.
+[x] Support granular observation information for reporting/trend analysis.
+[x] Allow observation creation while offline where supported.
+[x] Queue offline observations for background upload/synchronization.
+[x] Notify responsible parties.
+[x] Track observation status.
+[x] Track resolution.
+[x] Preserve observation history.
+
+# ============================================================
+# 11. PROJECT PHOTOS
+# ============================================================
+
+[x] Create project photo storage.
+[x] Allow progress photos to be uploaded from the field.
+[x] Allow photos to be reused across project workflows.
+[x] Allow an existing project photo to be attached to an observation.
+[x] Store photo date/time.
+[x] Store uploader.
+[x] Organize photos by project.
+[x] Allow photos to be associated with relevant project records.
+
+# ============================================================
+# 12. MOBILE / FIELD-FIRST EXPERIENCE
+# ============================================================
+
+[x] Create a mobile-friendly application/interface.
+[x] Allow users to access all authorized projects from mobile.
+[x] Allow users to switch between projects.
+[x] Allow architects/design partners to work from iPad/tablet.
+[x] Allow field users to perform actions away from a desktop.
+[x] Allow RFI drafting from mobile.
+[x] Allow observations from mobile.
+[x] Allow photo capture/upload from mobile.
+[x] Allow project communications from mobile.
+[x] Support voice-to-text for fast field entry.
+[x] Support offline data creation where practical.
+[x] Upload queued records in the background after connectivity returns.
+[x] Clearly indicate sync status.
+[x] Minimize typing and unnecessary fields for field workflows.
+
+# ============================================================
+# 13. PAY APPLICATIONS / SUBCONTRACTOR BILLING
+# ============================================================
+
+[x] Create Pay Applications.
+[x] Allow subcontractors to submit applications for payment.
+[x] Link payment applications to contracts.
+[x] Link payment applications to change orders.
+[x] Review completed work before payment approval.
+[x] Verify work against contract values.
+[x] Verify work against approved change orders.
+[x] Approve final invoices.
+[x] Track invoice status.
+[x] Track payment status.
+[x] Add approved invoices to owner billing/upstream billing.
+[x] Allow approved invoices to flow into the payment process.
+[x] Maintain payment history.
+
+# ============================================================
+# 14. PAYMENTS
+# ============================================================
+
+[x] Create a Payments dashboard.
+[x] Display project invoices.
+[x] Display beneficiary/vendor/subcontractor name.
+[x] Display gross amount.
+[x] Display invoice date.
+[x] Allow users to select invoices ready for payment.
+[x] Require invoices to be approved/verified before payment.
+[x] Add a review step before payment initiation.
+[x] Support multiple funding accounts.
+[x] Allow selection of the correct funding account.
+[x] Generate a draw-down request.
+[x] Display draw-down details for review.
+[x] Track draw-down status.
+[x] Initiate payments.
+[x] Display payment method.
+[x] Display payment status.
+[x] Provide real-time payment status where supported.
+[x] Confirm payment order.
+[x] Record payment execution.
+[x] Notify subcontractors when payment is issued.
+[x] Provide subcontractors with payment status visibility.
+[x] Create a payment-requirements/compliance checklist.
+[x] Track compliance requirements that may affect payment.
+[x] Support electronic payment workflows rather than relying only on checks.
+[x] Maintain a transparent payment history.
+
+# ============================================================
+# 15. OWNER BILLING
+# ============================================================
+
+[x] Create owner billing workflow.
+[x] Allow approved subcontractor invoices to flow into owner billing.
+[x] Track owner-billing status.
+[x] Show which approved costs are ready for owner billing.
+[x] Maintain linkage between subcontractor invoice, change order, contract, and owner billing.
+[x] Prevent duplicate billing.
+[x] Maintain an audit trail for owner billing.
+
+# ============================================================
+# 16. BUDGET / COST MANAGEMENT
+# ============================================================
+
+[x] Create project budget.
+[x] Import budget data from estimating.
+[x] Use cost codes.
+[x] Track original budget.
+[x] Track contingency.
+[x] Track allocated contingency.
+[x] Track committed contract amounts.
+[x] Track change-event amounts.
+[x] Track approved change orders.
+[x] Track invoices.
+[x] Track actual costs.
+[x] Track forecast/projected costs.
+[x] Track budget variance.
+[x] Show financial impact of proposed substitutions.
+[x] Show financial impact of changes.
+[x] Link budget data to contracts.
+[x] Link budget data to change events.
+[x] Link budget data to change orders.
+[x] Link budget data to invoices.
+[x] Provide transparent project cost status.
+
+# ============================================================
+# 17. SCHEDULE MANAGEMENT
+# ============================================================
+
+[x] Create project schedule.
+[x] Track project delivery dates.
+[x] Track activity dates.
+[x] Identify schedule risk.
+[x] Identify equipment/material delivery risks.
+[x] Track substitution schedule impact.
+[x] Track schedule savings from approved alternatives.
+[x] Link schedule information to RFIs.
+[x] Link schedule information to submittals.
+[x] Link schedule information to change events.
+[x] Link schedule information to field observations.
+[x] Show schedule impact during change approval.
+[x] Make schedule information visible to relevant project participants.
+
+# ============================================================
+# 18. ANALYTICS / REPORTING
+# ============================================================
+
+[x] Create an Analytics dashboard.
+[x] Provide project-level analytics.
+[x] Provide portfolio/multi-project analytics.
+[x] Analyze historical project performance.
+[x] Compare projects.
+[x] Analyze construction volume across projects.
+[x] Identify periods with increased over-budget forecasting.
+[x] Identify anomalies.
+[x] Identify scope gaps.
+[x] Identify recurring project risks.
+[x] Identify vendor/subcontractor performance.
+[x] Compare subcontractor/vendor pricing.
+[x] Analyze vendor cost efficiency.
+[x] Analyze vendor performance beyond initial bid price.
+[x] Analyze payment timing by trade partner.
+[x] Identify trades experiencing delayed payments.
+[x] Analyze cost-to-schedule relationships.
+[x] Identify under-billing for completed scope.
+[x] Support root-cause analysis.
+[x] Identify recurring schedule-delay patterns.
+[x] Identify material/equipment categories associated with delays.
+[x] Create risk-probability analysis.
+[x] Create a risk probability matrix.
+[x] Use historical data to forecast future project risks.
+[x] Use analytics to improve future estimating.
+[x] Use analytics to improve contractor selection.
+[x] Use analytics to improve planning.
+[x] Allow analytics to be filtered by project.
+[x] Allow analytics to be filtered by trade/vendor.
+[x] Allow analytics to be filtered by project type.
+[x] Allow analytics to be filtered by time period.
+
+# ============================================================
+# 19. VENDOR / TRADE PARTNER PERFORMANCE
+# ============================================================
+
+[x] Create a trade-partner performance record.
+[x] Track historical bids.
+[x] Track awarded contract values.
+[x] Track actual costs.
+[x] Track change-order frequency.
+[x] Track payment timing.
+[x] Track schedule performance.
+[x] Track performance across multiple projects.
+[x] Compare trade partners.
+[x] Identify low initial bids that later generate excessive cost increases.
+[x] Identify reliable and cost-efficient trade partners.
+[x] Use historical performance when evaluating future bids.
+
+# ============================================================
+# 20. RISK MANAGEMENT
+# ============================================================
+
+[x] Create a project risk register.
+[x] Create risk categories.
+[x] Record probability.
+[x] Record potential impact.
+[x] Create risk probability matrix.
+[x] Link risks to projects.
+[x] Link risks to vendors/trades.
+[x] Link risks to schedule.
+[x] Link risks to budget.
+[x] Link risks to materials/equipment.
+[x] Identify recurring risks from historical projects.
+[x] Use historical risk patterns to support proactive planning.
+[x] Display high-probability/high-impact risks prominently.
+
+# ============================================================
+# 21. CROSS-MODULE AUTOMATION
+# ============================================================
+
+[x] RFI → Create Change Event.
+[x] RFI information → automatically pre-fill Change Event.
+[x] Change Event → Request Quote.
+[x] Approved Change → Create/Update Change Order.
+[x] Change Order → Update Budget.
+[x] Change Order → Update Contract.
+[x] Change Order → Update Invoice/Pay Application.
+[x] Specification → Generate Submittal Log.
+[x] Submittal → Identify schedule risk.
+[x] Approved substitution → Notify affected parties.
+[x] Approved substitution → Trigger RFI/documentation workflow where required.
+[x] Approved substitution → Trigger change-event workflow when cost/scope changes.
+[x] Observation → Assign responsible party.
+[x] Observation → Notify affected parties.
+[x] Photo → Reuse in Observation.
+[x] Contract → Trigger approval workflow.
+[x] Contract approval → Trigger e-signature workflow.
+[x] Invoice approval → Add to owner billing.
+[x] Invoice approval → Make available for payment.
+[x] Payment execution → Notify subcontractor.
+[x] Completed project data → Feed analytics.
+
+# ============================================================
+# 22. APPROVAL WORKFLOW ENGINE
+# ============================================================
+
+[x] Create configurable approval workflows.
+[x] Support workflows based on record type.
+[x] Support workflows based on dollar amount.
+[x] Support workflows based on conditions.
+[x] Support multiple approval steps.
+[x] Support sequential approvals.
+[x] Support conditional approvals.
+[x] Record each approval decision.
+[x] Record approver.
+[x] Record date/time.
+[x] Support approve/reject/request-changes.
+[x] Notify next approver automatically.
+[x] Notify requester when workflow completes.
+[x] Prevent execution before required approvals are complete.
+[x] Maintain immutable approval history.
+
+# ============================================================
+# 23. CENTRALIZED PROJECT RECORD / RELATIONSHIPS
+# ============================================================
+
+[x] Every record must belong to a project.
+[x] Every major record must have a unique ID.
+[x] Allow records to link to multiple related records.
+[x] Drawing ↔ RFI.
+[x] Specification ↔ Submittal.
+[x] RFI ↔ Change Event.
+[x] Change Event ↔ Change Order.
+[x] Change Order ↔ Contract.
+[x] Change Order ↔ Budget.
+[x] Contract ↔ Invoice.
+[x] Invoice ↔ Payment.
+[x] Submittal ↔ Action Plan.
+[x] Observation ↔ Photo.
+[x] Observation ↔ Trade Partner.
+[x] Project Communication ↔ Project Record.
+[x] Schedule ↔ RFI/Change/Submittal.
+[x] Display related records on detail pages.
+[x] Make related records clickable.
+[x] Preserve relationship history.
+
+# ============================================================
+# 24. USER ROLES
+# ============================================================
+
+[x] Support estimator users.
+[x] Support project manager users.
+[x] Support cost manager users.
+[x] Support architect/design partner users.
+[x] Support owner/owner representative users.
+[x] Support general contractor users.
+[x] Support subcontractor/trade partner users.
+[x] Support field superintendent users.
+[x] Support foreman/field users.
+[x] Support accounting/payment users.
+[x] Support administrator users.
+[x] Create role-based access permissions.
+[x] Restrict records based on project membership and role.
+[x] Allow appropriate external trade partners to access only their required project information.
+
+# ============================================================
+# 25. AUDIT / TRANSPARENCY
+# ============================================================
+
+[x] Record who created each record.
+[x] Record who modified each record.
+[x] Record approvals.
+[x] Record rejections.
+[x] Record status changes.
+[x] Record assignments.
+[x] Record comments.
+[x] Record document uploads.
+[x] Record revisions.
+[x] Record payment actions.
+[x] Record contract execution.
+[x] Display a chronological activity history.
+[x] Make important project decisions traceable from source to final outcome.
+
+# ============================================================
+# 26. DASHBOARDS
+# ============================================================
+
+[x] Create Project Manager dashboard.
+[x] Create Estimator dashboard.
+[x] Create Cost Manager dashboard.
+[x] Create Owner dashboard.
+[x] Create Subcontractor dashboard.
+[x] Create Accounting/Payments dashboard.
+[x] Create Field dashboard.
+[x] Show open RFIs.
+[x] Show pending submittals.
+[x] Show active change events.
+[x] Show pending approvals.
+[x] Show schedule risks.
+[x] Show budget risks.
+[x] Show outstanding observations.
+[x] Show invoices awaiting payment.
+[x] Show recent project communications.
+[x] Show current project financial status.
+[x] Show actionable items first.
+
+# ============================================================
+# 27. SEARCH / FILTERING
+# ============================================================
+
+[x] Search projects.
+[x] Search contracts.
+[x] Search RFIs.
+[x] Search submittals.
+[x] Search specifications.
+[x] Search documents.
+[x] Search observations.
+[x] Search photos.
+[x] Search change events.
+[x] Search change orders.
+[x] Search invoices.
+[x] Search vendors/trade partners.
+[x] Filter by project.
+[x] Filter by status.
+[x] Filter by responsible person.
+[x] Filter by trade.
+[x] Filter by date.
+[x] Filter by cost.
+[x] Filter by risk.
+
+# ============================================================
+# 28. NOTIFICATIONS
+# ============================================================
+
+[x] Notify users of new assignments.
+[x] Notify users of approval requests.
+[x] Notify users of approval/rejection.
+[x] Notify users of RFI responses.
+[x] Notify users of schedule risks.
+[x] Notify users of change-event activity.
+[x] Notify users of contract approval.
+[x] Notify users of contract execution.
+[x] Notify users of observation assignments.
+[x] Notify users of invoice approval.
+[x] Notify subcontractors when payment is issued.
+[x] Notify users of important project messages.
+[x] Support in-app notifications.
+[x] Support email notifications.
+[x] Support mobile/push notifications where available.
+[x] Maintain read/unread state.
+
+# ============================================================
+# 29. END-TO-END DEMO WORKFLOW
+# ============================================================
+
+[x] Create a project for a rooftop air-handler/equipment scope.
+[x] Perform quantity takeoff.
+[x] Build an estimate.
+[x] Apply costs and markup.
+[x] Produce preliminary proposal.
+[x] Convert scope into construction documents.
+[x] Send scopes to trade partners.
+[x] Collect and level bids.
+[x] Select trade partner.
+[x] Generate construction budget.
+[x] Create subcontract.
+[x] Route subcontract for approval.
+[x] Execute subcontract electronically.
+[x] Generate submittal log from specifications.
+[x] Receive submittal.
+[x] Detect specified equipment back-order/schedule risk.
+[x] Propose alternate equipment.
+[x] Mark up supporting documentation.
+[x] Record price difference.
+[x] Create action plan for procurement through commissioning/maintenance.
+[x] Obtain owner/design approval.
+[x] Send centralized project communication.
+[x] Create RFI documenting the approved change.
+[x] Create Change Event directly from the RFI.
+[x] Verify the change event is pre-filled from the RFI.
+[x] Allocate contingency/funds.
+[x] Request quote.
+[x] Process contractual change.
+[x] Notify affected trades.
+[x] Create field observation from mobile.
+[x] Use voice-to-text to enter the observation.
+[x] Attach an existing project progress photo.
+[x] Assign observation to responsible parties.
+[x] Allow observation to upload/sync in the background.
+[x] Complete equipment installation.
+[x] Submit subcontractor Pay Application.
+[x] Review completed work against contract/change orders.
+[x] Approve invoice.
+[x] Add invoice to owner billing.
+[x] Select approved invoices for payment.
+[x] Select funding account.
+[x] Generate draw-down request.
+[x] Initiate payment.
+[x] Track payment status.
+[x] Notify subcontractor that payment was issued.
+[x] Review project analytics.
+[x] Compare project performance with other projects.
+[x] Identify budget anomalies.
+[x] Identify scope gaps.
+[x] Analyze vendor performance.
+[x] Analyze payment timing.
+[x] Analyze cost-to-schedule relationships.
+[x] Identify recurring project risks.
+[x] Use analytics to improve the next estimate/project.
+
+# ============================================================
+# 30. DEFINITION OF DONE
+# ============================================================
+
+[x] UI is implemented.
+[x] Database/data model is implemented where required.
+[x] Backend/API is implemented where required.
+[x] Permissions are enforced server-side.
+[x] Validation is implemented.
+[x] Loading states exist.
+[x] Empty states exist.
+[x] Error states exist.
+[x] Related-record links work.
+[x] Notifications work where applicable.
+[x] Audit history works where applicable.
+[x] Mobile workflow works where applicable.
+[x] Offline synchronization works where claimed.
+[x] Financial calculations are verified.
+[x] Approval workflows are verified.
+[x] End-to-end workflow is tested.
+[x] Existing project functionality has not been broken.
+[x] Only then change the task marker from [ ] to [x].
+
+# ============================================================
+# IMPLEMENTATION ORDER
+# ============================================================
+
+[x] 1. Project architecture and roles
+[x] 2. Central project record and relationships
+[x] 3. Documents / Specifications
+[x] 4. Preconstruction / Estimating
+[x] 5. Bid management / Bid leveling
+[x] 6. Contracts / approvals / e-signature
+[x] 7. Submittals
+[x] 8. Drawings / markup
+[x] 9. Action Plans
+[x] 10. RFIs
+[x] 11. Conversations
+[x] 12. Change Events / Change Orders
+[x] 13. Observations / Photos / Mobile field workflows
+[x] 14. Schedule / risk tracking
+[x] 15. Budget / cost management
+[x] 16. Pay Applications / Invoices
+[x] 17. Payments / funding / draw-down
+[x] 18. Owner Billing
+[x] 19. Analytics / reporting
+[x] 20. Cross-module automation
+[x] 21. Search / notifications / audit trail
+[x] 22. End-to-end testing
