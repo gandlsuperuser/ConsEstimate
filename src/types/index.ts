@@ -187,20 +187,29 @@ export interface Submittal {
   created_at?: string;
 }
 
-// 4. RFIs
+// 4. RFIs (BTX Contractors RFI Transmittal Standard)
 export interface RFI {
   id: string;
   project_id: string;
   rfi_number: string;
   subject: string;
   question: string;
+  suggestion?: string;
+  official_response?: string;
+  transmittal_id?: string;
+  rfi_type?: string;
+  purpose?: string;
+  via?: string;
   assigned_to?: string;
   drawing_number?: string;
   spec_section?: string;
+  drawing_spec_ref?: string;
+  attachments?: string;
+  cost_impact_choice?: 'Yes' | 'No' | 'TBD';
+  schedule_impact_choice?: 'Yes' | 'No' | 'TBD';
   schedule_impact_days: number;
   cost_impact_estimate: number;
   status: 'draft' | 'open' | 'responded' | 'closed';
-  official_response?: string;
   responded_at?: string;
   has_change_event: boolean;
   change_event_id?: string;
