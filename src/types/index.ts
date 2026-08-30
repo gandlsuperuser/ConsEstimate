@@ -435,10 +435,13 @@ export interface OwnerBilling {
   owner_address?: string;
   contractor_name?: string;
   contractor_address?: string;
+  project_name?: string;
+  project_address?: string;
   contract_for?: string;
   via_architect?: string;
   project_nos?: string;
   contract_date?: string;
+  purchase_order?: string;
   distribution_to?: string[];
   // G702 summary calculations
   original_contract_sum: number;
@@ -455,6 +458,18 @@ export interface OwnerBilling {
   // Change Order Summary
   change_order_additions?: number;
   change_order_deductions?: number;
+  // Signatures & Certifications
+  contractor_signature_by?: string;
+  contractor_signature_date?: string;
+  state_of?: string;
+  county_of?: string;
+  notary_day?: string;
+  notary_month_year?: string;
+  notary_public?: string;
+  notary_commission_expires?: string;
+  amount_certified?: number;
+  architect_signature_by?: string;
+  architect_signature_date?: string;
   // Status
   status: 'draft' | 'submitted' | 'approved' | 'paid';
   items?: OwnerBillingItem[];

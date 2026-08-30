@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { OwnerBilling, OwnerBillingItem, EstimateLine, ChangeOrder } from '@/types';
+import { OwnerBilling, OwnerBillingItem, EstimateLine, ChangeOrder, Project } from '@/types';
 
 /* ------------------------------------------------------------------ */
 /*  Default empty continuation sheet row                               */
@@ -28,10 +28,10 @@ function emptyRow(itemNumber: number): OwnerBillingItem {
 /*  Currency formatter                                                 */
 /* ------------------------------------------------------------------ */
 const fmt = (n: number) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* ------------------------------------------------------------------ */
-/*  MAIN PAGE COMPONENT                                                */
+/*  MAIN COMPONENT                                                     */
 /* ------------------------------------------------------------------ */
 export default function OwnerBillingPage() {
   const params = useParams();
@@ -39,29 +39,47 @@ export default function OwnerBillingPage() {
 
   /* ---- state ---- */
   const [billings, setBillings] = useState<OwnerBilling[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState<'list' | 'form'>('list');
   const [editingBilling, setEditingBilling] = useState<OwnerBilling | null>(null);
+  const [printMode, setPrintMode] = useState<'all' | 'g702_only' | 'g703_only'>('all');
 
-  /* G702 header fields */
+  /* G702 header & certificate fields */
   const [header, setHeader] = useState({
     owner_name: '',
     owner_address: '',
     contractor_name: '',
     contractor_address: '',
+    project_name: '',
+    project_address: '',
     contract_for: '',
     via_architect: '',
     application_number: 1,
     period_to: new Date().toISOString().split('T')[0],
     project_nos: '',
     contract_date: '',
-    distribution_to: [] as string[],
+    purchase_order: '',
+    distribution_to: ['Const. Mgr'] as string[],
     original_contract_sum: 0,
     retainage_completed_pct: 10,
-    retainage_stored_pct: 10,
+    retainage_stored_pct: 0,
     less_previous_certificates: 0,
-    change_order_additions: 0,
-    change_order_deductions: 0,
+    change_order_additions_prev: 0,
+    change_order_deductions_prev: 0,
+    change_order_additions_curr: 0,
+    change_order_deductions_curr: 0,
+    contractor_signature_by: '',
+    contractor_signature_date: '',
+    state_of: 'FLORIDA',
+    county_of: 'BREWARD',
+    notary_day: '',
+    notary_month_year: '',
+    notary_public: '',
+    notary_commission_expires: '',
+    amount_certified: 0,
+    architect_signature_by: '',
+    architect_signature_date: '',
   });
 
   /* G703 continuation sheet rows */
@@ -72,23 +90,29 @@ export default function OwnerBillingPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
 
-  /* Change orders for summary */
-  const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
+  /* Change orders for reference */
+  const [, setChangeOrders] = useState<ChangeOrder[]>([]);
 
   /* ---- fetch ---- */
   const fetchData = useCallback(async () => {
     try {
-      const [billRes, elRes, coRes] = await Promise.all([
+      const [billRes, elRes, coRes, projRes] = await Promise.all([
         fetch(`/api/owner-billing?projectId=${projectId}`),
         fetch(`/api/estimate-lines?projectId=${projectId}`),
         fetch(`/api/change-orders?projectId=${projectId}`),
+        fetch(`/api/projects/${projectId}`),
       ]);
       const billData = await billRes.json();
       const elData = await elRes.json();
       const coData = await coRes.json();
+      const projData = await projRes.json();
+
       setBillings(billData.billings || []);
       setEstimateLines(elData.lines || []);
       setChangeOrders(coData.changeOrders || []);
+      if (projData.project) {
+        setProject(projData.project);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -101,13 +125,14 @@ export default function OwnerBillingPage() {
   }, [fetchData]);
 
   /* ---- auto-calculate row fields ---- */
-  const recalcRow = (row: OwnerBillingItem): OwnerBillingItem => {
-    const total_completed = row.work_completed_previous + row.work_completed_this_period + row.stored_materials;
-    const pct_complete = row.scheduled_value > 0 ? Math.round((total_completed / row.scheduled_value) * 100) : 0;
-    const balance_to_finish = row.scheduled_value - total_completed;
-    const retainage = total_completed * (header.retainage_completed_pct / 100);
+  const recalcRow = useCallback((row: OwnerBillingItem): OwnerBillingItem => {
+    const total_completed = (Number(row.work_completed_previous) || 0) + (Number(row.work_completed_this_period) || 0) + (Number(row.stored_materials) || 0);
+    const scheduled = Number(row.scheduled_value) || 0;
+    const pct_complete = scheduled > 0 ? Math.round((total_completed / scheduled) * 100) : 0;
+    const balance_to_finish = scheduled - total_completed;
+    const retainage = total_completed * ((Number(header.retainage_completed_pct) || 0) / 100);
     return { ...row, total_completed, pct_complete, balance_to_finish, retainage };
-  };
+  }, [header.retainage_completed_pct]);
 
   const updateRow = (idx: number, field: keyof OwnerBillingItem, value: number | string) => {
     setRows(prev => {
@@ -132,26 +157,30 @@ export default function OwnerBillingPage() {
 
   /* ---- auto-calculated G702 totals from G703 rows ---- */
   const totals = useMemo(() => {
-    const scheduled_total = rows.reduce((s, r) => s + r.scheduled_value, 0);
-    const prev_total = rows.reduce((s, r) => s + r.work_completed_previous, 0);
-    const this_period_total = rows.reduce((s, r) => s + r.work_completed_this_period, 0);
-    const stored_total = rows.reduce((s, r) => s + r.stored_materials, 0);
-    const completed_total = rows.reduce((s, r) => s + r.total_completed, 0);
-    const balance_total = rows.reduce((s, r) => s + r.balance_to_finish, 0);
-    const retainage_total = rows.reduce((s, r) => s + r.retainage, 0);
+    const scheduled_total = rows.reduce((s, r) => s + (Number(r.scheduled_value) || 0), 0);
+    const prev_total = rows.reduce((s, r) => s + (Number(r.work_completed_previous) || 0), 0);
+    const this_period_total = rows.reduce((s, r) => s + (Number(r.work_completed_this_period) || 0), 0);
+    const stored_total = rows.reduce((s, r) => s + (Number(r.stored_materials) || 0), 0);
+    const completed_total = rows.reduce((s, r) => s + (Number(r.total_completed) || 0), 0);
+    const balance_total = rows.reduce((s, r) => s + (Number(r.balance_to_finish) || 0), 0);
+    const retainage_total = rows.reduce((s, r) => s + (Number(r.retainage) || 0), 0);
 
-    const net_co = header.change_order_additions - header.change_order_deductions;
-    const contract_sum_to_date = header.original_contract_sum + net_co;
+    const total_additions = (Number(header.change_order_additions_prev) || 0) + (Number(header.change_order_additions_curr) || 0);
+    const total_deductions = (Number(header.change_order_deductions_prev) || 0) + (Number(header.change_order_deductions_curr) || 0);
+    const net_co = total_additions - total_deductions;
+
+    const original_contract_sum = Number(header.original_contract_sum) || 0;
+    const contract_sum_to_date = original_contract_sum + net_co;
     const total_completed_and_stored = completed_total;
 
     // Retainage split
     const work_completed_total = prev_total + this_period_total;
-    const retainage_on_completed = work_completed_total * (header.retainage_completed_pct / 100);
-    const retainage_on_stored = stored_total * (header.retainage_stored_pct / 100);
-    const total_retainage = retainage_on_completed + retainage_on_stored;
+    const retainage_on_completed = work_completed_total * ((Number(header.retainage_completed_pct) || 0) / 100);
+    const retainage_on_stored = stored_total * ((Number(header.retainage_stored_pct) || 0) / 100);
+    const total_retainage = retainage_total > 0 ? retainage_total : (retainage_on_completed + retainage_on_stored);
 
     const total_earned_less_retainage = total_completed_and_stored - total_retainage;
-    const current_payment_due = total_earned_less_retainage - header.less_previous_certificates;
+    const current_payment_due = total_earned_less_retainage - (Number(header.less_previous_certificates) || 0);
     const balance_to_finish_incl_retainage = contract_sum_to_date - total_earned_less_retainage;
 
     const overall_pct = scheduled_total > 0 ? Math.round((completed_total / scheduled_total) * 100) : 0;
@@ -164,6 +193,8 @@ export default function OwnerBillingPage() {
       completed_total,
       balance_total,
       retainage_total,
+      total_additions,
+      total_deductions,
       net_co,
       contract_sum_to_date,
       total_completed_and_stored,
@@ -195,7 +226,7 @@ export default function OwnerBillingPage() {
       retainage: 0,
     }));
 
-    // Filter out any existing empty placeholder rows
+    // Filter out existing empty placeholder rows
     const existingNonEmpty = rows.filter(r => r.description.trim() !== '' || r.scheduled_value > 0);
     const combined = [...existingNonEmpty, ...newRows].map((r, i) => ({ ...r, item_number: i + 1 }));
     setRows(combined.length > 0 ? combined : [emptyRow(1)]);
@@ -208,20 +239,23 @@ export default function OwnerBillingPage() {
     const payload = {
       project_id: projectId,
       ...header,
+      change_order_additions: totals.total_additions,
+      change_order_deductions: totals.total_deductions,
       net_change_orders: totals.net_co,
       total_completed_and_stored: totals.total_completed_and_stored,
+      amount_certified: header.amount_certified || Math.max(0, totals.current_payment_due),
       status,
       items: rows.map(r => ({
         item_number: r.item_number,
         description: r.description,
-        scheduled_value: r.scheduled_value,
-        work_completed_previous: r.work_completed_previous,
-        work_completed_this_period: r.work_completed_this_period,
-        stored_materials: r.stored_materials,
-        total_completed: r.total_completed,
-        pct_complete: r.pct_complete,
-        balance_to_finish: r.balance_to_finish,
-        retainage: r.retainage,
+        scheduled_value: Number(r.scheduled_value) || 0,
+        work_completed_previous: Number(r.work_completed_previous) || 0,
+        work_completed_this_period: Number(r.work_completed_this_period) || 0,
+        stored_materials: Number(r.stored_materials) || 0,
+        total_completed: Number(r.total_completed) || 0,
+        pct_complete: Number(r.pct_complete) || 0,
+        balance_to_finish: Number(r.balance_to_finish) || 0,
+        retainage: Number(r.retainage) || 0,
       })),
     };
 
@@ -249,19 +283,35 @@ export default function OwnerBillingPage() {
       owner_address: b.owner_address || '',
       contractor_name: b.contractor_name || '',
       contractor_address: b.contractor_address || '',
-      contract_for: b.contract_for || '',
+      project_name: b.project_name || project?.name || '',
+      project_address: b.project_address || project?.address || '',
+      contract_for: b.contract_for || project?.name || '',
       via_architect: b.via_architect || '',
       application_number: b.application_number,
       period_to: b.period_to,
       project_nos: b.project_nos || '',
       contract_date: b.contract_date || '',
-      distribution_to: b.distribution_to || [],
-      original_contract_sum: b.original_contract_sum,
+      purchase_order: b.purchase_order || '',
+      distribution_to: b.distribution_to || ['Const. Mgr'],
+      original_contract_sum: b.original_contract_sum || 0,
       retainage_completed_pct: b.retainage_completed_pct ?? 10,
-      retainage_stored_pct: b.retainage_stored_pct ?? 10,
-      less_previous_certificates: b.less_previous_certificates,
-      change_order_additions: b.change_order_additions ?? 0,
-      change_order_deductions: b.change_order_deductions ?? 0,
+      retainage_stored_pct: b.retainage_stored_pct ?? 0,
+      less_previous_certificates: b.less_previous_certificates || 0,
+      change_order_additions_prev: b.change_order_additions || 0,
+      change_order_deductions_prev: b.change_order_deductions || 0,
+      change_order_additions_curr: 0,
+      change_order_deductions_curr: 0,
+      contractor_signature_by: b.contractor_signature_by || '',
+      contractor_signature_date: b.contractor_signature_date || '',
+      state_of: b.state_of || 'FLORIDA',
+      county_of: b.county_of || 'BREWARD',
+      notary_day: b.notary_day || '',
+      notary_month_year: b.notary_month_year || '',
+      notary_public: b.notary_public || '',
+      notary_commission_expires: b.notary_commission_expires || '',
+      amount_certified: b.amount_certified ?? b.current_payment_due,
+      architect_signature_by: b.architect_signature_by || '',
+      architect_signature_date: b.architect_signature_date || '',
     });
     setRows(
       b.items && b.items.length > 0
@@ -275,52 +325,51 @@ export default function OwnerBillingPage() {
   /* ---- new blank form ---- */
   const openNewForm = () => {
     setHeader({
-      owner_name: '',
+      owner_name: project?.client_name || '',
       owner_address: '',
-      contractor_name: '',
-      contractor_address: '',
-      contract_for: '',
+      contractor_name: 'BTX CONTRACTORS',
+      contractor_address: '712 Main St., Jourdanton, TX 78026',
+      project_name: project?.name || 'CONVIVA JOURDANTON',
+      project_address: project?.address || '1105 OAK STREET, JOURDANTON, TX 78026',
+      contract_for: project?.name || 'CONVIVA JOURDANTON',
       via_architect: '',
       application_number: billings.length + 1,
       period_to: new Date().toISOString().split('T')[0],
       project_nos: '',
       contract_date: '',
-      distribution_to: [],
+      purchase_order: '',
+      distribution_to: ['Const. Mgr'],
       original_contract_sum: 0,
       retainage_completed_pct: 10,
-      retainage_stored_pct: 10,
+      retainage_stored_pct: 0,
       less_previous_certificates: 0,
-      change_order_additions: 0,
-      change_order_deductions: 0,
+      change_order_additions_prev: 0,
+      change_order_deductions_prev: 0,
+      change_order_additions_curr: 0,
+      change_order_deductions_curr: 0,
+      contractor_signature_by: '',
+      contractor_signature_date: '',
+      state_of: 'FLORIDA',
+      county_of: 'BREWARD',
+      notary_day: '',
+      notary_month_year: '',
+      notary_public: '',
+      notary_commission_expires: '',
+      amount_certified: 0,
+      architect_signature_by: '',
+      architect_signature_date: '',
     });
     setRows([emptyRow(1)]);
     setEditingBilling(null);
     setActiveView('form');
   };
 
-  /* ---- approve ---- */
-  const handleApprove = async (id: string) => {
-    try {
-      await fetch('/api/owner-billing', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: 'approved' }),
-      });
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  /* ---- delete ---- */
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this application?')) return;
-    try {
-      await fetch(`/api/owner-billing?id=${id}`, { method: 'DELETE' });
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-    }
+  /* ---- print trigger with mode ---- */
+  const triggerPrint = (mode: 'all' | 'g702_only' | 'g703_only') => {
+    setPrintMode(mode);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   /* ---- toggle distribution checkbox ---- */
@@ -347,31 +396,31 @@ export default function OwnerBillingPage() {
   /* ================================================================ */
   if (activeView === 'list') {
     const totalContract = billings[0]?.contract_sum_to_date || 0;
-    const totalBilled = billings.reduce((acc, b) => acc + b.total_completed_and_stored, 0);
-    const totalRetainage = billings.reduce((acc, b) => acc + b.retainage_amount, 0);
+    const totalBilled = billings.reduce((acc, b) => acc + (b.total_completed_and_stored || 0), 0);
+    const totalRetainage = billings.reduce((acc, b) => acc + (b.retainage_amount || 0), 0);
     const totalDue = billings
       .filter(b => b.status === 'submitted' || b.status === 'approved')
-      .reduce((acc, b) => acc + b.current_payment_due, 0);
+      .reduce((acc, b) => acc + (b.current_payment_due || 0), 0);
 
     return (
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg border border-procore-border shadow-xs">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-xl border border-procore-border shadow-xs">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-procore-text tracking-tight">Application & Certificate for Payment</h1>
-              <span className="bg-procore-orange-light text-procore-orange font-bold text-xs px-2 py-0.5 rounded">
-                AIA G702 / G703
+              <h1 className="text-2xl font-black text-procore-text tracking-tight">Application & Certificate for Payment</h1>
+              <span className="bg-emerald-100 text-emerald-800 font-extrabold text-xs px-2.5 py-1 rounded-md">
+                AIA Document G702™ / G703™
               </span>
             </div>
-            <p className="text-xs text-procore-text-muted mt-0.5">
-              Owner billing with Continuation Sheet (Schedule of Values). Line items pull from your project estimate.
+            <p className="text-xs text-procore-text-muted mt-1">
+              Prime contractor billing to owner. Full AIA G702 cover sheet with lines 1-9 & Schedule of Values (G703).
             </p>
           </div>
 
           <button
             onClick={openNewForm}
-            className="bg-gray-900 hover:bg-black text-white text-base font-extrabold px-7 py-3.5 rounded-xl shadow-lg hover:shadow-xl flex items-center gap-2.5 transition-all border-2 border-emerald-400 hover:border-emerald-300"
+            className="bg-gray-900 hover:bg-black text-white text-base font-extrabold px-7 py-3.5 rounded-xl shadow-lg hover:shadow-xl flex items-center gap-3 transition-all border-2 border-emerald-400 hover:border-emerald-300 active:scale-95 cursor-pointer"
           >
             <span className="bg-emerald-500 text-white rounded-md w-7 h-7 flex items-center justify-center text-xl font-black shadow-sm">+</span>
             Create Application
@@ -380,33 +429,33 @@ export default function OwnerBillingPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
+          <div className="bg-white p-4 rounded-xl border border-procore-border shadow-xs">
             <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Contract Sum to Date</p>
-            <p className="text-2xl font-bold text-procore-text mt-1">${fmt(totalContract)}</p>
-            <p className="text-[11px] text-procore-text-muted mt-0.5">Original + Change Orders</p>
+            <p className="text-2xl font-black text-procore-text mt-1">${fmt(totalContract)}</p>
+            <p className="text-[11px] text-procore-text-muted mt-0.5">Original + Approved COs</p>
           </div>
-          <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Total Billed</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">${fmt(totalBilled)}</p>
+          <div className="bg-white p-4 rounded-xl border border-procore-border shadow-xs">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Total Completed & Stored</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">${fmt(totalBilled)}</p>
             <p className="text-[11px] text-procore-text-muted mt-0.5">
-              {totalContract > 0 ? `${((totalBilled / totalContract) * 100).toFixed(1)}% complete` : '—'}
+              {totalContract > 0 ? `${((totalBilled / totalContract) * 100).toFixed(1)}% of prime contract` : '—'}
             </p>
           </div>
-          <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Retainage Withheld</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">${fmt(totalRetainage)}</p>
-            <p className="text-[11px] text-procore-text-muted mt-0.5">Cumulative reserve</p>
+          <div className="bg-white p-4 rounded-xl border border-procore-border shadow-xs">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Total Retainage</p>
+            <p className="text-2xl font-black text-amber-600 mt-1">${fmt(totalRetainage)}</p>
+            <p className="text-[11px] text-procore-text-muted mt-0.5">Withheld reserve</p>
           </div>
-          <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
+          <div className="bg-white p-4 rounded-xl border border-procore-border shadow-xs">
             <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Current Payment Due</p>
-            <p className="text-2xl font-bold text-procore-orange mt-1">${fmt(totalDue)}</p>
-            <p className="text-[11px] text-procore-text-muted mt-0.5">Submitted / Approved</p>
+            <p className="text-2xl font-black text-procore-orange mt-1">${fmt(totalDue)}</p>
+            <p className="text-[11px] text-procore-text-muted mt-0.5">Approved & Submitted</p>
           </div>
         </div>
 
         {/* Applications Table */}
-        <div className="bg-white rounded-lg border border-procore-border shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-procore-border bg-gray-50/50">
+        <div className="bg-white rounded-xl border border-procore-border shadow-xs overflow-hidden">
+          <div className="p-4 border-b border-procore-border bg-gray-50/50 flex justify-between items-center">
             <h2 className="text-sm font-bold text-procore-text">
               Applications & Certificates ({billings.length})
             </h2>
@@ -438,40 +487,26 @@ export default function OwnerBillingPage() {
                     };
                     return (
                       <tr key={b.id} className="hover:bg-gray-50/60">
-                        <td className="p-3 font-bold text-procore-orange cursor-pointer" onClick={() => openBilling(b)}>
+                        <td className="p-3 font-bold text-procore-orange cursor-pointer hover:underline" onClick={() => openBilling(b)}>
                           App #{b.application_number}
                         </td>
-                        <td className="p-3 text-center">{b.period_to}</td>
-                        <td className="p-3 text-right font-bold">${fmt(b.contract_sum_to_date)}</td>
-                        <td className="p-3 text-right">${fmt(b.total_completed_and_stored)}</td>
-                        <td className="p-3 text-right text-amber-700">-${fmt(b.retainage_amount)}</td>
+                        <td className="p-3 text-center font-medium text-gray-600">{b.period_to}</td>
+                        <td className="p-3 text-right font-bold text-procore-text">${fmt(b.contract_sum_to_date)}</td>
+                        <td className="p-3 text-right font-medium text-emerald-700">${fmt(b.total_completed_and_stored)}</td>
+                        <td className="p-3 text-right font-medium text-amber-700">-${fmt(b.retainage_amount)}</td>
                         <td className="p-3 text-right text-procore-text-muted">${fmt(b.less_previous_certificates)}</td>
-                        <td className="p-3 text-right font-bold text-sm">${fmt(b.current_payment_due)}</td>
+                        <td className="p-3 text-right font-black text-sm text-procore-text">${fmt(b.current_payment_due)}</td>
                         <td className="p-3 text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusColors[b.status] || ''}`}>
                             {b.status}
                           </span>
                         </td>
-                        <td className="p-3 text-center space-x-1">
+                        <td className="p-3 text-center space-x-2">
                           <button
                             onClick={() => openBilling(b)}
-                            className="text-procore-orange hover:underline font-bold text-[10px]"
+                            className="bg-gray-900 hover:bg-black text-white font-bold text-[11px] px-3 py-1 rounded shadow-2xs cursor-pointer"
                           >
-                            View
-                          </button>
-                          {b.status === 'submitted' && (
-                            <button
-                              onClick={() => handleApprove(b.id)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2 py-1 rounded"
-                            >
-                              Approve
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(b.id)}
-                            className="text-red-500 hover:text-red-700 font-bold text-[10px]"
-                          >
-                            ✕
+                            Open Form
                           </button>
                         </td>
                       </tr>
@@ -481,8 +516,15 @@ export default function OwnerBillingPage() {
               </table>
             </div>
           ) : (
-            <div className="p-8 text-center text-sm text-procore-text-muted">
-              No applications created yet. Click &quot;+ Create Application&quot; to generate your first AIA G702/G703 form.
+            <div className="p-12 text-center text-sm text-procore-text-muted">
+              <p className="font-semibold text-base text-gray-700 mb-2">No pay applications created yet</p>
+              <p className="text-xs text-gray-500 mb-4">Click below to create your first AIA G702 / G703 Application and Certificate for Payment.</p>
+              <button
+                onClick={openNewForm}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow cursor-pointer"
+              >
+                + Create Application Now
+              </button>
             </div>
           )}
         </div>
@@ -495,385 +537,518 @@ export default function OwnerBillingPage() {
   /* ================================================================ */
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3 rounded-lg border border-procore-border shadow-xs print:hidden">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => { setActiveView('list'); setEditingBilling(null); }}
-            className="text-procore-text-muted hover:text-procore-orange transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-          </button>
-          <h2 className="text-sm font-bold text-procore-text">
-            {editingBilling ? `Application #${editingBilling.application_number}` : 'New Application & Certificate for Payment'}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold px-3 py-1.5 rounded shadow-xs transition-colors"
-          >
-            + Import from Estimate
-          </button>
-          <button
-            onClick={() => handleSave('draft')}
-            className="border border-procore-border text-procore-text text-[11px] font-bold px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
-          >
-            Save Draft
-          </button>
-          <button
-            onClick={() => handleSave('submitted')}
-            className="bg-procore-orange hover:bg-procore-orange-hover text-white text-[11px] font-bold px-3 py-1.5 rounded shadow-xs transition-colors"
-          >
-            Submit Application
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="border border-procore-border text-procore-text-muted text-[11px] font-bold px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
-          >
-            🖨 Print
-          </button>
+      {/* Top Main Toolbar — UNMISSABLE, PROMINENT SAVE BUTTONS */}
+      <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white p-4 rounded-xl border border-gray-700 shadow-lg print:hidden">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setActiveView('list'); setEditingBilling(null); }}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white p-2 rounded-lg transition-colors cursor-pointer border border-gray-700"
+              title="Back to List"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black text-white">
+                  {editingBilling ? `Application #${editingBilling.application_number}` : 'Create New Application for Payment'}
+                </h2>
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/30 uppercase">
+                  AIA G702 / G703
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Current Payment Due: <span className="text-emerald-400 font-black text-xs">${fmt(Math.max(0, totals.current_payment_due))}</span> · Contract Sum: <span className="text-white font-bold">${fmt(totals.contract_sum_to_date)}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons: Import, Save, Print */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-3.5 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-blue-400"
+            >
+              <span className="text-sm">📥</span> Import from Estimate
+            </button>
+
+            <button
+              onClick={() => handleSave('draft')}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white text-xs font-black px-4 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-gray-600 active:scale-95"
+            >
+              <span>💾</span> Save Draft
+            </button>
+
+            {/* THE BIG UNMISSABLE SAVE & SUBMIT BUTTON */}
+            <button
+              onClick={() => handleSave('submitted')}
+              className="bg-emerald-500 hover:bg-emerald-400 text-gray-950 text-sm font-black px-6 py-2.5 rounded-lg shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 cursor-pointer border-2 border-emerald-300 active:scale-95 ring-4 ring-emerald-500/20 animate-pulse hover:animate-none"
+            >
+              <span className="text-base">✓</span>
+              <span>SAVE &amp; SUBMIT APPLICATION</span>
+            </button>
+
+            {/* Print Buttons */}
+            <div className="flex items-center gap-1 bg-gray-800 p-1 rounded-lg border border-gray-700">
+              <button
+                onClick={() => triggerPrint('g702_only')}
+                className="bg-gray-700 hover:bg-gray-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded transition-colors cursor-pointer"
+                title="Prints the G702 cover page on exactly one landscape sheet"
+              >
+                🖨 Print G702 (1 Page)
+              </button>
+              <button
+                onClick={() => triggerPrint('all')}
+                className="bg-gray-700 hover:bg-gray-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded transition-colors cursor-pointer"
+                title="Prints full document (G702 Cover + G703 Continuation Sheet)"
+              >
+                🖨 Print All
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ============================================================ */}
-      {/*  PAGE 1 — AIA G702 COVER SHEET                               */}
+      {/*  PAGE 1 — AIA G702 APPLICATION AND CERTIFICATE FOR PAYMENT   */}
+      {/*  EXACT LAYOUT OF THE USER-UPLOADED PHOTO                     */}
       {/* ============================================================ */}
-      <div className="bg-white rounded-lg border border-procore-border shadow-xs overflow-hidden print:shadow-none print:border-black print:rounded-none" id="g702-cover">
-        {/* Title */}
-        <div className="bg-gray-900 text-white px-5 py-3 text-center print:bg-white print:text-black print:border-b-2 print:border-black">
-          <h2 className="text-base font-extrabold tracking-wide uppercase">
-            Application and Certificate for Payment
-          </h2>
-          <p className="text-[10px] text-gray-400 print:text-gray-600 mt-0.5">AIA Document G702™</p>
+      <div
+        id="g702-cover"
+        className={`bg-white text-black border-2 border-black p-4 font-sans print:p-0 print:border-black ${
+          printMode === 'g703_only' ? 'print:hidden' : ''
+        }`}
+        style={{ maxWidth: '100%' }}
+      >
+        {/* Top title line */}
+        <div className="flex justify-between items-baseline border-b-2 border-black pb-1 mb-2">
+          <h1 className="text-base sm:text-lg font-black tracking-wider uppercase text-black">
+            APPLICATION AND CERTIFICATE FOR PAYMENT
+          </h1>
+          <div className="text-[10px] font-bold text-black uppercase tracking-wider">
+            PAGE ONE OF 1 PAGES
+          </div>
         </div>
 
-        <div className="p-5 print:p-4">
-          {/* Header grid: Left info + Right info */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 text-xs">
-            {/* Left column — TO / FROM / CONTRACT FOR / VIA */}
-            <div className="lg:col-span-7 space-y-3">
-              {/* TO OWNER */}
-              <div className="border border-gray-300 rounded p-2.5">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">To Owner:</label>
-                <input
-                  type="text"
-                  value={header.owner_name}
-                  onChange={e => setHeader(h => ({ ...h, owner_name: e.target.value }))}
-                  placeholder="Owner company name"
-                  className="w-full border-b border-gray-300 pb-1 mb-1 text-sm font-semibold text-procore-text focus:outline-none focus:border-procore-orange bg-transparent"
-                />
-                <textarea
-                  value={header.owner_address}
-                  onChange={e => setHeader(h => ({ ...h, owner_address: e.target.value }))}
-                  placeholder="Owner address"
-                  rows={2}
-                  className="w-full text-xs text-procore-text-secondary focus:outline-none resize-none bg-transparent"
-                />
-              </div>
-
-              {/* FROM CONTRACTOR */}
-              <div className="border border-gray-300 rounded p-2.5">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">From Contractor:</label>
-                <input
-                  type="text"
-                  value={header.contractor_name}
-                  onChange={e => setHeader(h => ({ ...h, contractor_name: e.target.value }))}
-                  placeholder="Contractor company name"
-                  className="w-full border-b border-gray-300 pb-1 mb-1 text-sm font-semibold text-procore-text focus:outline-none focus:border-procore-orange bg-transparent"
-                />
-                <textarea
-                  value={header.contractor_address}
-                  onChange={e => setHeader(h => ({ ...h, contractor_address: e.target.value }))}
-                  placeholder="Contractor address"
-                  rows={2}
-                  className="w-full text-xs text-procore-text-secondary focus:outline-none resize-none bg-transparent"
-                />
-              </div>
-
-              {/* CONTRACT FOR / VIA ARCHITECT */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="border border-gray-300 rounded p-2.5">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Contract For:</label>
-                  <input
-                    type="text"
-                    value={header.contract_for}
-                    onChange={e => setHeader(h => ({ ...h, contract_for: e.target.value }))}
-                    placeholder="Project name or description"
-                    className="w-full text-sm text-procore-text focus:outline-none bg-transparent border-b border-gray-300 pb-1"
-                  />
-                </div>
-                <div className="border border-gray-300 rounded p-2.5">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Via Architect:</label>
-                  <input
-                    type="text"
-                    value={header.via_architect}
-                    onChange={e => setHeader(h => ({ ...h, via_architect: e.target.value }))}
-                    placeholder="Architect firm name"
-                    className="w-full text-sm text-procore-text focus:outline-none bg-transparent border-b border-gray-300 pb-1"
-                  />
-                </div>
-              </div>
+        {/* 4-column metadata header section matching uploaded photo */}
+        <div className="grid grid-cols-12 border border-black text-[10px] leading-tight mb-2">
+          {/* Column 1: TO OWNER / FROM CONTRACTOR */}
+          <div className="col-span-12 sm:col-span-4 border-b sm:border-b-0 sm:border-r border-black p-2 space-y-2">
+            <div>
+              <span className="font-extrabold block text-black">TO OWNER:</span>
+              <input
+                type="text"
+                value={header.owner_name}
+                onChange={e => setHeader(h => ({ ...h, owner_name: e.target.value }))}
+                placeholder="Owner Company Name"
+                className="w-full font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
+              />
+              <textarea
+                value={header.owner_address}
+                onChange={e => setHeader(h => ({ ...h, owner_address: e.target.value }))}
+                placeholder="Accounts Payable Dept / PO Box, Address"
+                rows={2}
+                className="w-full text-[9px] text-black border-none resize-none focus:outline-none bg-transparent mt-0.5"
+              />
             </div>
-
-            {/* Right column — Application details */}
-            <div className="lg:col-span-5 space-y-3">
-              <div className="border border-gray-300 rounded p-2.5">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Application #:</label>
-                    <input
-                      type="number"
-                      value={header.application_number}
-                      onChange={e => setHeader(h => ({ ...h, application_number: parseInt(e.target.value) || 1 }))}
-                      className="w-full text-sm font-bold text-procore-text focus:outline-none bg-transparent border-b border-gray-300 pb-0.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Period To:</label>
-                    <input
-                      type="date"
-                      value={header.period_to}
-                      onChange={e => setHeader(h => ({ ...h, period_to: e.target.value }))}
-                      className="w-full text-sm text-procore-text focus:outline-none bg-transparent border-b border-gray-300 pb-0.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Project Nos:</label>
-                    <input
-                      type="text"
-                      value={header.project_nos}
-                      onChange={e => setHeader(h => ({ ...h, project_nos: e.target.value }))}
-                      className="w-full text-sm text-procore-text focus:outline-none bg-transparent border-b border-gray-300 pb-0.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Contract Date:</label>
-                    <input
-                      type="date"
-                      value={header.contract_date}
-                      onChange={e => setHeader(h => ({ ...h, contract_date: e.target.value }))}
-                      className="w-full text-sm text-procore-text focus:outline-none bg-transparent border-b border-gray-300 pb-0.5"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Distribution checkboxes */}
-              <div className="border border-gray-300 rounded p-2.5">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Distribution to:</label>
-                <div className="grid grid-cols-2 gap-1">
-                  {['Owner', 'Const. Mgr', 'Architect', 'Contractor'].map(val => (
-                    <label key={val} className="flex items-center gap-1.5 text-[11px] text-procore-text cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={header.distribution_to.includes(val)}
-                        onChange={() => toggleDistribution(val)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-procore-orange focus:ring-procore-orange"
-                      />
-                      {val}
-                    </label>
-                  ))}
-                </div>
-              </div>
+            <div className="border-t border-black pt-1.5">
+              <span className="font-extrabold block text-black">FROM CONTRACTOR:</span>
+              <input
+                type="text"
+                value={header.contractor_name}
+                onChange={e => setHeader(h => ({ ...h, contractor_name: e.target.value }))}
+                placeholder="Contractor Company Name"
+                className="w-full font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
+              />
+              <textarea
+                value={header.contractor_address}
+                onChange={e => setHeader(h => ({ ...h, contractor_address: e.target.value }))}
+                placeholder="Contractor Address"
+                rows={2}
+                className="w-full text-[9px] text-black border-none resize-none focus:outline-none bg-transparent mt-0.5"
+              />
             </div>
           </div>
 
-          {/* -------------------------------------------------------- */}
-          {/*  CONTRACTOR'S APPLICATION FOR PAYMENT — Lines 1–9         */}
-          {/* -------------------------------------------------------- */}
-          <div className="mt-5">
-            <div className="bg-gray-100 rounded-t px-3 py-2 border border-gray-300 border-b-0">
-              <h3 className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">
-                Contractor&apos;s Application for Payment
-              </h3>
-              <p className="text-[9px] text-gray-500 mt-0.5">
+          {/* Column 2: PROJECT / VIA ARCHITECT */}
+          <div className="col-span-12 sm:col-span-3 border-b sm:border-b-0 sm:border-r border-black p-2 space-y-2">
+            <div>
+              <span className="font-extrabold block text-black">PROJECT:</span>
+              <input
+                type="text"
+                value={header.project_name}
+                onChange={e => setHeader(h => ({ ...h, project_name: e.target.value }))}
+                placeholder="Project Name"
+                className="w-full font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
+              />
+              <textarea
+                value={header.project_address}
+                onChange={e => setHeader(h => ({ ...h, project_address: e.target.value }))}
+                placeholder="Project Site Address"
+                rows={2}
+                className="w-full text-[9px] text-black border-none resize-none focus:outline-none bg-transparent mt-0.5"
+              />
+            </div>
+            <div className="border-t border-black pt-1.5">
+              <span className="font-extrabold block text-black">VIA ARCHITECT:</span>
+              <input
+                type="text"
+                value={header.via_architect}
+                onChange={e => setHeader(h => ({ ...h, via_architect: e.target.value }))}
+                placeholder="Architect Firm / Name"
+                className="w-full text-[9px] text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Column 3: APPLICATION #, PERIOD TO, PROJECT NOS, CONTRACT DATE */}
+          <div className="col-span-12 sm:col-span-3 border-b sm:border-b-0 sm:border-r border-black p-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-black">APPLICATION #:</span>
+              <input
+                type="number"
+                value={header.application_number}
+                onChange={e => setHeader(h => ({ ...h, application_number: parseInt(e.target.value) || 1 }))}
+                className="w-20 text-right font-black text-black border-b border-black focus:outline-none bg-transparent"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-black">PERIOD TO:</span>
+              <input
+                type="date"
+                value={header.period_to}
+                onChange={e => setHeader(h => ({ ...h, period_to: e.target.value }))}
+                className="w-28 text-right font-bold text-black border-b border-black focus:outline-none bg-transparent"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-black">PROJECT NOS:</span>
+              <input
+                type="text"
+                value={header.project_nos}
+                onChange={e => setHeader(h => ({ ...h, project_nos: e.target.value }))}
+                placeholder="—"
+                className="w-24 text-right text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-black">CONTRACT DATE:</span>
+              <input
+                type="date"
+                value={header.contract_date}
+                onChange={e => setHeader(h => ({ ...h, contract_date: e.target.value }))}
+                className="w-28 text-right font-bold text-black border-b border-black focus:outline-none bg-transparent"
+              />
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <span className="font-bold text-black">Purchase Order:</span>
+              <input
+                type="text"
+                value={header.purchase_order}
+                onChange={e => setHeader(h => ({ ...h, purchase_order: e.target.value }))}
+                placeholder="PO #"
+                className="w-24 text-right text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Column 4: Distribution to: */}
+          <div className="col-span-12 sm:col-span-2 p-2">
+            <span className="font-extrabold block text-black mb-1">Distribution to:</span>
+            <div className="border border-black p-1.5 space-y-1">
+              {['Owner', 'Const. Mgr', 'Architect', 'Contractor'].map(item => (
+                <label key={item} className="flex items-center gap-1.5 text-[9px] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={header.distribution_to.includes(item)}
+                    onChange={() => toggleDistribution(item)}
+                    className="w-3 h-3 border border-black rounded-none text-black focus:ring-0 cursor-pointer"
+                  />
+                  <span className="text-black font-semibold">{item}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Contract For bar */}
+        <div className="border border-black px-2 py-1 mb-2 text-[10px] flex items-center gap-2">
+          <span className="font-extrabold text-black shrink-0">CONTRACT FOR:</span>
+          <input
+            type="text"
+            value={header.contract_for}
+            onChange={e => setHeader(h => ({ ...h, contract_for: e.target.value }))}
+            placeholder="Contract description / Project"
+            className="flex-1 font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
+          />
+        </div>
+
+        {/* ============================================================ */}
+        {/*  2-COLUMN SPLIT: LEFT (LINES 1-9 + CO) | RIGHT (SIGNATURES)   */}
+        {/* ============================================================ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[9px] leading-tight">
+          {/* ---------------- LEFT COLUMN ---------------- */}
+          <div className="space-y-2">
+            {/* Contractor's Application Header */}
+            <div>
+              <h2 className="text-[11px] font-black uppercase text-black tracking-wide">
+                CONTRACTOR&apos;S APPLICATION FOR PAYMENT
+              </h2>
+              <p className="text-[8px] text-gray-700 leading-snug">
                 Application is made for payment, as shown below, in connection with the Contract. Continuation Sheet is attached.
               </p>
             </div>
 
-            <div className="border border-gray-300 rounded-b overflow-hidden">
-              <table className="w-full text-xs">
+            {/* Lines 1 to 9 Table matching uploaded photo */}
+            <div className="border border-black">
+              <table className="w-full text-[9px] border-collapse">
                 <tbody>
-                  {/* Line 1 */}
-                  <tr className="border-b border-gray-200">
-                    <td className="p-2 font-bold text-procore-text w-8 text-center bg-gray-50">1.</td>
-                    <td className="p-2 text-procore-text">ORIGINAL CONTRACT SUM</td>
-                    <td className="p-2 text-right w-8 text-gray-400">$</td>
-                    <td className="p-2 text-right w-36">
+                  {/* 1. ORIGINAL CONTRACT SUM */}
+                  <tr className="border-b border-black">
+                    <td className="p-1 font-black text-black w-4 text-center">1.</td>
+                    <td className="p-1 font-bold text-black">
+                      ORIGINAL CONTRACT SUM...................................
+                    </td>
+                    <td className="p-1 text-right font-bold w-4">$</td>
+                    <td className="p-1 text-right w-28 border-l border-black bg-white">
                       <input
                         type="number"
                         value={header.original_contract_sum || ''}
                         onChange={e => setHeader(h => ({ ...h, original_contract_sum: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right text-sm font-bold text-procore-text focus:outline-none bg-transparent"
+                        className="w-full text-right font-bold text-black focus:outline-none bg-transparent"
                         placeholder="0.00"
                       />
                     </td>
                   </tr>
-                  {/* Line 2 */}
-                  <tr className="border-b border-gray-200">
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50">2.</td>
-                    <td className="p-2 text-procore-text">Net change by Change Orders</td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right font-bold text-sm text-procore-text">{fmt(totals.net_co)}</td>
-                  </tr>
-                  {/* Line 3 */}
-                  <tr className="border-b border-gray-200 bg-blue-50/50">
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50">3.</td>
-                    <td className="p-2 font-bold text-procore-text">CONTRACT SUM TO DATE (Line 1 ± 2)</td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right font-bold text-sm text-procore-text">{fmt(totals.contract_sum_to_date)}</td>
-                  </tr>
-                  {/* Line 4 */}
-                  <tr className="border-b border-gray-200">
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50">4.</td>
-                    <td className="p-2 text-procore-text">
-                      TOTAL COMPLETED &amp; STORED TO DATE
-                      <span className="text-[9px] text-gray-500 ml-1">(Column G on Continuation Sheet)</span>
+
+                  {/* 2. Net change by Change Orders */}
+                  <tr className="border-b border-black">
+                    <td className="p-1 font-black text-black text-center">2.</td>
+                    <td className="p-1 font-bold text-black">
+                      Net change by Change Orders.............................
                     </td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right font-bold text-sm text-emerald-700">{fmt(totals.total_completed_and_stored)}</td>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-bold border-l border-black bg-white">
+                      {totals.net_co !== 0 ? fmt(totals.net_co) : ''}
+                    </td>
                   </tr>
-                  {/* Line 5 — Retainage */}
-                  <tr className="border-b border-gray-200">
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50" rowSpan={3}>5.</td>
-                    <td className="p-2 text-procore-text font-semibold" colSpan={3}>RETAINAGE:</td>
+
+                  {/* 3. CONTRACT SUM TO DATE */}
+                  <tr className="border-b border-black bg-gray-50/50">
+                    <td className="p-1 font-black text-black text-center">3.</td>
+                    <td className="p-1 font-black text-black">
+                      CONTRACT SUM TO DATE (Line 1 +/- 2)............
+                    </td>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-black border-l border-black bg-white">
+                      {fmt(totals.contract_sum_to_date)}
+                    </td>
                   </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="p-2 pl-6 text-procore-text-secondary">
-                      <span className="font-semibold">a.</span>{' '}
+
+                  {/* 4. TOTAL COMPLETED & STORED TO DATE */}
+                  <tr className="border-b border-black">
+                    <td className="p-1 font-black text-black text-center">4.</td>
+                    <td className="p-1 font-bold text-black">
+                      TOTAL COMPLETED &amp; STORED TO DATE-$
+                      <div className="text-[7.5px] text-gray-600 font-normal">(Column G on Continuation Sheet)</div>
+                    </td>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-black border-l border-black bg-white">
+                      {fmt(totals.total_completed_and_stored)}
+                    </td>
+                  </tr>
+
+                  {/* 5. RETAINAGE */}
+                  <tr className="border-b border-black">
+                    <td className="p-1 font-black text-black text-center" rowSpan={3}>5.</td>
+                    <td className="p-1 font-bold text-black" colSpan={3}>
+                      RETAINAGE:
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="p-1 pl-4 text-black">
+                      a.{' '}
                       <input
                         type="number"
                         value={header.retainage_completed_pct}
                         onChange={e => setHeader(h => ({ ...h, retainage_completed_pct: parseFloat(e.target.value) || 0 }))}
-                        className="w-12 text-center text-xs font-bold border-b border-gray-300 focus:outline-none bg-transparent"
+                        className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
                       />
                       % of Completed Work
+                      <div className="text-[7.5px] text-gray-600 font-normal">(Columns D+E on Continuation Sheet)</div>
                     </td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right text-amber-700 font-medium">{fmt(totals.retainage_on_completed)}</td>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-semibold border-l border-black bg-white">
+                      {totals.retainage_on_completed > 0 ? fmt(totals.retainage_on_completed) : ''}
+                    </td>
                   </tr>
-                  <tr className="border-b border-gray-200">
-                    <td className="p-2 pl-6 text-procore-text-secondary">
-                      <span className="font-semibold">b.</span>{' '}
+                  <tr className="border-b border-black">
+                    <td className="p-1 pl-4 text-black">
+                      b.{' '}
                       <input
                         type="number"
                         value={header.retainage_stored_pct}
                         onChange={e => setHeader(h => ({ ...h, retainage_stored_pct: parseFloat(e.target.value) || 0 }))}
-                        className="w-12 text-center text-xs font-bold border-b border-gray-300 focus:outline-none bg-transparent"
+                        className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
                       />
                       % of Stored Material
+                      <div className="text-[7.5px] text-gray-600 font-normal">(Column F on Continuation Sheet)</div>
                     </td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right text-amber-700 font-medium">{fmt(totals.retainage_on_stored)}</td>
-                  </tr>
-                  {/* Total Retainage row */}
-                  <tr className="border-b border-gray-200 bg-amber-50/40">
-                    <td className="p-2 bg-gray-50"></td>
-                    <td className="p-2 pl-6 font-bold text-procore-text">Total Retainage (Lines 5a + 5b or Total in Column I of G703)</td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right font-bold text-amber-700">{fmt(totals.total_retainage)}</td>
-                  </tr>
-                  {/* Line 6 */}
-                  <tr className="border-b border-gray-200 bg-blue-50/50">
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50">6.</td>
-                    <td className="p-2 font-bold text-procore-text">
-                      TOTAL EARNED LESS RETAINAGE
-                      <span className="text-[9px] text-gray-500 ml-1">(Line 4 less Line 5 Total)</span>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-semibold border-l border-black bg-white">
+                      {totals.retainage_on_stored > 0 ? fmt(totals.retainage_on_stored) : ''}
                     </td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right font-bold text-sm text-procore-text">{fmt(totals.total_earned_less_retainage)}</td>
                   </tr>
-                  {/* Line 7 */}
-                  <tr className="border-b border-gray-200">
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50">7.</td>
-                    <td className="p-2 text-procore-text">
+
+                  {/* Total Retainage line */}
+                  <tr className="border-b border-black">
+                    <td className="p-1 text-center"></td>
+                    <td className="p-1 pl-4 text-black font-bold">
+                      Total Retainage (Line 5a + 5b or<br />
+                      Total in Column I of Continuation Sheet)---
+                    </td>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-black border-l border-black bg-white">
+                      {fmt(totals.total_retainage)}
+                    </td>
+                  </tr>
+
+                  {/* 6. TOTAL EARNED LESS RETAINAGE */}
+                  <tr className="border-b border-black bg-gray-50/50">
+                    <td className="p-1 font-black text-black text-center">6.</td>
+                    <td className="p-1 font-black text-black">
+                      TOTAL EARNED LESS RETAINAGE..............
+                      <div className="text-[7.5px] text-gray-600 font-normal">(Line 4 less Line 5 Total)</div>
+                    </td>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-black border-l border-black bg-white">
+                      {fmt(totals.total_earned_less_retainage)}
+                    </td>
+                  </tr>
+
+                  {/* 7. LESS PREVIOUS CERTIFICATES FOR PAYMENT */}
+                  <tr className="border-b border-black">
+                    <td className="p-1 font-black text-black text-center">7.</td>
+                    <td className="p-1 font-bold text-black">
                       LESS PREVIOUS CERTIFICATES FOR PAYMENT
-                      <span className="text-[9px] text-gray-500 ml-1">(Line 6 from prior Certificate)</span>
+                      <div className="text-[7.5px] text-gray-600 font-normal">(Line 6 from prior Certificate)</div>
                     </td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right w-36">
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right w-28 border-l border-black bg-white">
                       <input
                         type="number"
                         value={header.less_previous_certificates || ''}
                         onChange={e => setHeader(h => ({ ...h, less_previous_certificates: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right text-sm font-bold text-procore-text focus:outline-none bg-transparent"
+                        className="w-full text-right font-bold text-black focus:outline-none bg-transparent"
                         placeholder="0.00"
                       />
                     </td>
                   </tr>
-                  {/* Line 8 */}
-                  <tr className="border-b border-gray-200 bg-emerald-50/60">
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50">8.</td>
-                    <td className="p-2 font-bold text-procore-text">
-                      CURRENT PAYMENT DUE
+
+                  {/* 8. CURRENT PAYMENT DUE */}
+                  <tr className="border-b border-black bg-emerald-50/40">
+                    <td className="p-1 font-black text-black text-center">8.</td>
+                    <td className="p-1 font-black text-black">
+                      CURRENT PAYMENT DUE................................
                     </td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right font-extrabold text-base text-emerald-700">{fmt(Math.max(0, totals.current_payment_due))}</td>
+                    <td className="p-1 text-right font-black">$</td>
+                    <td className="p-1 text-right font-black text-[10px] border-l border-black bg-white">
+                      {fmt(Math.max(0, totals.current_payment_due))}
+                    </td>
                   </tr>
-                  {/* Line 9 */}
+
+                  {/* 9. BALANCE TO FINISH, INCLUDING RETAINAGE */}
                   <tr>
-                    <td className="p-2 font-bold text-procore-text text-center bg-gray-50">9.</td>
-                    <td className="p-2 font-bold text-procore-text">
+                    <td className="p-1 font-black text-black text-center">9.</td>
+                    <td className="p-1 font-bold text-black">
                       BALANCE TO FINISH, INCLUDING RETAINAGE
-                      <span className="text-[9px] text-gray-500 ml-1">(Line 3 less Line 6)</span>
+                      <div className="text-[7.5px] text-gray-600 font-normal">(Line 3 less Line 6)</div>
                     </td>
-                    <td className="p-2 text-right text-gray-400">$</td>
-                    <td className="p-2 text-right font-bold text-sm text-procore-text">{fmt(Math.max(0, totals.balance_to_finish_incl_retainage))}</td>
+                    <td className="p-1 text-right font-bold">$</td>
+                    <td className="p-1 text-right font-black border-l border-black bg-white">
+                      {fmt(Math.max(0, totals.balance_to_finish_incl_retainage))}
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* -------------------------------------------------------- */}
-          {/*  CHANGE ORDER SUMMARY                                     */}
-          {/* -------------------------------------------------------- */}
-          <div className="mt-5">
-            <div className="bg-gray-100 rounded-t px-3 py-2 border border-gray-300 border-b-0">
-              <h3 className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">
-                Change Order Summary
-              </h3>
-            </div>
-            <div className="border border-gray-300 rounded-b overflow-hidden">
-              <table className="w-full text-xs">
+            {/* CHANGE ORDER SUMMARY TABLE matching uploaded photo */}
+            <div className="border border-black">
+              <table className="w-full text-[8px] border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="p-2 text-left font-bold text-gray-600"></th>
-                    <th className="p-2 text-right font-bold text-gray-600">ADDITIONS</th>
-                    <th className="p-2 text-right font-bold text-gray-600">DEDUCTIONS</th>
+                  <tr className="border-b border-black bg-gray-100 font-black">
+                    <th className="p-1 text-left border-r border-black w-56">CHANGE ORDER SUMMARY</th>
+                    <th className="p-1 text-center border-r border-black w-24">ADDITIONS</th>
+                    <th className="p-1 text-center w-24">DEDUCTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-200">
-                    <td className="p-2 text-procore-text">Total changes approved in previous months by Owner</td>
-                    <td className="p-2 text-right w-36">
+                  <tr className="border-b border-black">
+                    <td className="p-1 text-black border-r border-black">
+                      Total changes approved in previous months by Owner
+                    </td>
+                    <td className="p-1 border-r border-black">
                       <input
                         type="number"
-                        value={header.change_order_additions || ''}
-                        onChange={e => setHeader(h => ({ ...h, change_order_additions: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right text-xs font-medium text-procore-text focus:outline-none bg-transparent"
+                        value={header.change_order_additions_prev || ''}
+                        onChange={e => setHeader(h => ({ ...h, change_order_additions_prev: parseFloat(e.target.value) || 0 }))}
+                        className="w-full text-right focus:outline-none bg-transparent"
                         placeholder="0.00"
                       />
                     </td>
-                    <td className="p-2 text-right w-36">
+                    <td className="p-1">
                       <input
                         type="number"
-                        value={header.change_order_deductions || ''}
-                        onChange={e => setHeader(h => ({ ...h, change_order_deductions: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right text-xs font-medium text-procore-text focus:outline-none bg-transparent"
+                        value={header.change_order_deductions_prev || ''}
+                        onChange={e => setHeader(h => ({ ...h, change_order_deductions_prev: parseFloat(e.target.value) || 0 }))}
+                        className="w-full text-right focus:outline-none bg-transparent"
                         placeholder="0.00"
                       />
                     </td>
                   </tr>
-                  <tr className="bg-gray-50 font-bold">
-                    <td className="p-2 text-procore-text">NET CHANGES by Change Order</td>
-                    <td className="p-2 text-right" colSpan={2}>
-                      <span className={totals.net_co >= 0 ? 'text-emerald-700' : 'text-red-600'}>
-                        ${fmt(totals.net_co)}
-                      </span>
+                  <tr className="border-b border-black">
+                    <td className="p-1 text-black border-r border-black">
+                      Total approved this Month
+                    </td>
+                    <td className="p-1 border-r border-black">
+                      <input
+                        type="number"
+                        value={header.change_order_additions_curr || ''}
+                        onChange={e => setHeader(h => ({ ...h, change_order_additions_curr: parseFloat(e.target.value) || 0 }))}
+                        className="w-full text-right focus:outline-none bg-transparent"
+                        placeholder="0.00"
+                      />
+                    </td>
+                    <td className="p-1">
+                      <input
+                        type="number"
+                        value={header.change_order_deductions_curr || ''}
+                        onChange={e => setHeader(h => ({ ...h, change_order_deductions_curr: parseFloat(e.target.value) || 0 }))}
+                        className="w-full text-right focus:outline-none bg-transparent"
+                        placeholder="0.00"
+                      />
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black bg-gray-50 font-bold">
+                    <td className="p-1 text-right font-black text-black border-r border-black">
+                      TOTALS
+                    </td>
+                    <td className="p-1 text-right border-r border-black font-bold">
+                      ${fmt(totals.total_additions)}
+                    </td>
+                    <td className="p-1 text-right font-bold">
+                      ${fmt(totals.total_deductions)}
+                    </td>
+                  </tr>
+                  <tr className="font-black bg-gray-100">
+                    <td className="p-1 text-black border-r border-black">
+                      NET CHANGES by Change Order
+                    </td>
+                    <td className="p-1 text-right" colSpan={2}>
+                      ${fmt(totals.net_co)}
                     </td>
                   </tr>
                 </tbody>
@@ -881,97 +1056,186 @@ export default function OwnerBillingPage() {
             </div>
           </div>
 
-          {/* -------------------------------------------------------- */}
-          {/*  SIGNATURE BLOCKS                                         */}
-          {/* -------------------------------------------------------- */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Contractor signature */}
-            <div className="border border-gray-300 rounded p-3">
-              <p className="text-[9px] text-gray-500 leading-relaxed mb-4">
+          {/* ---------------- RIGHT COLUMN ---------------- */}
+          {/* CONTRACTOR CERTIFICATION, NOTARY, ARCHITECT CERTIFICATE */}
+          <div className="space-y-2 flex flex-col justify-between">
+            {/* Contractor Certification */}
+            <div className="border border-black p-2 space-y-2">
+              <p className="text-[8px] text-gray-800 leading-tight">
                 The undersigned Contractor certifies that to the best of the Contractor&apos;s knowledge, information and
                 belief the Work covered by this Application for Payment has been completed in accordance with the
                 Contract Documents, that all amounts have been paid by the Contractor for Work for which previous
                 Certificates for Payment were issued and payments received from the Owner, and that current payment
-                shown herein is now due.
+                shown therein is now due.
               </p>
-              <div className="space-y-3">
-                <div className="flex items-end gap-2">
-                  <span className="text-[10px] font-bold text-gray-600 shrink-0">By:</span>
-                  <span className="text-[10px] text-gray-500 shrink-0">CONTRACTOR:</span>
-                  <div className="flex-1 border-b border-gray-400 min-h-[20px]"></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] text-gray-500 shrink-0">State of:</span>
-                    <div className="flex-1 border-b border-gray-400 min-h-[16px]"></div>
+
+              <div>
+                <span className="font-extrabold block text-black mb-1">CONTRACTOR:</span>
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="flex-1 flex items-baseline gap-1">
+                    <span className="font-bold text-black shrink-0">By:</span>
+                    <input
+                      type="text"
+                      value={header.contractor_signature_by}
+                      onChange={e => setHeader(h => ({ ...h, contractor_signature_by: e.target.value }))}
+                      placeholder="Authorized Signature"
+                      className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent px-1"
+                    />
                   </div>
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] text-gray-500 shrink-0">Date:</span>
-                    <div className="flex-1 border-b border-gray-400 min-h-[16px]"></div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold text-black shrink-0">Date:</span>
+                    <input
+                      type="text"
+                      value={header.contractor_signature_date}
+                      onChange={e => setHeader(h => ({ ...h, contractor_signature_date: e.target.value }))}
+                      placeholder="MM/DD/YYYY"
+                      className="w-20 font-bold text-black border-b border-black focus:outline-none bg-transparent text-center"
+                    />
                   </div>
                 </div>
-                <div className="flex items-end gap-1">
-                  <span className="text-[10px] text-gray-500 shrink-0">County of:</span>
-                  <div className="flex-1 border-b border-gray-400 min-h-[16px]"></div>
-                </div>
-                <div className="mt-2 pt-2 border-t border-dashed border-gray-300">
-                  <p className="text-[9px] text-gray-500 italic">
-                    Subscribed and sworn to before me this _____ day of _____________
-                  </p>
-                  <div className="mt-2 flex items-end gap-1">
-                    <span className="text-[10px] text-gray-500 shrink-0">Notary Public:</span>
-                    <div className="flex-1 border-b border-gray-400 min-h-[16px]"></div>
+              </div>
+
+              {/* Notary Jurat */}
+              <div className="pt-1 text-[8px] space-y-1">
+                <div className="flex gap-4">
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold">State of:</span>
+                    <input
+                      type="text"
+                      value={header.state_of}
+                      onChange={e => setHeader(h => ({ ...h, state_of: e.target.value }))}
+                      className="w-20 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
+                    />
                   </div>
-                  <div className="mt-1 flex items-end gap-1">
-                    <span className="text-[10px] text-gray-500 shrink-0">My Commission expires:</span>
-                    <div className="flex-1 border-b border-gray-400 min-h-[16px]"></div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold">County of:</span>
+                    <input
+                      type="text"
+                      value={header.county_of}
+                      onChange={e => setHeader(h => ({ ...h, county_of: e.target.value }))}
+                      className="w-20 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-baseline gap-1">
+                  <span>Subscribed and sworn to before me this</span>
+                  <input
+                    type="text"
+                    value={header.notary_day}
+                    onChange={e => setHeader(h => ({ ...h, notary_day: e.target.value }))}
+                    placeholder="29"
+                    className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
+                  />
+                  <span>day of</span>
+                  <input
+                    type="text"
+                    value={header.notary_month_year}
+                    onChange={e => setHeader(h => ({ ...h, notary_month_year: e.target.value }))}
+                    placeholder="MAY, 2026"
+                    className="w-24 font-bold border-b border-black focus:outline-none bg-transparent"
+                  />
+                </div>
+
+                <div className="grid grid-cols-12 gap-2 pt-1 items-center">
+                  <div className="col-span-7 space-y-1">
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-bold shrink-0">Notary Public:</span>
+                      <input
+                        type="text"
+                        value={header.notary_public}
+                        onChange={e => setHeader(h => ({ ...h, notary_public: e.target.value }))}
+                        placeholder="Notary Signature"
+                        className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent"
+                      />
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-bold shrink-0">My Commission expires:</span>
+                      <input
+                        type="text"
+                        value={header.notary_commission_expires}
+                        onChange={e => setHeader(h => ({ ...h, notary_commission_expires: e.target.value }))}
+                        placeholder="MM/DD/YYYY"
+                        className="w-24 font-bold border-b border-black focus:outline-none bg-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notary Stamp Graphic Box matching uploaded photo */}
+                  <div className="col-span-5 border-2 border-dashed border-gray-600 rounded p-1 text-center bg-gray-50/70 text-[7px] leading-tight">
+                    <div className="font-black uppercase tracking-wider text-black">🏛️ Notary Public</div>
+                    <div className="font-bold text-gray-800">State of Florida</div>
+                    <div className="font-semibold text-gray-700">Commission Official Seal</div>
+                    <div className="text-[6.5px] text-gray-500">Affix Seal Here</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Architect Certificate */}
-            <div className="border border-gray-300 rounded p-3">
-              <h4 className="text-[10px] font-extrabold text-gray-700 uppercase tracking-wider mb-2">
-                Certificate for Payment
-              </h4>
-              <p className="text-[9px] text-gray-500 leading-relaxed mb-4">
+            {/* ARCHITECT CERTIFICATE FOR PAYMENT */}
+            <div className="border border-black p-2 space-y-1.5">
+              <h3 className="text-[11px] font-black uppercase text-black tracking-wide">
+                CERTIFICATE FOR PAYMENT
+              </h3>
+              <p className="text-[8px] text-gray-800 leading-tight">
                 In accordance with Contract Documents, based on on-site observations and the data comprising
-                the application, the Architect certifies to the Owner that to the best of the Architect&apos;s knowledge,
-                information and belief, the Work has progressed as indicated, the quality of the Work is in accordance with
+                application, the Architect certifies to the Owner that to the best of the Architect&apos;s knowledge,
+                information and belief the Work has progressed as indicated, the quality of the Work is in accordance with
                 the Contract Documents, and the Contractor is entitled to payment of the AMOUNT CERTIFIED.
               </p>
-              <div className="space-y-3">
-                <div className="bg-blue-50 border border-blue-200 rounded p-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold text-blue-800 uppercase">Amount Certified</span>
-                    <span className="text-sm font-extrabold text-blue-800">$ {fmt(Math.max(0, totals.current_payment_due))}</span>
-                  </div>
-                  <p className="text-[8px] text-blue-600 mt-0.5 italic">
-                    (Attach explanation if Amount Certified differs from the amount applied for. Initial all figures on this
-                    application and on the Continuation Sheet that are changed to conform to the amount certified.)
-                  </p>
+
+              {/* AMOUNT CERTIFIED box */}
+              <div className="flex items-baseline justify-between border-t border-b border-black py-1">
+                <span className="font-black text-[10px] text-black">
+                  AMOUNT CERTIFIED..........................................................
+                </span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-black text-black">$</span>
+                  <input
+                    type="number"
+                    value={header.amount_certified || Math.max(0, totals.current_payment_due)}
+                    onChange={e => setHeader(h => ({ ...h, amount_certified: parseFloat(e.target.value) || 0 }))}
+                    className="w-28 text-right font-black text-[10px] text-black border-b border-black focus:outline-none bg-transparent"
+                  />
                 </div>
-                <div className="flex items-end gap-2">
-                  <span className="text-[10px] font-bold text-gray-600 shrink-0">ARCHITECT:</span>
-                  <div className="flex-1 border-b border-gray-400 min-h-[20px]"></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] text-gray-500 shrink-0">By:</span>
-                    <div className="flex-1 border-b border-gray-400 min-h-[16px]"></div>
-                  </div>
-                  <div className="flex items-end gap-1">
-                    <span className="text-[10px] text-gray-500 shrink-0">Date:</span>
-                    <div className="flex-1 border-b border-gray-400 min-h-[16px]"></div>
-                  </div>
-                </div>
-                <p className="text-[8px] text-gray-500 italic mt-1">
-                  This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the Contractor named
-                  herein. Issuance, payment and acceptance of payment are without prejudice to any rights of the Owner
-                  or Contractor under this Contract.
-                </p>
               </div>
+
+              <p className="text-[7px] text-gray-600 italic leading-snug">
+                (Attach explanation if amount certified differs from the amount applied for. Initial all figures on this
+                application and on the Continuation Sheet that are changed to conform to the amount certified.)
+              </p>
+
+              <div>
+                <span className="font-extrabold block text-black mb-1">ARCHITECT:</span>
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="flex-1 flex items-baseline gap-1">
+                    <span className="font-bold text-black shrink-0">By:</span>
+                    <input
+                      type="text"
+                      value={header.architect_signature_by}
+                      onChange={e => setHeader(h => ({ ...h, architect_signature_by: e.target.value }))}
+                      placeholder="Architect Signature"
+                      className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent px-1"
+                    />
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold text-black shrink-0">Date:</span>
+                    <input
+                      type="text"
+                      value={header.architect_signature_date}
+                      onChange={e => setHeader(h => ({ ...h, architect_signature_date: e.target.value }))}
+                      placeholder="MM/DD/YYYY"
+                      className="w-20 font-bold text-black border-b border-black focus:outline-none bg-transparent text-center"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[7px] text-gray-600 leading-snug">
+                This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the Contractor named herein.
+                Issuance, payment and acceptance of payment are without prejudice to any rights of the Owner or Contractor
+                under this Contract.
+              </p>
             </div>
           </div>
         </div>
@@ -980,90 +1244,97 @@ export default function OwnerBillingPage() {
       {/* ============================================================ */}
       {/*  PAGE 2 — AIA G703 CONTINUATION SHEET                        */}
       {/* ============================================================ */}
-      <div className="bg-white rounded-lg border border-procore-border shadow-xs overflow-hidden print:shadow-none print:border-black print:rounded-none print:break-before-page" id="g703-continuation">
+      <div
+        id="g703-continuation"
+        className={`bg-white rounded-xl border border-procore-border shadow-xs overflow-hidden print:shadow-none print:border-black print:rounded-none ${
+          printMode === 'g702_only' ? 'print:hidden' : ''
+        }`}
+      >
         {/* Title */}
-        <div className="bg-gray-900 text-white px-5 py-3 print:bg-white print:text-black print:border-b-2 print:border-black">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-extrabold tracking-wide uppercase">
-                Continuation Sheet
-              </h2>
-              <p className="text-[10px] text-gray-400 print:text-gray-600 mt-0.5">AIA Document G703™ — Attachment to G702, Application No. {header.application_number}</p>
-            </div>
-            <div className="text-right text-[10px] text-gray-400 print:text-gray-600">
-              <p>APPLICATION NUMBER: <span className="font-bold text-white print:text-black">{header.application_number}</span></p>
-              <p>PERIOD TO: <span className="font-bold text-white print:text-black">{header.period_to}</span></p>
-            </div>
+        <div className="bg-gray-900 text-white px-5 py-3 flex items-center justify-between print:bg-white print:text-black print:border-b-2 print:border-black">
+          <div>
+            <h2 className="text-sm sm:text-base font-black tracking-wide uppercase">
+              Continuation Sheet
+            </h2>
+            <p className="text-[10px] text-gray-400 print:text-gray-600 mt-0.5">
+              AIA Document G703™ — Attachment to Application #{header.application_number}
+            </p>
+          </div>
+          <div className="text-right text-[10px] text-gray-400 print:text-gray-600">
+            <p>APPLICATION NUMBER: <span className="font-black text-white print:text-black">{header.application_number}</span></p>
+            <p>PERIOD TO: <span className="font-bold text-white print:text-black">{header.period_to}</span></p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px] min-w-[1100px]">
+          <table className="w-full text-[11px] min-w-[1050px] border-collapse">
             <thead>
-              {/* Column group headers */}
-              <tr className="bg-gray-100 border-b border-gray-300">
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-12">A</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300">B</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28">C</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28" colSpan={2}>D &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; E</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-24">F</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28">G</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-14">%</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-24">H</th>
+              {/* Column Letter headers */}
+              <tr className="bg-gray-100 border-b border-gray-300 print:border-black">
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-12 print:border-black">A</th>
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 print:border-black">B</th>
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">C</th>
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black" colSpan={2}>
+                  D &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; E
+                </th>
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">F</th>
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">G</th>
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-14 print:border-black">%</th>
+                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">H</th>
                 <th className="p-1.5 text-center font-bold text-gray-500 w-24">I</th>
                 <th className="p-1.5 w-8 print:hidden"></th>
               </tr>
-              {/* Column detail headers */}
-              <tr className="bg-gray-50 border-b-2 border-gray-400 text-[9px]">
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300">
+              {/* Detailed headers */}
+              <tr className="bg-gray-50 border-b-2 border-gray-400 text-[9px] print:border-black">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
                   Item<br />No
                 </th>
-                <th className="p-1.5 text-left font-bold text-gray-600 border-r border-gray-300">
+                <th className="p-1.5 text-left font-bold text-gray-700 border-r border-gray-300 print:border-black">
                   Description of Work
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
                   Scheduled<br />Value
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300 w-28">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 w-28 print:border-black">
                   Work Completed<br />
-                  <span className="text-[8px] text-gray-500">From Previous<br />Application (D+E)</span>
+                  <span className="text-[8px] text-gray-500">From Previous<br />App (D+E)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300 w-28">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 w-28 print:border-black">
                   Work Completed<br />
                   <span className="text-[8px] text-gray-500">This Period</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
                   Materials<br />Presently<br />Stored<br />
-                  <span className="text-[8px] text-gray-500">(Not in<br />D or E)</span>
+                  <span className="text-[8px] text-gray-500">(Not in D or E)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300">
-                  Total<br />Completed<br />And Stored<br />To Date<br />
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                  Total<br />Completed<br />&amp; Stored<br />
                   <span className="text-[8px] text-gray-500">(D+E+F)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
                   G/C<br />
                   <span className="text-[8px] text-gray-500">%</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
                   Balance<br />To Finish<br />
                   <span className="text-[8px] text-gray-500">(C - G)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-600">
+                <th className="p-1.5 text-center font-bold text-gray-700">
                   Retainage<br />
-                  <span className="text-[8px] text-gray-500">(If Variable<br />Rate)</span>
+                  <span className="text-[8px] text-gray-500">(If Variable)</span>
                 </th>
                 <th className="p-1.5 print:hidden"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 print:divide-black">
               {rows.map((row, idx) => (
                 <tr key={row.id} className="hover:bg-blue-50/30 group">
                   {/* A — Item No */}
-                  <td className="p-1 text-center font-bold text-gray-500 border-r border-gray-200 bg-gray-50/50">
+                  <td className="p-1 text-center font-bold text-gray-500 border-r border-gray-200 bg-gray-50/50 print:border-black">
                     {row.item_number}
                   </td>
                   {/* B — Description */}
-                  <td className="p-1 border-r border-gray-200">
+                  <td className="p-1 border-r border-gray-200 print:border-black">
                     <input
                       type="text"
                       value={row.description}
@@ -1073,7 +1344,7 @@ export default function OwnerBillingPage() {
                     />
                   </td>
                   {/* C — Scheduled Value */}
-                  <td className="p-1 border-r border-gray-200">
+                  <td className="p-1 border-r border-gray-200 print:border-black">
                     <input
                       type="number"
                       value={row.scheduled_value || ''}
@@ -1083,7 +1354,7 @@ export default function OwnerBillingPage() {
                     />
                   </td>
                   {/* D — From Previous */}
-                  <td className="p-1 border-r border-gray-200">
+                  <td className="p-1 border-r border-gray-200 print:border-black">
                     <input
                       type="number"
                       value={row.work_completed_previous || ''}
@@ -1093,7 +1364,7 @@ export default function OwnerBillingPage() {
                     />
                   </td>
                   {/* E — This Period */}
-                  <td className="p-1 border-r border-gray-200">
+                  <td className="p-1 border-r border-gray-200 print:border-black">
                     <input
                       type="number"
                       value={row.work_completed_this_period || ''}
@@ -1103,7 +1374,7 @@ export default function OwnerBillingPage() {
                     />
                   </td>
                   {/* F — Stored */}
-                  <td className="p-1 border-r border-gray-200">
+                  <td className="p-1 border-r border-gray-200 print:border-black">
                     <input
                       type="number"
                       value={row.stored_materials || ''}
@@ -1113,28 +1384,28 @@ export default function OwnerBillingPage() {
                     />
                   </td>
                   {/* G — Total (auto) */}
-                  <td className="p-1 text-right font-bold text-[11px] text-procore-text border-r border-gray-200 bg-gray-50/30 px-2">
+                  <td className="p-1 text-right font-bold text-[11px] text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
                     {fmt(row.total_completed)}
                   </td>
                   {/* G/C % (auto) */}
-                  <td className="p-1 text-center font-bold text-[11px] border-r border-gray-200 bg-gray-50/30">
+                  <td className="p-1 text-center font-bold text-[11px] border-r border-gray-200 bg-gray-50/30 print:border-black">
                     <span className={row.pct_complete >= 100 ? 'text-emerald-700' : row.pct_complete > 0 ? 'text-blue-700' : 'text-gray-400'}>
                       {row.pct_complete}%
                     </span>
                   </td>
                   {/* H — Balance (auto) */}
-                  <td className="p-1 text-right text-[11px] font-medium text-procore-text border-r border-gray-200 bg-gray-50/30 px-2">
+                  <td className="p-1 text-right text-[11px] font-medium text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
                     {fmt(row.balance_to_finish)}
                   </td>
                   {/* I — Retainage */}
                   <td className="p-1 text-right text-[11px] font-medium text-amber-700 bg-gray-50/30 px-2">
                     {fmt(row.retainage)}
                   </td>
-                  {/* Delete */}
+                  {/* Delete button */}
                   <td className="p-1 text-center print:hidden">
                     <button
                       onClick={() => deleteRow(idx)}
-                      className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                      className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity text-sm cursor-pointer"
                       title="Remove row"
                     >
                       ✕
@@ -1145,20 +1416,22 @@ export default function OwnerBillingPage() {
             </tbody>
             {/* Totals row */}
             <tfoot>
-              <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold text-[11px]">
-                <td className="p-2 text-center border-r border-gray-300" colSpan={2}>
-                  <span className="uppercase text-gray-600 text-[10px] tracking-wider">Totals</span>
+              <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold text-[11px] print:border-black">
+                <td className="p-2 text-center border-r border-gray-300 print:border-black" colSpan={2}>
+                  <span className="uppercase text-gray-700 font-black text-[10px] tracking-wider">TOTALS</span>
                 </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text">{fmt(totals.scheduled_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text">{fmt(totals.prev_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text">{fmt(totals.this_period_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text">{fmt(totals.stored_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-emerald-700">{fmt(totals.completed_total)}</td>
-                <td className="p-2 text-center border-r border-gray-300">
-                  <span className={totals.overall_pct >= 100 ? 'text-emerald-700' : 'text-blue-700'}>{totals.overall_pct}%</span>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.scheduled_total)}</td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.prev_total)}</td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.this_period_total)}</td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.stored_total)}</td>
+                <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">{fmt(totals.completed_total)}</td>
+                <td className="p-2 text-center border-r border-gray-300 print:border-black">
+                  <span className={totals.overall_pct >= 100 ? 'text-emerald-700 font-black' : 'text-blue-700 font-black'}>
+                    {totals.overall_pct}%
+                  </span>
                 </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text">{fmt(totals.balance_total)}</td>
-                <td className="p-2 text-right text-amber-700">{fmt(totals.retainage_total)}</td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.balance_total)}</td>
+                <td className="p-2 text-right text-amber-700 font-black">{fmt(totals.retainage_total)}</td>
                 <td className="print:hidden"></td>
               </tr>
             </tfoot>
@@ -1166,12 +1439,44 @@ export default function OwnerBillingPage() {
         </div>
 
         {/* Add row button */}
-        <div className="px-4 py-2 border-t border-gray-200 print:hidden">
+        <div className="px-4 py-2.5 border-t border-gray-200 print:hidden flex justify-between items-center bg-gray-50/50">
           <button
             onClick={addRow}
-            className="text-procore-orange hover:text-procore-orange-hover text-[11px] font-bold flex items-center gap-1 transition-colors"
+            className="text-procore-orange hover:text-procore-orange-hover text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <span className="text-base">+</span> Add Line Item
+            <span className="bg-procore-orange text-white rounded w-4 h-4 flex items-center justify-center text-xs">+</span>
+            Add Line Item
+          </button>
+
+          <span className="text-[11px] text-gray-500 font-medium">
+            {rows.length} item{rows.length !== 1 ? 's' : ''} in Schedule of Values
+          </span>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/*  STICKY BOTTOM FLOATING SAVE BAR                             */}
+      {/* ============================================================ */}
+      <div className="fixed bottom-4 right-4 z-40 print:hidden">
+        <div className="bg-gray-900 text-white rounded-2xl shadow-2xl border-2 border-gray-700 p-2.5 flex items-center gap-3 backdrop-blur-md">
+          <div className="hidden sm:block pl-2 text-xs">
+            <span className="text-gray-400">Payment Due: </span>
+            <span className="text-emerald-400 font-black text-sm">${fmt(Math.max(0, totals.current_payment_due))}</span>
+          </div>
+
+          <button
+            onClick={() => handleSave('draft')}
+            className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all border border-gray-600 cursor-pointer"
+          >
+            Save Draft
+          </button>
+
+          <button
+            onClick={() => handleSave('submitted')}
+            className="bg-emerald-500 hover:bg-emerald-400 text-gray-950 text-xs sm:text-sm font-black px-5 py-2 rounded-xl shadow-lg transition-all border border-emerald-300 cursor-pointer flex items-center gap-1.5 active:scale-95"
+          >
+            <span>✓</span>
+            <span>SAVE &amp; SUBMIT</span>
           </button>
         </div>
       </div>
@@ -1180,18 +1485,18 @@ export default function OwnerBillingPage() {
       {/*  IMPORT FROM ESTIMATE MODAL                                   */}
       {/* ============================================================ */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:hidden">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full border border-procore-border max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b border-procore-border flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-procore-border max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-procore-border flex items-center justify-between bg-gray-50/70">
               <div>
-                <h3 className="font-bold text-sm text-procore-text">Import from Project Estimate</h3>
-                <p className="text-[11px] text-procore-text-muted mt-0.5">
-                  Select estimate line items to add as Continuation Sheet rows.
+                <h3 className="font-black text-base text-procore-text">Import from Project Estimate</h3>
+                <p className="text-xs text-procore-text-muted mt-0.5">
+                  Select estimate line items to populate Continuation Sheet (Schedule of Values) rows.
                 </p>
               </div>
               <button
                 onClick={() => setShowImportModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg"
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 cursor-pointer"
               >
                 ✕
               </button>
@@ -1199,9 +1504,9 @@ export default function OwnerBillingPage() {
 
             <div className="overflow-y-auto flex-1 p-4">
               {estimateLines.length > 0 ? (
-                <div className="space-y-1">
-                  {/* Select all */}
-                  <label className="flex items-center gap-2 text-xs font-bold text-procore-text-muted p-2 border-b border-gray-200 mb-2 cursor-pointer">
+                <div className="space-y-1.5">
+                  {/* Select all bar */}
+                  <label className="flex items-center gap-2.5 text-xs font-black text-procore-text p-2.5 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200/70 transition-colors">
                     <input
                       type="checkbox"
                       checked={selectedImportIds.size === estimateLines.length && estimateLines.length > 0}
@@ -1212,15 +1517,18 @@ export default function OwnerBillingPage() {
                           setSelectedImportIds(new Set());
                         }
                       }}
-                      className="w-3.5 h-3.5 rounded border-gray-300 text-procore-orange focus:ring-procore-orange"
+                      className="w-4 h-4 rounded border-gray-400 text-procore-orange focus:ring-procore-orange cursor-pointer"
                     />
-                    Select All ({estimateLines.length} items)
+                    Select All ({estimateLines.length} estimate lines)
                   </label>
+
                   {estimateLines.map(el => (
                     <label
                       key={el.id}
-                      className={`flex items-center gap-3 text-xs p-2 rounded cursor-pointer transition-colors ${
-                        selectedImportIds.has(el.id) ? 'bg-orange-50 border border-procore-orange/30' : 'hover:bg-gray-50 border border-transparent'
+                      className={`flex items-center gap-3 text-xs p-2.5 rounded-lg cursor-pointer transition-all ${
+                        selectedImportIds.has(el.id)
+                          ? 'bg-orange-50/90 border border-procore-orange/40 shadow-xs'
+                          : 'hover:bg-gray-50 border border-transparent'
                       }`}
                     >
                       <input
@@ -1232,49 +1540,53 @@ export default function OwnerBillingPage() {
                           else next.delete(el.id);
                           setSelectedImportIds(next);
                         }}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-procore-orange focus:ring-procore-orange shrink-0"
+                        className="w-4 h-4 rounded border-gray-300 text-procore-orange focus:ring-procore-orange shrink-0 cursor-pointer"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-procore-text truncate">
+                        <div className="font-bold text-procore-text truncate">
                           {el.division_code ? `${el.division_code} — ` : ''}{el.description || el.category}
                         </div>
-                        <div className="text-[10px] text-procore-text-muted">
+                        <div className="text-[10px] text-procore-text-muted mt-0.5">
                           {el.category} · {el.quantity} {el.unit}
                         </div>
                       </div>
-                      <span className="font-bold text-procore-text shrink-0">
+                      <span className="font-black text-procore-text text-sm shrink-0">
                         ${fmt(el.estimated_total)}
                       </span>
                     </label>
                   ))}
                 </div>
               ) : (
-                <div className="py-8 text-center text-sm text-procore-text-muted">
-                  No estimate lines found for this project. Add line items on the Estimate page first.
+                <div className="py-12 text-center text-sm text-procore-text-muted">
+                  No estimate lines found for this project. Add items on the Estimate page first.
                 </div>
               )}
             </div>
 
-            <div className="sticky bottom-0 p-4 border-t border-procore-border bg-white flex items-center justify-between rounded-b-lg shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
-              <span className="text-xs text-procore-text-muted">
+            {/* STICKY UNMISSABLE MODAL FOOTER */}
+            <div className="sticky bottom-0 p-4 border-t border-procore-border bg-white flex items-center justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+              <span className="text-xs text-procore-text-muted font-bold">
                 {selectedImportIds.size} item{selectedImportIds.size !== 1 ? 's' : ''} selected
                 {selectedImportIds.size > 0 && (
-                  <> · Total: ${fmt(estimateLines.filter(el => selectedImportIds.has(el.id)).reduce((s, el) => s + el.estimated_total, 0))}</>
+                  <span className="text-emerald-700 font-black ml-1">
+                    · ${fmt(estimateLines.filter(el => selectedImportIds.has(el.id)).reduce((s, el) => s + el.estimated_total, 0))}
+                  </span>
                 )}
               </span>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowImportModal(false)}
-                  className="px-4 py-2 border border-procore-border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 font-bold rounded-lg text-xs hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleImport}
                   disabled={selectedImportIds.size === 0}
-                  className="px-6 py-2 bg-emerald-600 text-white font-extrabold text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-md transition-all"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-lg shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
                 >
-                  ✓ Save — Import {selectedImportIds.size} Item{selectedImportIds.size !== 1 ? 's' : ''}
+                  <span>✓</span>
+                  <span>SAVE &amp; IMPORT ({selectedImportIds.size})</span>
                 </button>
               </div>
             </div>
@@ -1282,24 +1594,50 @@ export default function OwnerBillingPage() {
         </div>
       )}
 
-      {/* Print styles */}
+      {/* ============================================================ */}
+      {/*  PRINT CSS STYLES FOR EXACT 1-PAGE OUTPUT                     */}
+      {/* ============================================================ */}
       <style jsx global>{`
         @media print {
-          body { background: white !important; }
-          .print\\:hidden { display: none !important; }
-          .print\\:shadow-none { box-shadow: none !important; }
-          .print\\:border-black { border-color: black !important; }
-          .print\\:rounded-none { border-radius: 0 !important; }
-          .print\\:bg-white { background-color: white !important; }
-          .print\\:text-black { color: black !important; }
-          .print\\:border-b-2 { border-bottom-width: 2px !important; }
-          .print\\:break-before-page { break-before: page !important; }
-          .print\\:p-4 { padding: 1rem !important; }
+          @page {
+            size: landscape;
+            margin: 0.25in;
+          }
+          html, body {
+            background: white !important;
+            color: black !important;
+            font-size: 8.5pt !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+          #g702-cover {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            box-shadow: none !important;
+            border: 2px solid black !important;
+            border-radius: 0 !important;
+            width: 100% !important;
+            max-height: 100% !important;
+            padding: 8px !important;
+          }
+          #g703-continuation {
+            page-break-before: always !important;
+            break-before: page !important;
+            box-shadow: none !important;
+            border: 2px solid black !important;
+            border-radius: 0 !important;
+          }
           input[type="number"], input[type="text"], input[type="date"], textarea {
             border: none !important;
             padding: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
           }
-          table { font-size: 9px !important; }
         }
       `}</style>
     </div>
