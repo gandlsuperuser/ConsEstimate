@@ -1255,7 +1255,7 @@ export default function OwnerBillingPage() {
               )}
             </div>
 
-            <div className="p-4 border-t border-procore-border flex items-center justify-between">
+            <div className="sticky bottom-0 p-4 border-t border-procore-border bg-white flex items-center justify-between rounded-b-lg shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
               <span className="text-xs text-procore-text-muted">
                 {selectedImportIds.size} item{selectedImportIds.size !== 1 ? 's' : ''} selected
                 {selectedImportIds.size > 0 && (
@@ -1265,16 +1265,16 @@ export default function OwnerBillingPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowImportModal(false)}
-                  className="px-3 py-1.5 border border-procore-border rounded text-xs hover:bg-gray-50"
+                  className="px-4 py-2 border border-procore-border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleImport}
                   disabled={selectedImportIds.size === 0}
-                  className="px-4 py-1.5 bg-procore-orange text-white font-bold text-xs rounded hover:bg-procore-orange-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-emerald-600 text-white font-extrabold text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-md transition-all"
                 >
-                  Import {selectedImportIds.size} Item{selectedImportIds.size !== 1 ? 's' : ''}
+                  ✓ Save — Import {selectedImportIds.size} Item{selectedImportIds.size !== 1 ? 's' : ''}
                 </button>
               </div>
             </div>
