@@ -44,6 +44,7 @@ export default function OwnerBillingPage() {
   const [activeView, setActiveView] = useState<'list' | 'form'>('list');
   const [editingBilling, setEditingBilling] = useState<OwnerBilling | null>(null);
   const [printMode, setPrintMode] = useState<'all' | 'g702_only' | 'g703_only'>('all');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   /* G702 header & certificate fields */
   const [header, setHeader] = useState({
@@ -364,28 +365,123 @@ export default function OwnerBillingPage() {
     setActiveView('form');
   };
 
-  /* ---- save as PDF / print handler ---- */
-  const handleSaveAsPDF = (mode: 'all' | 'g702_only' | 'g703_only') => {
-    const originalTitle = document.title;
-    const cleanProjectName = (header.project_name || project?.name || 'Project')
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]/g, '_');
+  /* ---- direct high-resolution PDF download handler ---- */
+  const handleSaveAsPDF = async (mode: 'all' | 'g702_only' | 'g703_only') => {
+    setGeneratingPdf(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
 
-    const docName = mode === 'g702_only'
-      ? `AIA_G702_Payment_Application_${header.application_number}_${cleanProjectName}`
-      : mode === 'g703_only'
-      ? `AIA_G703_Continuation_Sheet_${header.application_number}_${cleanProjectName}`
-      : `AIA_G702_G703_Application_${header.application_number}_${cleanProjectName}`;
+      const cleanProjectName = (header.project_name || project?.name || 'Project')
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    document.title = docName;
-    setPrintMode(mode);
+      const docName = mode === 'g702_only'
+        ? `AIA_G702_Application_${header.application_number}_${cleanProjectName}.pdf`
+        : mode === 'g703_only'
+        ? `AIA_G703_Continuation_Sheet_${header.application_number}_${cleanProjectName}.pdf`
+        : `AIA_G702_G703_Application_${header.application_number}_${cleanProjectName}.pdf`;
 
-    setTimeout(() => {
+      // Standard Letter Landscape format: 279.4mm x 215.9mm (11in x 8.5in)
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'letter',
+      });
+
+      const pageWidth = 279.4;
+      const pageHeight = 215.9;
+      const margin = 8;
+      const maxContentWidth = pageWidth - (margin * 2);
+      const maxContentHeight = pageHeight - (margin * 2);
+
+      if (mode === 'g702_only' || mode === 'all') {
+        const el702 = document.getElementById('g702-cover');
+        if (el702) {
+          const canvas702 = await html2canvas(el702, {
+            scale: 2.5, // Crisp high-DPI resolution
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+          });
+
+          const imgData702 = canvas702.toDataURL('image/jpeg', 0.98);
+          const imgWidth = maxContentWidth;
+          const imgHeight = (canvas702.height * imgWidth) / canvas702.width;
+
+          let renderWidth = imgWidth;
+          let renderHeight = imgHeight;
+          if (renderHeight > maxContentHeight) {
+            renderHeight = maxContentHeight;
+            renderWidth = (canvas702.width * renderHeight) / canvas702.height;
+          }
+
+          const posX = margin + (maxContentWidth - renderWidth) / 2;
+          const posY = margin + (maxContentHeight - renderHeight) / 2;
+
+          pdf.addImage(imgData702, 'JPEG', posX, posY, renderWidth, renderHeight);
+        }
+      }
+
+      if (mode === 'all') {
+        const el703 = document.getElementById('g703-continuation');
+        if (el703) {
+          pdf.addPage('letter', 'landscape');
+          const canvas703 = await html2canvas(el703, {
+            scale: 2.5,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+          });
+
+          const imgData703 = canvas703.toDataURL('image/jpeg', 0.98);
+          const imgWidth = maxContentWidth;
+          let renderWidth = imgWidth;
+          let renderHeight = (canvas703.height * imgWidth) / canvas703.width;
+          if (renderHeight > maxContentHeight) {
+            renderHeight = maxContentHeight;
+            renderWidth = (canvas703.width * renderHeight) / canvas703.height;
+          }
+
+          const posX = margin + (maxContentWidth - renderWidth) / 2;
+          const posY = margin + (maxContentHeight - renderHeight) / 2;
+
+          pdf.addImage(imgData703, 'JPEG', posX, posY, renderWidth, renderHeight);
+        }
+      } else if (mode === 'g703_only') {
+        const el703 = document.getElementById('g703-continuation');
+        if (el703) {
+          const canvas703 = await html2canvas(el703, {
+            scale: 2.5,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+          });
+
+          const imgData703 = canvas703.toDataURL('image/jpeg', 0.98);
+          const imgWidth = maxContentWidth;
+          let renderWidth = imgWidth;
+          let renderHeight = (canvas703.height * imgWidth) / canvas703.width;
+          if (renderHeight > maxContentHeight) {
+            renderHeight = maxContentHeight;
+            renderWidth = (canvas703.width * renderHeight) / canvas703.height;
+          }
+
+          const posX = margin + (maxContentWidth - renderWidth) / 2;
+          const posY = margin + (maxContentHeight - renderHeight) / 2;
+
+          pdf.addImage(imgData703, 'JPEG', posX, posY, renderWidth, renderHeight);
+        }
+      }
+
+      // Automatically trigger direct file download
+      pdf.save(docName);
+    } catch (err) {
+      console.error('Direct PDF error, falling back to print:', err);
       window.print();
-      setTimeout(() => {
-        document.title = originalTitle;
-      }, 1000);
-    }, 150);
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   /* ---- toggle distribution checkbox ---- */
@@ -620,16 +716,27 @@ export default function OwnerBillingPage() {
             <div className="flex items-center gap-1.5 bg-blue-950/80 p-1 rounded-lg border border-blue-500/60 shadow-md">
               <button
                 onClick={() => handleSaveAsPDF('g702_only')}
-                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border border-blue-300"
-                title="Saves only the 1-page AIA G702 cover document as a PDF"
+                disabled={generatingPdf}
+                className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:opacity-60 text-white text-xs font-black px-4 py-2 rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border border-blue-300"
+                title="Directly downloads the 1-page AIA G702 cover document as a PDF"
               >
-                <span className="text-sm">📄</span>
-                <span>Save as PDF (1 Page G702)</span>
+                {generatingPdf ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Generating PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm">📄</span>
+                    <span>Save as PDF (1 Page G702)</span>
+                  </>
+                )}
               </button>
               <button
                 onClick={() => handleSaveAsPDF('all')}
-                className="bg-blue-800/80 hover:bg-blue-700 text-blue-100 hover:text-white text-[11px] font-bold px-3 py-2 rounded-md transition-colors cursor-pointer"
-                title="Saves full application (G702 Cover + G703 Schedule of Values) as PDF"
+                disabled={generatingPdf}
+                className="bg-blue-800/80 hover:bg-blue-700 disabled:opacity-50 text-blue-100 hover:text-white text-[11px] font-bold px-3 py-2 rounded-md transition-colors cursor-pointer"
+                title="Directly downloads full application (G702 Cover + G703 Schedule of Values) as PDF"
               >
                 Save Full PDF
               </button>
@@ -1483,11 +1590,12 @@ export default function OwnerBillingPage() {
 
           <button
             onClick={() => handleSaveAsPDF('g702_only')}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all border border-blue-400 cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+            disabled={generatingPdf}
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all border border-blue-400 cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
             title="Save 1-Page G702 as PDF"
           >
             <span>📄</span>
-            <span>Save as PDF</span>
+            <span>{generatingPdf ? 'Saving...' : 'Save as PDF'}</span>
           </button>
 
           <button
