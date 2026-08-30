@@ -603,7 +603,11 @@ export default function EstimatePage() {
                     {divLines.map((line, idx) => {
                       const linePct = directConstructionCost > 0 ? (line.estimated_total / directConstructionCost) * 100 : 0;
                       const isRedClarification =
-                        line.notes && (line.notes.toLowerCase().includes('exclude') || line.notes.includes('*') || line.notes.toLowerCase().includes('allowance'));
+                        line.notes &&
+                        (line.notes.toLowerCase().includes('a&e') ||
+                          line.notes.toLowerCase().includes('only if') ||
+                          line.notes.toLowerCase().includes('exclude') ||
+                          line.notes.includes('*'));
 
                       return (
                         <tr
@@ -628,7 +632,7 @@ export default function EstimatePage() {
                               type="text"
                               value={line.description}
                               onChange={(e) => handleUpdateField(line.id, 'description', e.target.value)}
-                              className="w-full bg-transparent hover:bg-white border border-transparent hover:border-gray-300 focus:border-blue-500 rounded px-1 py-0.5 text-[11px] focus:bg-white focus:outline-none"
+                              className="w-full bg-transparent hover:bg-white border border-transparent hover:border-gray-300 focus:border-blue-500 rounded px-1 py-0.5 text-[11px] focus:bg-white focus:outline-none font-medium"
                             />
                           </td>
 
@@ -636,7 +640,8 @@ export default function EstimatePage() {
                           <td className="p-1.5 text-center border-r border-gray-300">
                             <input
                               type="number"
-                              value={line.quantity}
+                              value={line.quantity || ''}
+                              placeholder="—"
                               onChange={(e) => handleUpdateField(line.id, 'quantity', parseFloat(e.target.value) || 0)}
                               className="w-full text-center bg-transparent hover:bg-white border border-transparent hover:border-gray-300 focus:border-blue-500 rounded px-1 py-0.5 text-[11px] focus:bg-white focus:outline-none"
                             />
@@ -646,30 +651,35 @@ export default function EstimatePage() {
                           <td className="p-1.5 text-center uppercase font-bold text-gray-600 border-r border-gray-300">
                             <input
                               type="text"
-                              value={line.unit}
+                              value={line.unit || ''}
+                              placeholder="—"
                               onChange={(e) => handleUpdateField(line.id, 'unit', e.target.value)}
                               className="w-full text-center uppercase bg-transparent hover:bg-white border border-transparent hover:border-gray-300 focus:border-blue-500 rounded px-1 py-0.5 text-[11px] focus:bg-white focus:outline-none"
                             />
                           </td>
 
                           {/* Unit Cost */}
-                          <td className="p-1.5 text-right font-medium text-gray-800 border-r border-gray-300">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={line.labor_unit_cost || line.material_unit_cost || (line.quantity > 0 ? (line.estimated_total / line.quantity) : 0)}
-                              onChange={(e) => handleUpdateField(line.id, 'labor_unit_cost', parseFloat(e.target.value) || 0)}
-                              className="w-full text-right bg-transparent hover:bg-white border border-transparent hover:border-gray-300 focus:border-blue-500 rounded px-1 py-0.5 text-[11px] focus:bg-white focus:outline-none"
-                            />
+                          <td className="p-1.5 text-right font-medium text-gray-800 border-r border-gray-300 font-mono">
+                            {line.estimated_total > 0 ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={line.labor_unit_cost || line.material_unit_cost || (line.quantity > 0 ? line.estimated_total / line.quantity : 0)}
+                                onChange={(e) => handleUpdateField(line.id, 'labor_unit_cost', parseFloat(e.target.value) || 0)}
+                                className="w-full text-right bg-transparent hover:bg-white border border-transparent hover:border-gray-300 focus:border-blue-500 rounded px-1 py-0.5 text-[11px] focus:bg-white focus:outline-none font-mono"
+                              />
+                            ) : (
+                              <span className="text-gray-400 pr-2">$ -</span>
+                            )}
                           </td>
 
                           {/* Total Cost */}
-                          <td className="p-1.5 text-right font-black text-gray-900 border-r border-gray-300 bg-gray-50/50">
-                            ${fmt(line.estimated_total)}
+                          <td className="p-1.5 text-right font-black text-gray-900 border-r border-gray-300 bg-gray-50/50 font-mono">
+                            {line.estimated_total > 0 ? `$ ${fmt(line.estimated_total)}` : <span className="text-gray-400 font-normal">$ -</span>}
                           </td>
 
                           {/* Clarifications / Notes (Red or Black text) */}
-                          <td className={`p-1.5 border-r border-gray-300 ${isRedClarification ? 'text-red-600 font-bold' : 'text-gray-600 font-normal'}`}>
+                          <td className="p-1.5 border-r border-gray-300">
                             <input
                               type="text"
                               value={line.notes || ''}
@@ -683,7 +693,7 @@ export default function EstimatePage() {
 
                           {/* % Total */}
                           <td className="p-1.5 text-center font-bold text-gray-600 border-r border-gray-300">
-                            {linePct.toFixed(1)}%
+                            {line.estimated_total > 0 ? `${Math.round(linePct)}%` : '0%'}
                           </td>
 
                           {/* Actions (hidden in print) */}
