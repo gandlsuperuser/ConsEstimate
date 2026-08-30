@@ -409,21 +409,55 @@ export interface ProjectMessage {
   created_at: string;
 }
 
-// 14. Owner Billing (GC to Owner / Upstream)
+// 14. Owner Billing (GC to Owner / Upstream) — AIA G702/G703
+export interface OwnerBillingItem {
+  id: string;
+  billing_id: string;
+  item_number: number;
+  description: string;
+  scheduled_value: number;
+  work_completed_previous: number;
+  work_completed_this_period: number;
+  stored_materials: number;
+  total_completed: number;      // auto: prev + this_period + stored
+  pct_complete: number;         // auto: total / scheduled * 100
+  balance_to_finish: number;    // auto: scheduled - total
+  retainage: number;            // auto or variable rate
+}
+
 export interface OwnerBilling {
   id: string;
   project_id: string;
   application_number: number;
   period_to: string;
+  // G702 header fields
+  owner_name?: string;
+  owner_address?: string;
+  contractor_name?: string;
+  contractor_address?: string;
+  contract_for?: string;
+  via_architect?: string;
+  project_nos?: string;
+  contract_date?: string;
+  distribution_to?: string[];
+  // G702 summary calculations
   original_contract_sum: number;
   net_change_orders: number;
   contract_sum_to_date: number;
   total_completed_and_stored: number;
+  retainage_completed_pct?: number;
+  retainage_stored_pct?: number;
   retainage_amount: number;
   total_earned_less_retainage: number;
   less_previous_certificates: number;
   current_payment_due: number;
+  balance_to_finish_incl_retainage?: number;
+  // Change Order Summary
+  change_order_additions?: number;
+  change_order_deductions?: number;
+  // Status
   status: 'draft' | 'submitted' | 'approved' | 'paid';
+  items?: OwnerBillingItem[];
   created_at?: string;
 }
 
