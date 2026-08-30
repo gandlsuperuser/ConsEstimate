@@ -369,7 +369,7 @@ export default function OwnerBillingPage() {
   const handleSaveAsPDF = async (mode: 'all' | 'g702_only' | 'g703_only') => {
     setGeneratingPdf(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
+      const { toJpeg } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
       const cleanProjectName = (header.project_name || project?.name || 'Project')
@@ -398,22 +398,21 @@ export default function OwnerBillingPage() {
       if (mode === 'g702_only' || mode === 'all') {
         const el702 = document.getElementById('g702-cover');
         if (el702) {
-          const canvas702 = await html2canvas(el702, {
-            scale: 2.5, // Crisp high-DPI resolution
-            useCORS: true,
-            logging: false,
+          const imgData702 = await toJpeg(el702, {
+            quality: 0.98,
+            pixelRatio: 2.5,
             backgroundColor: '#ffffff',
           });
 
-          const imgData702 = canvas702.toDataURL('image/jpeg', 0.98);
+          const rect = el702.getBoundingClientRect();
           const imgWidth = maxContentWidth;
-          const imgHeight = (canvas702.height * imgWidth) / canvas702.width;
+          const imgHeight = (rect.height * imgWidth) / rect.width;
 
           let renderWidth = imgWidth;
           let renderHeight = imgHeight;
           if (renderHeight > maxContentHeight) {
             renderHeight = maxContentHeight;
-            renderWidth = (canvas702.width * renderHeight) / canvas702.height;
+            renderWidth = (rect.width * renderHeight) / rect.height;
           }
 
           const posX = margin + (maxContentWidth - renderWidth) / 2;
@@ -427,20 +426,19 @@ export default function OwnerBillingPage() {
         const el703 = document.getElementById('g703-continuation');
         if (el703) {
           pdf.addPage('letter', 'landscape');
-          const canvas703 = await html2canvas(el703, {
-            scale: 2.5,
-            useCORS: true,
-            logging: false,
+          const imgData703 = await toJpeg(el703, {
+            quality: 0.98,
+            pixelRatio: 2.5,
             backgroundColor: '#ffffff',
           });
 
-          const imgData703 = canvas703.toDataURL('image/jpeg', 0.98);
+          const rect = el703.getBoundingClientRect();
           const imgWidth = maxContentWidth;
           let renderWidth = imgWidth;
-          let renderHeight = (canvas703.height * imgWidth) / canvas703.width;
+          let renderHeight = (rect.height * imgWidth) / rect.width;
           if (renderHeight > maxContentHeight) {
             renderHeight = maxContentHeight;
-            renderWidth = (canvas703.width * renderHeight) / canvas703.height;
+            renderWidth = (rect.width * renderHeight) / rect.height;
           }
 
           const posX = margin + (maxContentWidth - renderWidth) / 2;
@@ -451,20 +449,19 @@ export default function OwnerBillingPage() {
       } else if (mode === 'g703_only') {
         const el703 = document.getElementById('g703-continuation');
         if (el703) {
-          const canvas703 = await html2canvas(el703, {
-            scale: 2.5,
-            useCORS: true,
-            logging: false,
+          const imgData703 = await toJpeg(el703, {
+            quality: 0.98,
+            pixelRatio: 2.5,
             backgroundColor: '#ffffff',
           });
 
-          const imgData703 = canvas703.toDataURL('image/jpeg', 0.98);
+          const rect = el703.getBoundingClientRect();
           const imgWidth = maxContentWidth;
           let renderWidth = imgWidth;
-          let renderHeight = (canvas703.height * imgWidth) / canvas703.width;
+          let renderHeight = (rect.height * imgWidth) / rect.width;
           if (renderHeight > maxContentHeight) {
             renderHeight = maxContentHeight;
-            renderWidth = (canvas703.width * renderHeight) / canvas703.height;
+            renderWidth = (rect.width * renderHeight) / rect.height;
           }
 
           const posX = margin + (maxContentWidth - renderWidth) / 2;
