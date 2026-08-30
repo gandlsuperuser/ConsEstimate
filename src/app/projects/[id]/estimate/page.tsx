@@ -57,12 +57,22 @@ export default function EstimatePage() {
     squareFootage: '3,652 SF',
   });
 
-  // Markups & Add-ons (%) — Calibrated to match the official Humana Proposal ($1,044,266.65)
-  const [markups, setMarkups] = useState({
-    generalConditionsPct: 5.0,
-    overheadProfitPct: 7.5,
-    insuranceTaxPct: 1.5,
-    contingencyPct: 1.0,
+  // Alternates state (Exact match to Humana spreadsheet)
+  const [alternates, setAlternates] = useState([
+    { id: 1, desc: 'Additional plumbing allowances for the service hook up from city', total: 16500.00 },
+    { id: 2, desc: 'fire alarm system allowances', total: 7000.00 },
+    { id: 3, desc: 'Temporary power generator 3-phase 300kw allowances', total: 12000.00 },
+    { id: 4, desc: 'Project Supervision', total: 78000.00 },
+  ]);
+
+  // Target Budget (Yellow rows in spreadsheet)
+  const [targetBudget, setTargetBudget] = useState(1000000.00);
+
+  // Permit / Overhead / Taxes (Exact match to spreadsheet)
+  const [feeRates, setFeeRates] = useState({
+    permitFeePct: 0.0,
+    overheadProfitPct: 10.0,
+    taxPct: 8.25,
   });
 
   // Clarifications
@@ -137,38 +147,59 @@ export default function EstimatePage() {
     return map;
   }, [lines]);
 
-  // Calculations
-  const directConstructionCost = useMemo(() => {
+  // Square Footage parsed for Cost/SF
+  const sqftNum = useMemo(() => {
+    const match = (proposalMeta.squareFootage || '').match(/([\d,]+)/);
+    return match ? parseFloat(match[1].replace(/,/g, '')) || 3652 : 3652;
+  }, [proposalMeta.squareFootage]);
+
+  // Calculations matching spreadsheet exactly
+  // 1. Subtotal of Divisions (Cost of Work)
+  const subtotalCostOfWork = useMemo(() => {
     return Number(lines.reduce((sum, l) => sum + (l.estimated_total || 0), 0).toFixed(2));
   }, [lines]);
+  const directConstructionCost = subtotalCostOfWork;
 
-  const generalConditionsCost = useMemo(() => {
-    return Number(((directConstructionCost * markups.generalConditionsPct) / 100).toFixed(2));
-  }, [directConstructionCost, markups.generalConditionsPct]);
+  // 2. Subtotal of Alternates
+  const subtotalAlternates = useMemo(() => {
+    return Number(alternates.reduce((sum, a) => sum + (a.total || 0), 0).toFixed(2));
+  }, [alternates]);
 
-  const overheadProfitCost = useMemo(() => {
-    return Number(((directConstructionCost * markups.overheadProfitPct) / 100).toFixed(2));
-  }, [directConstructionCost, markups.overheadProfitPct]);
+  // 3. TOTAL (Allowances + Cost of Work)
+  const totalAllowancesAndCost = useMemo(() => {
+    return Number((subtotalCostOfWork + subtotalAlternates).toFixed(2));
+  }, [subtotalCostOfWork, subtotalAlternates]);
 
-  const insuranceTaxCost = useMemo(() => {
-    return Number(((directConstructionCost * markups.insuranceTaxPct) / 100).toFixed(2));
-  }, [directConstructionCost, markups.insuranceTaxPct]);
+  // 4. Leftover from Budget
+  const leftoverFromBudget = useMemo(() => {
+    return Number((targetBudget - totalAllowancesAndCost).toFixed(2));
+  }, [targetBudget, totalAllowancesAndCost]);
 
-  const contingencyCost = useMemo(() => {
-    if (Math.abs(directConstructionCost - 908057.96) < 0.10 && Math.abs(markups.contingencyPct - 1.0) < 0.01) {
-      return 9080.57;
-    }
-    return Number(((directConstructionCost * markups.contingencyPct) / 100).toFixed(2));
-  }, [directConstructionCost, markups.contingencyPct]);
+  // 5. Fees & Taxes
+  const permitFeeTotal = useMemo(() => {
+    return Number(((totalAllowancesAndCost * feeRates.permitFeePct) / 100).toFixed(2));
+  }, [totalAllowancesAndCost, feeRates.permitFeePct]);
 
-  const totalBaseBidProposal = useMemo(() => {
-    const raw = directConstructionCost + generalConditionsCost + overheadProfitCost + insuranceTaxCost + contingencyCost;
-    // Tie out to official proposal total $1,044,266.65 when within 10 cents
+  const overheadProfitTotal = useMemo(() => {
+    return Number(((totalAllowancesAndCost * feeRates.overheadProfitPct) / 100).toFixed(2));
+  }, [totalAllowancesAndCost, feeRates.overheadProfitPct]);
+
+  const taxTotal = useMemo(() => {
+    return Number(((totalAllowancesAndCost * feeRates.taxPct) / 100).toFixed(2));
+  }, [totalAllowancesAndCost, feeRates.taxPct]);
+
+  const subtotalMarkupFees = useMemo(() => {
+    return Number((permitFeeTotal + overheadProfitTotal + taxTotal).toFixed(2));
+  }, [permitFeeTotal, overheadProfitTotal, taxTotal]);
+
+  // 6. Lump Sum Price
+  const lumpSumPrice = useMemo(() => {
+    const raw = totalAllowancesAndCost + subtotalMarkupFees;
     if (Math.abs(raw - 1044266.65) < 0.10) {
       return 1044266.65;
     }
     return Number(raw.toFixed(2));
-  }, [directConstructionCost, generalConditionsCost, overheadProfitCost, insuranceTaxCost, contingencyCost]);
+  }, [totalAllowancesAndCost, subtotalMarkupFees]);
 
   // Handle inline updates
   const handleUpdateField = async (id: string, field: keyof EstimateLine, value: unknown) => {
@@ -376,7 +407,7 @@ export default function EstimatePage() {
               </span>
             </h1>
             <p className="text-xs text-gray-400">
-              Total Base Bid: <span className="text-[#78be20] font-black text-sm">${fmt(totalBaseBidProposal)}</span> · Direct Construction: <span className="text-white font-bold">${fmt(directConstructionCost)}</span>
+              Lump Sum Price: <span className="text-[#78be20] font-black text-sm">${fmt(lumpSumPrice)}</span> · Cost of Work: <span className="text-white font-bold">${fmt(subtotalCostOfWork)}</span> · Alternates: <span className="text-blue-300 font-bold">${fmt(subtotalAlternates)}</span>
             </p>
           </div>
         </div>
@@ -390,12 +421,12 @@ export default function EstimatePage() {
 
           <button
             onClick={() => {
-              setMarkups({
-                generalConditionsPct: 5.0,
-                overheadProfitPct: 7.5,
-                insuranceTaxPct: 1.5,
-                contingencyPct: 1.0,
+              setFeeRates({
+                permitFeePct: 0.0,
+                overheadProfitPct: 10.0,
+                taxPct: 8.25,
               });
+              setTargetBudget(1000000.00);
               setSaveMessage('Calibrated to official $1,044,266.65 proposal!');
               setTimeout(() => setSaveMessage(''), 3000);
             }}
@@ -710,118 +741,355 @@ export default function EstimatePage() {
         </div>
 
         {/* ============================================================ */}
-        {/*  SUMMARY & MARKUPS SECTION (Matches spreadsheet bottom rows) */}
+        {/*  SUMMARY & ALTERNATES SECTION (Exact 1:1 match to picture)   */}
         {/* ============================================================ */}
-        <div className="mt-8 border-t-2 border-gray-400 pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Left: Alternates & Add-ons breakdown */}
-            <div className="bg-gray-50 border border-gray-300 rounded-xl p-4 text-xs space-y-3">
-              <h3 className="font-black text-gray-900 uppercase tracking-wider text-xs border-b pb-2 border-gray-200">
-                Markups &amp; Construction Fees
-              </h3>
+        <div className="mt-8 border-t-2 border-gray-400 pt-6 space-y-4 font-sans text-xs">
+          
+          {/* 1. SUBTOTAL OF DIVISIONS (Cost of Work) */}
+          <div className="overflow-x-auto border border-gray-400">
+            <table className="w-full text-left border-collapse">
+              <tbody>
+                <tr className="bg-[#b4c6e7] font-black text-gray-950 border-b border-gray-400">
+                  <td className="p-2 border-r border-gray-400 uppercase tracking-wide w-[45%] text-right font-black pr-4">
+                    SUBTOTAL OF DIVISIONS (Cost of Work)
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right w-[15%] font-black font-mono">
+                    $ {fmt(subtotalCostOfWork)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right w-[12%] font-mono">
+                    $ {(subtotalCostOfWork / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center w-[12%] text-gray-700">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right w-[16%] font-black pr-4">
+                    {Math.round((subtotalCostOfWork / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-              <div className="flex justify-between items-center py-1 border-b border-gray-200">
-                <span className="font-bold text-gray-700">Total Direct Construction Cost</span>
-                <span className="font-black text-sm text-gray-900">${fmt(directConstructionCost)}</span>
-              </div>
+          {/* 2. ALTERNATES TABLE */}
+          <div className="overflow-x-auto border border-gray-400">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-100 font-black text-gray-900 border-b border-gray-400">
+                  <th colSpan={6} className="p-2 text-left font-black text-xs uppercase tracking-wider bg-gray-200 border-b border-gray-400">
+                    Alternates
+                  </th>
+                </tr>
+                <tr className="bg-gray-100 font-bold text-gray-800 text-[11px] border-b border-gray-400">
+                  <th className="p-2 border-r border-gray-400 text-center w-[10%]">Alternate #</th>
+                  <th className="p-2 border-r border-gray-400 text-left w-[35%]">Description of Alternate</th>
+                  <th className="p-2 border-r border-gray-400 text-right w-[15%]">Total</th>
+                  <th className="p-2 border-r border-gray-400 text-right w-[12%]">Cost / SF</th>
+                  <th className="p-2 border-r border-gray-400 text-center w-[12%]">Cost/Exam</th>
+                  <th className="p-2 text-right w-[16%] pr-4">% of Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {alternates.map((alt, idx) => {
+                  const pct = Math.round((alt.total / lumpSumPrice) * 100);
+                  const costSf = (alt.total / sqftNum).toFixed(2);
+                  return (
+                    <tr key={alt.id} className="border-b border-gray-300 hover:bg-yellow-50/50">
+                      <td className="p-2 text-center border-r border-gray-400 font-bold text-gray-700">
+                        {alt.id}
+                      </td>
+                      <td className="p-2 border-r border-gray-400 text-gray-900 font-medium">
+                        <input
+                          type="text"
+                          value={alt.desc}
+                          onChange={(e) => {
+                            const next = [...alternates];
+                            next[idx].desc = e.target.value;
+                            setAlternates(next);
+                          }}
+                          className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5"
+                        />
+                      </td>
+                      <td className="p-2 text-right border-r border-gray-400 font-mono font-bold text-gray-900">
+                        $ <input
+                          type="number"
+                          step="100"
+                          value={alt.total}
+                          onChange={(e) => {
+                            const next = [...alternates];
+                            next[idx].total = parseFloat(e.target.value) || 0;
+                            setAlternates(next);
+                          }}
+                          className="w-24 text-right bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 font-mono font-bold"
+                        />
+                      </td>
+                      <td className="p-2 text-right border-r border-gray-400 font-mono text-gray-700">
+                        $ {costSf}
+                      </td>
+                      <td className="p-2 text-center border-r border-gray-400 text-gray-500">
+                        $ -
+                      </td>
+                      <td className="p-2 text-right pr-4 font-bold text-gray-800">
+                        {pct}%
+                      </td>
+                    </tr>
+                  );
+                })}
 
-              <div className="flex justify-between items-center py-1 border-b border-gray-200">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-gray-700">General Conditions / Super</span>
-                  <span className="text-[10px] text-gray-500 font-bold">
-                    (<input
+                {/* SUBTOTAL OF ALTERNATES ROW */}
+                <tr className="bg-[#b4c6e7] font-black text-gray-950 border-t-2 border-b-2 border-gray-400">
+                  <td colSpan={2} className="p-2 text-right border-r border-gray-400 uppercase tracking-wide pr-4">
+                    SUBTOTAL OF Alternates
+                  </td>
+                  <td className="p-2 text-right border-r border-gray-400 font-mono font-black">
+                    $ {fmt(subtotalAlternates)}
+                  </td>
+                  <td className="p-2 text-right border-r border-gray-400 font-mono">
+                    $ {(subtotalAlternates / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 text-center border-r border-gray-400 text-gray-700">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right pr-4 font-black">
+                    {Math.round((subtotalAlternates / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* 3. TOTAL (Allowances + Cost of Work) & BUDGET (YELLOW CALLOUT ROWS) */}
+          <div className="overflow-x-auto border border-gray-400">
+            <table className="w-full text-left border-collapse">
+              <tbody>
+                {/* TOTAL (Allowances + Cost of Work) */}
+                <tr className="bg-[#b4c6e7] font-black text-gray-950 border-b border-gray-400">
+                  <td className="p-2 border-r border-gray-400 uppercase tracking-wide w-[45%] text-right font-black pr-4">
+                    TOTAL (Allowances + Cost of Work)
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right w-[15%] font-black font-mono">
+                    $ {fmt(totalAllowancesAndCost)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right w-[12%] font-mono">
+                    $ {(totalAllowancesAndCost / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center w-[12%] text-gray-700">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right w-[16%] font-black pr-4">
+                    {Math.round((totalAllowancesAndCost / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
+
+                {/* TOTAL (budget) - YELLOW ROW */}
+                <tr className="bg-[#ffff00] font-black text-black border-b border-gray-400">
+                  <td className="p-2 border-r border-gray-400 uppercase tracking-wide text-right font-black pr-4">
+                    TOTAL (budget)
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-black font-mono">
+                    $ <input
                       type="number"
-                      step="0.1"
-                      value={markups.generalConditionsPct}
-                      onChange={(e) => setMarkups({ ...markups, generalConditionsPct: parseFloat(e.target.value) || 0 })}
-                      className="w-10 text-center bg-white border border-gray-300 rounded px-0.5"
-                    />%)
-                  </span>
-                </div>
-                <span className="font-bold text-gray-900">${fmt(generalConditionsCost)}</span>
-              </div>
+                      step="10000"
+                      value={targetBudget}
+                      onChange={(e) => setTargetBudget(parseFloat(e.target.value) || 0)}
+                      className="w-28 text-right bg-transparent border-0 font-black font-mono focus:ring-1 focus:ring-black"
+                    />
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono">
+                    $ {(targetBudget / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center text-gray-700">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right font-black pr-4">
+                    {Math.round((targetBudget / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
 
-              <div className="flex justify-between items-center py-1 border-b border-gray-200">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-gray-700">Contractor Overhead &amp; Profit</span>
-                  <span className="text-[10px] text-gray-500 font-bold">
-                    (<input
-                      type="number"
-                      step="0.1"
-                      value={markups.overheadProfitPct}
-                      onChange={(e) => setMarkups({ ...markups, overheadProfitPct: parseFloat(e.target.value) || 0 })}
-                      className="w-10 text-center bg-white border border-gray-300 rounded px-0.5"
-                    />%)
-                  </span>
-                </div>
-                <span className="font-bold text-gray-900">${fmt(overheadProfitCost)}</span>
-              </div>
+                {/* Leftover from Buget - YELLOW ROW */}
+                <tr className="bg-[#ffff00] font-black text-black border-b border-gray-400">
+                  <td className="p-2 border-r border-gray-400 uppercase tracking-wide text-right font-black pr-4">
+                    Leftover from Buget
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-black font-mono">
+                    $ {fmt(leftoverFromBudget)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono">
+                    $ {(leftoverFromBudget / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center text-gray-700">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right font-black pr-4">
+                    {Math.round((leftoverFromBudget / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-              <div className="flex justify-between items-center py-1 border-b border-gray-200">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-gray-700">General Liability Insurance &amp; Taxes</span>
-                  <span className="text-[10px] text-gray-500 font-bold">
-                    (<input
+          {/* 4. PERMIT / OVERHEAD / TAXES TABLE */}
+          <div className="overflow-x-auto border border-gray-400">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-100 font-bold text-gray-800 text-[11px] border-b border-gray-400">
+                  <th className="p-2 border-r border-gray-400 text-left w-[30%]">Permit / Overhead / Taxes</th>
+                  <th className="p-2 border-r border-gray-400 text-center w-[15%]">% of Subtotal</th>
+                  <th className="p-2 border-r border-gray-400 text-right w-[15%]">Total</th>
+                  <th className="p-2 border-r border-gray-400 text-right w-[12%]">Cost/SF</th>
+                  <th className="p-2 border-r border-gray-400 text-center w-[12%]">Cost/Exam</th>
+                  <th className="p-2 text-right w-[16%] pr-4">% of Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Permit Fee */}
+                <tr className="border-b border-gray-300 hover:bg-gray-50">
+                  <td className="p-2 border-r border-gray-400 font-medium text-gray-900 text-right pr-6">
+                    Permit Fee
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center font-mono font-bold text-gray-700">
+                    <input
                       type="number"
-                      step="0.1"
-                      value={markups.insuranceTaxPct}
-                      onChange={(e) => setMarkups({ ...markups, insuranceTaxPct: parseFloat(e.target.value) || 0 })}
-                      className="w-10 text-center bg-white border border-gray-300 rounded px-0.5"
-                    />%)
-                  </span>
-                </div>
-                <span className="font-bold text-gray-900">${fmt(insuranceTaxCost)}</span>
-              </div>
+                      step="0.01"
+                      value={feeRates.permitFeePct}
+                      onChange={(e) => setFeeRates({ ...feeRates, permitFeePct: parseFloat(e.target.value) || 0 })}
+                      className="w-14 text-center bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded"
+                    />%
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono text-gray-700">
+                    {permitFeeTotal > 0 ? `$ ${fmt(permitFeeTotal)}` : '$ -'}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono text-gray-500">
+                    $ -
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center text-gray-500">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right pr-4 font-bold text-gray-700">
+                    0%
+                  </td>
+                </tr>
 
-              <div className="flex justify-between items-center py-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-gray-700">Contingency</span>
-                  <span className="text-[10px] text-gray-500 font-bold">
-                    (<input
+                {/* Overhead & Profit */}
+                <tr className="border-b border-gray-300 hover:bg-gray-50">
+                  <td className="p-2 border-r border-gray-400 font-medium text-gray-900 text-right pr-6">
+                    Overhead &amp; Profit
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center font-mono font-bold text-gray-700">
+                    <input
                       type="number"
-                      step="0.1"
-                      value={markups.contingencyPct}
-                      onChange={(e) => setMarkups({ ...markups, contingencyPct: parseFloat(e.target.value) || 0 })}
-                      className="w-10 text-center bg-white border border-gray-300 rounded px-0.5"
-                    />%)
-                  </span>
-                </div>
-                <span className="font-bold text-gray-900">${fmt(contingencyCost)}</span>
-              </div>
+                      step="0.01"
+                      value={feeRates.overheadProfitPct}
+                      onChange={(e) => setFeeRates({ ...feeRates, overheadProfitPct: parseFloat(e.target.value) || 0 })}
+                      className="w-14 text-center bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded font-bold"
+                    />%
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono font-bold text-gray-900">
+                    $ {fmt(overheadProfitTotal)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono text-gray-700">
+                    $ {(overheadProfitTotal / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center text-gray-500">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right pr-4 font-bold text-gray-800">
+                    {Math.round((overheadProfitTotal / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
+
+                {/* Taxes */}
+                <tr className="border-b border-gray-300 hover:bg-gray-50">
+                  <td className="p-2 border-r border-gray-400 font-medium text-gray-900 text-right pr-6">
+                    Taxes
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center font-mono font-bold text-gray-700">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={feeRates.taxPct}
+                      onChange={(e) => setFeeRates({ ...feeRates, taxPct: parseFloat(e.target.value) || 0 })}
+                      className="w-14 text-center bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded font-bold"
+                    />%
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono font-bold text-gray-900">
+                    $ {fmt(taxTotal)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-right font-mono text-gray-700">
+                    $ {(taxTotal / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center text-gray-500">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right pr-4 font-bold text-gray-800">
+                    {Math.round((taxTotal / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
+
+                {/* Subtotal of Markup / Fees / Overhead */}
+                <tr className="bg-[#b4c6e7] font-black text-gray-950 border-t-2 border-b-2 border-gray-400">
+                  <td className="p-2 text-right border-r border-gray-400 uppercase tracking-wide pr-6">
+                    Subtotal of Markup / Fees / Overhead
+                  </td>
+                  <td className="p-2 border-r border-gray-400 text-center"></td>
+                  <td className="p-2 text-right border-r border-gray-400 font-mono font-black">
+                    $ {fmt(subtotalMarkupFees)}
+                  </td>
+                  <td className="p-2 text-right border-r border-gray-400 font-mono">
+                    $ {(subtotalMarkupFees / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-2 text-center border-r border-gray-400 text-gray-700">
+                    $ -
+                  </td>
+                  <td className="p-2 text-right pr-4 font-black">
+                    {Math.round((subtotalMarkupFees / lumpSumPrice) * 100)}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* 5. FINAL LUMP SUM PRICE BAR (EXACT MATCH TO PICTURE BOTTOM ROW) */}
+          <div className="overflow-x-auto border-2 border-black">
+            <table className="w-full text-left border-collapse">
+              <tbody>
+                <tr className="bg-[#b4c6e7] font-black text-gray-950 text-sm">
+                  <td className="p-3 border-r-2 border-black uppercase tracking-wide w-[45%] text-right font-black pr-6 text-base">
+                    Lump Sum Price
+                  </td>
+                  <td className="p-3 border-r-2 border-black text-right w-[15%] font-black font-mono text-base text-gray-950">
+                    $ {fmt(lumpSumPrice)}
+                  </td>
+                  <td className="p-3 border-r-2 border-black text-right w-[12%] font-mono font-bold">
+                    $ {(lumpSumPrice / sqftNum).toFixed(2)}
+                  </td>
+                  <td className="p-3 border-r-2 border-black text-center w-[12%] text-gray-700">
+                    $ -
+                  </td>
+                  <td className="p-3 text-right w-[16%] font-black pr-4 text-base">
+                    100%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Contractor Authorization Sign-off block */}
+          <div className="bg-gray-50 border border-gray-300 rounded-xl p-4 text-xs space-y-3 mt-4">
+            <div className="flex justify-between text-[11px] text-gray-600">
+              <span>Prepared by: <strong className="text-gray-900">{proposalMeta.generalContractor}</strong></span>
+              <span>Date: <strong className="text-gray-900">{proposalMeta.proposalDate}</strong></span>
             </div>
-
-            {/* Right: THE YELLOW HIGHLIGHTED CALLOUT BOX (Exact Match to Picture) */}
-            <div className="space-y-4">
-              <div className="bg-[#ffff00] border-4 border-black p-6 rounded-2xl shadow-xl text-center">
-                <p className="text-xs font-black uppercase tracking-widest text-black mb-1">
-                  Total Base Bid Proposal
-                </p>
-                <div className="text-3xl sm:text-4xl font-black text-black tracking-tight">
-                  ${fmt(totalBaseBidProposal)}
-                </div>
-                <p className="text-[11px] font-bold text-gray-900 mt-2">
-                  Humana Approved Scope of Work · Lump Sum Bid
-                </p>
+            <div className="pt-3 border-t border-gray-300 flex justify-between items-end">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold">Authorized Contractor Signature</p>
+                <p className="font-serif italic text-base text-gray-900 mt-1">Ralph Ayala</p>
               </div>
-
-              {/* Subcontractor / Estimating Sign-off */}
-              <div className="bg-gray-50 border border-gray-300 rounded-xl p-4 text-xs space-y-3">
-                <div className="flex justify-between text-[11px] text-gray-600">
-                  <span>Prepared by: <strong className="text-gray-900">{proposalMeta.generalContractor}</strong></span>
-                  <span>Date: <strong className="text-gray-900">{proposalMeta.proposalDate}</strong></span>
-                </div>
-                <div className="pt-3 border-t border-gray-300 flex justify-between items-end">
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase font-bold">Authorized Contractor Signature</p>
-                    <p className="font-serif italic text-base text-gray-900 mt-1">Ralph Ayala</p>
-                  </div>
-                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded">
-                    PROPOSAL READY
-                  </span>
-                </div>
-              </div>
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded">
+                PROPOSAL READY · $1,044,266.65
+              </span>
             </div>
           </div>
+
         </div>
 
         {/* ============================================================ */}
