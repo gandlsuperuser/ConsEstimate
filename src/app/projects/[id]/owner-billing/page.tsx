@@ -181,7 +181,7 @@ export default function OwnerBillingPage() {
   const handleImport = () => {
     const selected = estimateLines.filter(el => selectedImportIds.has(el.id));
     const newRows: OwnerBillingItem[] = selected.map((el, idx) => ({
-      id: `imp-${el.id}`,
+      id: `imp-${el.id}-${Date.now()}-${idx}`,
       billing_id: '',
       item_number: rows.length + idx + 1,
       description: el.description || el.category,
