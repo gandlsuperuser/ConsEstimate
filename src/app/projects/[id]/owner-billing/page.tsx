@@ -364,11 +364,27 @@ export default function OwnerBillingPage() {
     setActiveView('form');
   };
 
-  /* ---- print trigger with mode ---- */
-  const triggerPrint = (mode: 'all' | 'g702_only' | 'g703_only') => {
+  /* ---- save as PDF / print handler ---- */
+  const handleSaveAsPDF = (mode: 'all' | 'g702_only' | 'g703_only') => {
+    const originalTitle = document.title;
+    const cleanProjectName = (header.project_name || project?.name || 'Project')
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    const docName = mode === 'g702_only'
+      ? `AIA_G702_Payment_Application_${header.application_number}_${cleanProjectName}`
+      : mode === 'g703_only'
+      ? `AIA_G703_Continuation_Sheet_${header.application_number}_${cleanProjectName}`
+      : `AIA_G702_G703_Application_${header.application_number}_${cleanProjectName}`;
+
+    document.title = docName;
     setPrintMode(mode);
+
     setTimeout(() => {
       window.print();
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 1000);
     }, 150);
   };
 
@@ -508,6 +524,16 @@ export default function OwnerBillingPage() {
                           >
                             Open Form
                           </button>
+                          <button
+                            onClick={() => {
+                              openBilling(b);
+                              setTimeout(() => handleSaveAsPDF('g702_only'), 300);
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-2.5 py-1 rounded shadow-2xs cursor-pointer"
+                            title="Save G702 Cover as PDF"
+                          >
+                            📄 PDF
+                          </button>
                         </td>
                       </tr>
                     );
@@ -590,21 +616,22 @@ export default function OwnerBillingPage() {
               <span>SAVE &amp; SUBMIT APPLICATION</span>
             </button>
 
-            {/* Print Buttons */}
-            <div className="flex items-center gap-1 bg-gray-800 p-1 rounded-lg border border-gray-700">
+            {/* SAVE AS PDF BUTTONS */}
+            <div className="flex items-center gap-1.5 bg-blue-950/80 p-1 rounded-lg border border-blue-500/60 shadow-md">
               <button
-                onClick={() => triggerPrint('g702_only')}
-                className="bg-gray-700 hover:bg-gray-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded transition-colors cursor-pointer"
-                title="Prints the G702 cover page on exactly one landscape sheet"
+                onClick={() => handleSaveAsPDF('g702_only')}
+                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border border-blue-300"
+                title="Saves only the 1-page AIA G702 cover document as a PDF"
               >
-                🖨 Print G702 (1 Page)
+                <span className="text-sm">📄</span>
+                <span>Save as PDF (1 Page G702)</span>
               </button>
               <button
-                onClick={() => triggerPrint('all')}
-                className="bg-gray-700 hover:bg-gray-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded transition-colors cursor-pointer"
-                title="Prints full document (G702 Cover + G703 Continuation Sheet)"
+                onClick={() => handleSaveAsPDF('all')}
+                className="bg-blue-800/80 hover:bg-blue-700 text-blue-100 hover:text-white text-[11px] font-bold px-3 py-2 rounded-md transition-colors cursor-pointer"
+                title="Saves full application (G702 Cover + G703 Schedule of Values) as PDF"
               >
-                🖨 Print All
+                Save Full PDF
               </button>
             </div>
           </div>
@@ -1455,6 +1482,15 @@ export default function OwnerBillingPage() {
           </div>
 
           <button
+            onClick={() => handleSaveAsPDF('g702_only')}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all border border-blue-400 cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+            title="Save 1-Page G702 as PDF"
+          >
+            <span>📄</span>
+            <span>Save as PDF</span>
+          </button>
+
+          <button
             onClick={() => handleSave('draft')}
             className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all border border-gray-600 cursor-pointer"
           >
@@ -1590,13 +1626,13 @@ export default function OwnerBillingPage() {
       <style jsx global>{`
         @media print {
           @page {
-            size: landscape;
-            margin: 0.25in;
+            size: letter landscape;
+            margin: 0.2in;
           }
           html, body {
             background: white !important;
             color: black !important;
-            font-size: 8.5pt !important;
+            font-size: 8pt !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -1612,8 +1648,14 @@ export default function OwnerBillingPage() {
             border: 2px solid black !important;
             border-radius: 0 !important;
             width: 100% !important;
-            max-height: 100% !important;
-            padding: 8px !important;
+            max-height: 7.9in !important;
+            padding: 6px 8px !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+          }
+          #g702-cover table td, #g702-cover table th {
+            padding-top: 1.5px !important;
+            padding-bottom: 1.5px !important;
           }
           #g703-continuation {
             page-break-before: always !important;
