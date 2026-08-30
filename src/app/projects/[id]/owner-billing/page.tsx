@@ -638,10 +638,10 @@ export default function OwnerBillingPage() {
                           <button
                             onClick={() => {
                               openBilling(b);
-                              setTimeout(() => handleSaveAsPDF('g702_only'), 300);
+                              setTimeout(() => handleSaveAsPDF('all'), 300);
                             }}
                             className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-2.5 py-1 rounded shadow-2xs cursor-pointer"
-                            title="Save G702 Cover as PDF"
+                            title="Save 2-Page Application as PDF"
                           >
                             📄 PDF
                           </button>
@@ -727,35 +727,25 @@ export default function OwnerBillingPage() {
               <span>SAVE &amp; SUBMIT APPLICATION</span>
             </button>
 
-            {/* SAVE AS PDF BUTTONS */}
-            <div className="flex items-center gap-1.5 bg-blue-950/80 p-1 rounded-lg border border-blue-500/60 shadow-md">
-              <button
-                onClick={() => handleSaveAsPDF('g702_only')}
-                disabled={generatingPdf}
-                className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:opacity-60 text-white text-xs font-black px-4 py-2 rounded-md shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border border-blue-300"
-                title="Directly downloads the 1-page AIA G702 cover document as a PDF"
-              >
-                {generatingPdf ? (
-                  <>
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Generating PDF...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-sm">📄</span>
-                    <span>Save as PDF (1 Page G702)</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => handleSaveAsPDF('all')}
-                disabled={generatingPdf}
-                className="bg-blue-800/80 hover:bg-blue-700 disabled:opacity-50 text-blue-100 hover:text-white text-[11px] font-bold px-3 py-2 rounded-md transition-colors cursor-pointer"
-                title="Directly downloads full application (G702 Cover + G703 Schedule of Values) as PDF"
-              >
-                Save Full PDF
-              </button>
-            </div>
+            {/* SAVE AS PDF BUTTON (Saves 2 Pages Together) */}
+            <button
+              onClick={() => handleSaveAsPDF('all')}
+              disabled={generatingPdf}
+              className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:opacity-60 text-white text-xs font-black px-4 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border border-blue-300"
+              title="Saves 2 pages together as PDF (Page 1: G702 Cover + Page 2: G703 Continuation Sheet)"
+            >
+              {generatingPdf ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm">📄</span>
+                  <span>Save as PDF (2 Pages)</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -1607,10 +1597,10 @@ export default function OwnerBillingPage() {
           </div>
 
           <button
-            onClick={() => handleSaveAsPDF('g702_only')}
+            onClick={() => handleSaveAsPDF('all')}
             disabled={generatingPdf}
             className="bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all border border-blue-400 cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
-            title="Save 1-Page G702 as PDF"
+            title="Save 2-Page Application as PDF (G702 Cover + G703 Continuation Sheet)"
           >
             <span>📄</span>
             <span>{generatingPdf ? 'Saving...' : 'Save as PDF'}</span>
