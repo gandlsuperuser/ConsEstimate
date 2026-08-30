@@ -1137,36 +1137,26 @@ export default function OwnerBillingPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-12 gap-2 pt-1 items-center">
-                  <div className="col-span-7 space-y-1">
-                    <div className="flex items-baseline gap-1">
-                      <span className="font-bold shrink-0">Notary Public:</span>
-                      <input
-                        type="text"
-                        value={header.notary_public}
-                        onChange={e => setHeader(h => ({ ...h, notary_public: e.target.value }))}
-                        placeholder="Notary Signature"
-                        className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent"
-                      />
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="font-bold shrink-0">My Commission expires:</span>
-                      <input
-                        type="text"
-                        value={header.notary_commission_expires}
-                        onChange={e => setHeader(h => ({ ...h, notary_commission_expires: e.target.value }))}
-                        placeholder="MM/DD/YYYY"
-                        className="w-24 font-bold border-b border-black focus:outline-none bg-transparent"
-                      />
-                    </div>
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold shrink-0">Notary Public:</span>
+                    <input
+                      type="text"
+                      value={header.notary_public}
+                      onChange={e => setHeader(h => ({ ...h, notary_public: e.target.value }))}
+                      placeholder="Notary Signature"
+                      className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent"
+                    />
                   </div>
-
-                  {/* Notary Stamp Graphic Box matching uploaded photo */}
-                  <div className="col-span-5 border-2 border-dashed border-gray-600 rounded p-1 text-center bg-gray-50/70 text-[7px] leading-tight">
-                    <div className="font-black uppercase tracking-wider text-black">🏛️ Notary Public</div>
-                    <div className="font-bold text-gray-800">State of Florida</div>
-                    <div className="font-semibold text-gray-700">Commission Official Seal</div>
-                    <div className="text-[6.5px] text-gray-500">Affix Seal Here</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold shrink-0">My Commission expires:</span>
+                    <input
+                      type="text"
+                      value={header.notary_commission_expires}
+                      onChange={e => setHeader(h => ({ ...h, notary_commission_expires: e.target.value }))}
+                      placeholder="MM/DD/YYYY"
+                      className="w-36 font-bold border-b border-black focus:outline-none bg-transparent"
+                    />
                   </div>
                 </div>
               </div>
