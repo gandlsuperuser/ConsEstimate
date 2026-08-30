@@ -2,10 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 
 interface ProjectSubNavProps {
     projectId: string;
+}
+
+interface NavTabItem {
+    id: string;
+    href: string;
+    label: string;
+    exact?: boolean;
+    icon: React.ComponentType<{ className?: string }>;
 }
 
 export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
@@ -14,109 +22,162 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
 
-    const tabs = [
+    // Drag and Drop state
+    const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+    const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+
+    const baseTabs: NavTabItem[] = useMemo(() => [
         {
+            id: 'home',
             href: `/projects/${projectId}`,
             label: 'Home',
             exact: true,
             icon: HomeIcon,
         },
         {
+            id: 'estimate',
             href: `/projects/${projectId}/estimate`,
             label: 'Estimating',
             icon: EstimateIcon,
         },
         {
+            id: 'bidding',
             href: `/projects/${projectId}/bidding`,
             label: 'Bidding',
             icon: BiddingIcon,
         },
         {
+            id: 'contracts',
             href: `/projects/${projectId}/contracts`,
             label: 'Contracts',
             icon: ContractIcon,
         },
         {
+            id: 'drawings',
             href: `/projects/${projectId}/drawings`,
             label: 'Drawings & 2D Markup',
             icon: DrawingIcon,
         },
         {
+            id: 'submittals',
             href: `/projects/${projectId}/submittals`,
             label: 'Submittals',
             icon: SubmittalIcon,
         },
         {
+            id: 'action-plans',
             href: `/projects/${projectId}/action-plans`,
             label: 'Action Plans & QA',
             icon: ActionPlanIcon,
         },
         {
+            id: 'rfis',
             href: `/projects/${projectId}/rfis`,
             label: 'RFIs',
             icon: RFIIcon,
         },
         {
+            id: 'change-events',
             href: `/projects/${projectId}/change-events`,
             label: 'Change Events',
             icon: ChangeEventIcon,
         },
         {
+            id: 'change-orders',
             href: `/projects/${projectId}/change-orders`,
             label: 'Change Orders',
             icon: ChangeOrderIcon,
         },
         {
+            id: 'observations',
             href: `/projects/${projectId}/observations`,
             label: 'Observations',
             icon: ObservationIcon,
         },
         {
+            id: 'photos',
             href: `/projects/${projectId}/photos`,
             label: 'Photos',
             icon: PhotoIcon,
         },
         {
+            id: 'conversations',
             href: `/projects/${projectId}/conversations`,
             label: 'Conversations',
             icon: ChatIcon,
         },
         {
+            id: 'pay-apps',
             href: `/projects/${projectId}/pay-apps`,
             label: 'Pay Apps',
             icon: PayAppIcon,
         },
         {
+            id: 'owner-billing',
             href: `/projects/${projectId}/owner-billing`,
             label: 'Owner Billing',
             icon: OwnerBillingIcon,
         },
         {
+            id: 'receipts',
             href: `/projects/${projectId}/receipts`,
             label: 'Budget & Spend',
             icon: BudgetIcon,
         },
         {
+            id: 'timeline',
             href: `/projects/${projectId}/timeline`,
             label: 'Schedule',
             icon: ScheduleIcon,
         },
         {
+            id: 'directory',
             href: `/projects/${projectId}/directory`,
             label: 'Trade Directory',
             icon: DirectoryIcon,
         },
         {
+            id: 'analytics',
             href: `/projects/${projectId}/analytics`,
             label: 'Analytics & Risk',
             icon: AnalyticsIcon,
         },
         {
+            id: 'activity',
             href: `/projects/${projectId}/activity`,
             label: 'Audit Trail',
             icon: ActivityIcon,
         },
-    ];
+    ], [projectId]);
+
+    const [tabs, setTabs] = useState<NavTabItem[]>(baseTabs);
+
+    // Load persisted tab order from localStorage
+    useEffect(() => {
+        try {
+            const storageKey = `consestimate_tabs_order_${projectId}`;
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                const orderIds: string[] = JSON.parse(saved);
+                const map = new Map(baseTabs.map(t => [t.id, t]));
+                const ordered: NavTabItem[] = [];
+                orderIds.forEach(id => {
+                    const found = map.get(id);
+                    if (found) {
+                        ordered.push(found);
+                        map.delete(id);
+                    }
+                });
+                // Append any newly added tabs not present in stored order
+                map.forEach(tab => ordered.push(tab));
+                setTabs(ordered);
+                return;
+            }
+        } catch (e) {
+            // ignore
+        }
+        setTabs(baseTabs);
+    }, [baseTabs, projectId]);
 
     const checkScroll = () => {
         const el = scrollRef.current;
@@ -145,53 +206,160 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
         el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
     };
 
+    /* ---- DRAG AND DROP HANDLERS (CHROME TAB REORDERING) ---- */
+    const handleDragStart = (e: React.DragEvent, id: string) => {
+        setDraggedTabId(id);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', id);
+    };
+
+    const handleDragOver = (e: React.DragEvent, id: string) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragOverTabId !== id) {
+            setDragOverTabId(id);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent, targetId: string) => {
+        e.preventDefault();
+        if (!draggedTabId || draggedTabId === targetId) {
+            setDraggedTabId(null);
+            setDragOverTabId(null);
+            return;
+        }
+
+        setTabs(prev => {
+            const fromIdx = prev.findIndex(t => t.id === draggedTabId);
+            const toIdx = prev.findIndex(t => t.id === targetId);
+            if (fromIdx < 0 || toIdx < 0) return prev;
+
+            const updated = [...prev];
+            const [moved] = updated.splice(fromIdx, 1);
+            updated.splice(toIdx, 0, moved);
+
+            try {
+                localStorage.setItem(`consestimate_tabs_order_${projectId}`, JSON.stringify(updated.map(t => t.id)));
+            } catch (err) {
+                // ignore
+            }
+
+            return updated;
+        });
+
+        setDraggedTabId(null);
+        setDragOverTabId(null);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedTabId(null);
+        setDragOverTabId(null);
+    };
+
+    const handleResetOrder = () => {
+        setTabs(baseTabs);
+        try {
+            localStorage.removeItem(`consestimate_tabs_order_${projectId}`);
+        } catch (err) {
+            // ignore
+        }
+    };
+
     return (
-        <div className="bg-white border-b border-procore-border relative">
-            {/* Scroll indicators */}
+        <div className="bg-[#dfe1e5] dark:bg-gray-900 border-b border-gray-300 dark:border-gray-800 relative pt-1.5 px-2 select-none">
+            {/* Scroll indicator - Left */}
             {canScrollLeft && (
                 <button
                     onClick={() => scroll('left')}
-                    className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 flex items-center justify-start pl-1 text-procore-text-muted hover:text-procore-text transition-colors"
+                    className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#dfe1e5] dark:from-gray-900 to-transparent z-30 flex items-center justify-start pl-1 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                    title="Scroll Left"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 19.5L8.25 12l7.5-7.5" />
-                    </svg>
-                </button>
-            )}
-            {canScrollRight && (
-                <button
-                    onClick={() => scroll('right')}
-                    className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 flex items-center justify-end pr-1 text-procore-text-muted hover:text-procore-text transition-colors"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
                 </button>
             )}
 
-            {/* Tab bar */}
+            {/* Scroll indicator - Right */}
+            {canScrollRight && (
+                <button
+                    onClick={() => scroll('right')}
+                    className="absolute right-10 top-0 bottom-0 w-8 bg-gradient-to-l from-[#dfe1e5] dark:from-gray-900 to-transparent z-30 flex items-center justify-end pr-1 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                    title="Scroll Right"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </button>
+            )}
+
+            {/* Reset Order Button */}
+            <div className="absolute right-2 top-2 bottom-0 z-30 flex items-center">
+                <button
+                    onClick={handleResetOrder}
+                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs px-1.5 py-1 rounded hover:bg-gray-200/80 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                    title="Reset tab positions to default"
+                >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                </button>
+            </div>
+
+            {/* Chrome Floating Tabs Container */}
             <div
                 ref={scrollRef}
-                className="flex overflow-x-auto scrollbar-none whitespace-nowrap px-4"
+                className="flex items-end overflow-x-auto scrollbar-none whitespace-nowrap pr-12 pl-1 gap-1"
             >
-                {tabs.map((tab) => {
+                {tabs.map((tab, idx) => {
                     const isActive = tab.exact
                         ? pathname === tab.href
                         : pathname.startsWith(tab.href);
 
+                    const isBeingDragged = draggedTabId === tab.id;
+                    const isDragOver = dragOverTabId === tab.id && draggedTabId !== tab.id;
+
                     return (
-                        <Link
-                            key={tab.label}
-                            href={tab.href}
-                            className={`flex items-center gap-1.5 px-3 py-3 text-[12px] font-semibold transition-all duration-150 border-b-[3px] min-w-fit ${
-                                isActive
-                                    ? 'border-procore-orange text-procore-orange'
-                                    : 'border-transparent text-procore-text-secondary hover:text-procore-text hover:border-gray-300'
+                        <div
+                            key={tab.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, tab.id)}
+                            onDragOver={(e) => handleDragOver(e, tab.id)}
+                            onDrop={(e) => handleDrop(e, tab.id)}
+                            onDragEnd={handleDragEnd}
+                            className={`group relative flex items-center transition-all duration-150 cursor-grab active:cursor-grabbing ${
+                                isBeingDragged
+                                    ? 'opacity-40 scale-105 z-50 shadow-2xl -translate-y-1'
+                                    : isDragOver
+                                    ? 'border-l-4 border-l-procore-orange pl-1'
+                                    : ''
                             }`}
+                            title="Drag and drop to rearrange tabs"
                         >
-                            <tab.icon className="w-4 h-4" />
-                            {tab.label}
-                        </Link>
+                            <Link
+                                href={tab.href}
+                                className={`flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold rounded-t-xl transition-all duration-150 min-w-fit relative ${
+                                    isActive
+                                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-[0_-1px_4px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)] font-bold border-t-2 border-t-procore-orange border-x border-gray-300/80 dark:border-gray-700 -mb-px z-20 scale-[1.02] transform'
+                                        : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-gray-800/60 hover:-translate-y-0.5 hover:shadow-xs'
+                                }`}
+                            >
+                                {/* Grip dots indicator */}
+                                <span className="opacity-0 group-hover:opacity-40 transition-opacity text-[9px] -ml-1 text-gray-500 font-mono tracking-tighter">
+                                    ⋮⋮
+                                </span>
+
+                                <tab.icon className={`w-3.5 h-3.5 ${isActive ? 'text-procore-orange' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400'}`} />
+                                <span>{tab.label}</span>
+                            </Link>
+
+                            {/* Divider line between inactive tabs (just like Chrome) */}
+                            {!isActive && idx < tabs.length - 1 && tabs[idx + 1] && (
+                                !(tabs[idx + 1].exact ? pathname === tabs[idx + 1].href : pathname.startsWith(tabs[idx + 1].href)) && (
+                                    <div className="w-[1px] h-3.5 bg-gray-300 dark:bg-gray-700 mx-0.5 self-center" />
+                                )
+                            )}
+                        </div>
                     );
                 })}
             </div>
