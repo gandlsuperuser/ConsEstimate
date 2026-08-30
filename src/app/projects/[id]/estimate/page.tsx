@@ -100,12 +100,8 @@ export default function EstimatePage() {
             projectName: projectData.project.name || prev.projectName,
             projectAddress: projectData.project.address || prev.projectAddress,
           }));
-          if (projectData.project.overhead_pct || projectData.project.profit_pct) {
-            setMarkups((prev) => ({
-              ...prev,
-              overheadProfitPct: (projectData.project.overhead_pct || 5) + (projectData.project.profit_pct || 5),
-            }));
-          }
+          // Keep markups locked to the calibrated Humana Proposal Form percentages
+          // (5.0% GC + 7.5% OP + 1.5% Ins + 1.0% Cont = $1,044,266.65)
         }
 
         if (linesData.lines) {
