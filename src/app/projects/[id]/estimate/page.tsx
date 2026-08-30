@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, Fragment } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { EstimateLine, Project } from '@/types';
@@ -598,7 +598,7 @@ export default function EstimatePage() {
                 }
 
                 return (
-                  <tr key={`div-group-${div.code}`} className="contents">
+                  <Fragment key={`div-group-${div.code}`}>
                     {/* Render each line item in this division */}
                     {divLines.map((line, idx) => {
                       const linePct = directConstructionCost > 0 ? (line.estimated_total / directConstructionCost) * 100 : 0;
@@ -733,7 +733,7 @@ export default function EstimatePage() {
                       </td>
                       <td className="p-2 print:hidden"></td>
                     </tr>
-                  </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
