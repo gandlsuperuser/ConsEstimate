@@ -599,7 +599,41 @@ export default function EstimatePage() {
 
                 return (
                   <Fragment key={`div-group-${div.code}`}>
-                    {/* Render each line item in this division */}
+                    {/* DIVISION SUB-TOTAL ROW ON TOP (Exact Match to Humana Spreadsheet) */}
+                    <tr className="bg-[#b4c6e7] border-t-2 border-b border-gray-400 text-[11px] font-black text-gray-950">
+                      <td className="p-2 text-center text-[#203764] border-r border-gray-400 font-black">
+                        Div {div.code}
+                      </td>
+                      <td className="p-2 text-center font-mono text-gray-800 border-r border-gray-400 font-bold">
+                        Sub-total
+                      </td>
+                      <td className="p-2 text-left border-r border-gray-400 uppercase tracking-wide font-black">
+                        Sub-total: {div.name}
+                      </td>
+                      <td className="p-2 text-center border-r border-gray-400">—</td>
+                      <td className="p-2 text-center border-r border-gray-400">—</td>
+                      <td className="p-2 text-right border-r border-gray-400">—</td>
+                      <td className="p-2 text-right border-r border-gray-400 text-sm font-black text-[#203764] font-mono">
+                        ${fmt(divSubtotal)}
+                      </td>
+                      <td className="p-2 text-left text-xs font-bold text-gray-600 border-r border-gray-400">
+                        <button
+                          onClick={() => {
+                            setSelectedDivForAdd(div.code);
+                            setShowAddModal(true);
+                          }}
+                          className="print:hidden text-blue-700 hover:text-blue-900 text-[10px] font-bold cursor-pointer underline"
+                        >
+                          + Add Item to Div {div.code}
+                        </button>
+                      </td>
+                      <td className="p-2 text-center font-black text-[#203764] border-r border-gray-400">
+                        {Math.round(divPct)}%
+                      </td>
+                      <td className="p-2 print:hidden"></td>
+                    </tr>
+
+                    {/* Render each line item in this division BELOW the Sub-total header */}
                     {divLines.map((line, idx) => {
                       const linePct = directConstructionCost > 0 ? (line.estimated_total / directConstructionCost) * 100 : 0;
                       const isRedClarification =
@@ -614,7 +648,7 @@ export default function EstimatePage() {
                           key={line.id}
                           className="hover:bg-blue-50/40 border-b border-gray-300 transition-colors"
                         >
-                          {/* Division Column (Spans or shows badge) */}
+                          {/* Division Column */}
                           <td className="p-1.5 text-center font-bold text-gray-700 bg-gray-50/80 border-r border-gray-300 align-middle">
                             <span className="bg-[#203764]/10 text-[#203764] px-1.5 py-0.5 rounded text-[10px] font-black">
                               Div {div.code}
@@ -709,40 +743,6 @@ export default function EstimatePage() {
                         </tr>
                       );
                     })}
-
-                    {/* DIVISION SUB-TOTAL ROW (Distinct Subtotal Banner matching spreadsheet) */}
-                    <tr className="bg-[#e9eef4] border-b-2 border-gray-400 text-[11px] font-black text-gray-900">
-                      <td className="p-2 text-center text-[#203764] border-r border-gray-400">
-                        Div {div.code}
-                      </td>
-                      <td className="p-2 text-center font-mono text-gray-600 border-r border-gray-400">
-                        Sub-total
-                      </td>
-                      <td className="p-2 text-left border-r border-gray-400 uppercase tracking-wide">
-                        Sub-total: {div.name}
-                      </td>
-                      <td className="p-2 text-center border-r border-gray-400">—</td>
-                      <td className="p-2 text-center border-r border-gray-400">—</td>
-                      <td className="p-2 text-right border-r border-gray-400">—</td>
-                      <td className="p-2 text-right border-r border-gray-400 text-sm font-black text-[#203764]">
-                        ${fmt(divSubtotal)}
-                      </td>
-                      <td className="p-2 text-left text-xs font-bold text-gray-600 border-r border-gray-400">
-                        <button
-                          onClick={() => {
-                            setSelectedDivForAdd(div.code);
-                            setShowAddModal(true);
-                          }}
-                          className="print:hidden text-blue-600 hover:text-blue-800 text-[10px] font-bold cursor-pointer underline"
-                        >
-                          + Add Item to Div {div.code}
-                        </button>
-                      </td>
-                      <td className="p-2 text-center font-black text-[#203764] border-r border-gray-400">
-                        {divPct.toFixed(1)}%
-                      </td>
-                      <td className="p-2 print:hidden"></td>
-                    </tr>
                   </Fragment>
                 );
               })}
