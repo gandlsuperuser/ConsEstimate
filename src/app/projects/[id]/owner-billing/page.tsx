@@ -371,11 +371,9 @@ export default function OwnerBillingPage() {
 
           <button
             onClick={openNewForm}
-            className="bg-procore-orange hover:bg-procore-orange-hover text-white text-sm font-extrabold px-5 py-3 rounded-lg shadow-md hover:shadow-lg flex items-center gap-2 transition-all animate-pulse hover:animate-none ring-2 ring-procore-orange/30"
+            className="bg-gray-900 hover:bg-black text-white text-base font-extrabold px-7 py-3.5 rounded-xl shadow-lg hover:shadow-xl flex items-center gap-2.5 transition-all border-2 border-emerald-400 hover:border-emerald-300"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
+            <span className="bg-emerald-500 text-white rounded-md w-7 h-7 flex items-center justify-center text-xl font-black shadow-sm">+</span>
             Create Application
           </button>
         </div>
