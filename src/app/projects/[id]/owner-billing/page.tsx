@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { OwnerBilling, OwnerBillingItem, EstimateLine, ChangeOrder, Project } from '@/types';
 
+const DEFAULT_G703_ROWS = 28;
+
 /* ------------------------------------------------------------------ */
 /*  Default empty continuation sheet row                               */
 /* ------------------------------------------------------------------ */
@@ -22,6 +24,10 @@ function emptyRow(itemNumber: number): OwnerBillingItem {
     balance_to_finish: 0,
     retainage: 0,
   };
+}
+
+function createInitialRows(count = DEFAULT_G703_ROWS): OwnerBillingItem[] {
+  return Array.from({ length: count }, (_, i) => emptyRow(i + 1));
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,8 +89,8 @@ export default function OwnerBillingPage() {
     architect_signature_date: '',
   });
 
-  /* G703 continuation sheet rows */
-  const [rows, setRows] = useState<OwnerBillingItem[]>([emptyRow(1)]);
+  /* G703 continuation sheet rows — initialized with 28 lines by default */
+  const [rows, setRows] = useState<OwnerBillingItem[]>(() => createInitialRows(DEFAULT_G703_ROWS));
 
   /* Estimate lines for import */
   const [estimateLines, setEstimateLines] = useState<EstimateLine[]>([]);
@@ -150,7 +156,12 @@ export default function OwnerBillingPage() {
 
   const deleteRow = (idx: number) => {
     setRows(prev => {
-      if (prev.length <= 1) return prev;
+      if (prev.length <= DEFAULT_G703_ROWS) {
+        // Clear row content instead of deleting if at or below 28 rows
+        const updated = [...prev];
+        updated[idx] = emptyRow(idx + 1);
+        return updated;
+      }
       const updated = prev.filter((_, i) => i !== idx);
       return updated.map((r, i) => ({ ...r, item_number: i + 1 }));
     });
@@ -215,7 +226,7 @@ export default function OwnerBillingPage() {
     const newRows: OwnerBillingItem[] = selected.map((el, idx) => ({
       id: `imp-${el.id}-${Date.now()}-${idx}`,
       billing_id: '',
-      item_number: rows.length + idx + 1,
+      item_number: idx + 1,
       description: el.description || el.category,
       scheduled_value: el.estimated_total || 0,
       work_completed_previous: 0,
@@ -227,10 +238,12 @@ export default function OwnerBillingPage() {
       retainage: 0,
     }));
 
-    // Filter out existing empty placeholder rows
     const existingNonEmpty = rows.filter(r => r.description.trim() !== '' || r.scheduled_value > 0);
-    const combined = [...existingNonEmpty, ...newRows].map((r, i) => ({ ...r, item_number: i + 1 }));
-    setRows(combined.length > 0 ? combined : [emptyRow(1)]);
+    const combined = [...existingNonEmpty, ...newRows];
+    while (combined.length < DEFAULT_G703_ROWS) {
+      combined.push(emptyRow(combined.length + 1));
+    }
+    setRows(combined.map((r, i) => ({ ...r, item_number: i + 1 })));
     setShowImportModal(false);
     setSelectedImportIds(new Set());
   };
@@ -246,18 +259,20 @@ export default function OwnerBillingPage() {
       total_completed_and_stored: totals.total_completed_and_stored,
       amount_certified: header.amount_certified || Math.max(0, totals.current_payment_due),
       status,
-      items: rows.map(r => ({
-        item_number: r.item_number,
-        description: r.description,
-        scheduled_value: Number(r.scheduled_value) || 0,
-        work_completed_previous: Number(r.work_completed_previous) || 0,
-        work_completed_this_period: Number(r.work_completed_this_period) || 0,
-        stored_materials: Number(r.stored_materials) || 0,
-        total_completed: Number(r.total_completed) || 0,
-        pct_complete: Number(r.pct_complete) || 0,
-        balance_to_finish: Number(r.balance_to_finish) || 0,
-        retainage: Number(r.retainage) || 0,
-      })),
+      items: rows
+        .filter(r => r.description.trim() !== '' || r.scheduled_value > 0)
+        .map((r, idx) => ({
+          item_number: idx + 1,
+          description: r.description,
+          scheduled_value: Number(r.scheduled_value) || 0,
+          work_completed_previous: Number(r.work_completed_previous) || 0,
+          work_completed_this_period: Number(r.work_completed_this_period) || 0,
+          stored_materials: Number(r.stored_materials) || 0,
+          total_completed: Number(r.total_completed) || 0,
+          pct_complete: Number(r.pct_complete) || 0,
+          balance_to_finish: Number(r.balance_to_finish) || 0,
+          retainage: Number(r.retainage) || 0,
+        })),
     };
 
     try {
@@ -314,11 +329,14 @@ export default function OwnerBillingPage() {
       architect_signature_by: b.architect_signature_by || '',
       architect_signature_date: b.architect_signature_date || '',
     });
-    setRows(
-      b.items && b.items.length > 0
-        ? b.items.map(item => recalcRow(item))
-        : [emptyRow(1)]
-    );
+
+    const loadedRows = (b.items && b.items.length > 0)
+      ? b.items.map(item => recalcRow(item))
+      : [];
+    while (loadedRows.length < DEFAULT_G703_ROWS) {
+      loadedRows.push(emptyRow(loadedRows.length + 1));
+    }
+    setRows(loadedRows);
     setEditingBilling(b);
     setActiveView('form');
   };
@@ -360,7 +378,7 @@ export default function OwnerBillingPage() {
       architect_signature_by: '',
       architect_signature_date: '',
     });
-    setRows([emptyRow(1)]);
+    setRows(createInitialRows(DEFAULT_G703_ROWS));
     setEditingBilling(null);
     setActiveView('form');
   };
@@ -517,13 +535,13 @@ export default function OwnerBillingPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-xl border border-procore-border shadow-xs">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-procore-text tracking-tight">Application & Certificate for Payment</h1>
+              <h1 className="text-2xl font-black text-procore-text tracking-tight">Application &amp; Certificate for Payment</h1>
               <span className="bg-emerald-100 text-emerald-800 font-extrabold text-xs px-2.5 py-1 rounded-md">
                 AIA Document G702™ / G703™
               </span>
             </div>
             <p className="text-xs text-procore-text-muted mt-1">
-              Prime contractor billing to owner. Full AIA G702 cover sheet with lines 1-9 & Schedule of Values (G703).
+              Prime contractor billing to owner. Full AIA G702 cover sheet with lines 1-9 &amp; Schedule of Values (G703).
             </p>
           </div>
 
@@ -544,7 +562,7 @@ export default function OwnerBillingPage() {
             <p className="text-[11px] text-procore-text-muted mt-0.5">Original + Approved COs</p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-procore-border shadow-xs">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Total Completed & Stored</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Total Completed &amp; Stored</p>
             <p className="text-2xl font-black text-emerald-600 mt-1">${fmt(totalBilled)}</p>
             <p className="text-[11px] text-procore-text-muted mt-0.5">
               {totalContract > 0 ? `${((totalBilled / totalContract) * 100).toFixed(1)}% of prime contract` : '—'}
@@ -558,7 +576,7 @@ export default function OwnerBillingPage() {
           <div className="bg-white p-4 rounded-xl border border-procore-border shadow-xs">
             <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Current Payment Due</p>
             <p className="text-2xl font-black text-procore-orange mt-1">${fmt(totalDue)}</p>
-            <p className="text-[11px] text-procore-text-muted mt-0.5">Approved & Submitted</p>
+            <p className="text-[11px] text-procore-text-muted mt-0.5">Approved &amp; Submitted</p>
           </div>
         </div>
 
@@ -566,7 +584,7 @@ export default function OwnerBillingPage() {
         <div className="bg-white rounded-xl border border-procore-border shadow-xs overflow-hidden">
           <div className="p-4 border-b border-procore-border bg-gray-50/50 flex justify-between items-center">
             <h2 className="text-sm font-bold text-procore-text">
-              Applications & Certificates ({billings.length})
+              Applications &amp; Certificates ({billings.length})
             </h2>
           </div>
 
@@ -578,7 +596,7 @@ export default function OwnerBillingPage() {
                     <th className="p-3 text-left font-bold">App #</th>
                     <th className="p-3 text-center font-bold">Period To</th>
                     <th className="p-3 text-right font-bold">Contract Sum</th>
-                    <th className="p-3 text-right font-bold">Completed & Stored</th>
+                    <th className="p-3 text-right font-bold">Completed &amp; Stored</th>
                     <th className="p-3 text-right font-bold">Retainage</th>
                     <th className="p-3 text-right font-bold">Previous Certs</th>
                     <th className="p-3 text-right font-bold">Current Due</th>
@@ -656,7 +674,7 @@ export default function OwnerBillingPage() {
   /* ================================================================ */
   return (
     <div className="space-y-4">
-      {/* Top Main Toolbar — UNMISSABLE, PROMINENT SAVE BUTTONS */}
+      {/* Top Main Toolbar */}
       <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white p-4 rounded-xl border border-gray-700 shadow-lg print:hidden">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex items-center gap-3">
@@ -744,7 +762,7 @@ export default function OwnerBillingPage() {
 
       {/* ============================================================ */}
       {/*  PAGE 1 — AIA G702 APPLICATION AND CERTIFICATE FOR PAYMENT   */}
-      {/*  EXACT LAYOUT OF THE USER-UPLOADED PHOTO                     */}
+      {/*  NO PLACEHOLDERS / ZERO SHADOWED WORDS IN BLANKS             */}
       {/* ============================================================ */}
       <div
         id="g702-cover"
@@ -763,7 +781,7 @@ export default function OwnerBillingPage() {
           </div>
         </div>
 
-        {/* 4-column metadata header section matching uploaded photo */}
+        {/* 4-column metadata header section */}
         <div className="grid grid-cols-12 border border-black text-[10px] leading-tight mb-2">
           {/* Column 1: TO OWNER / FROM CONTRACTOR */}
           <div className="col-span-12 sm:col-span-4 border-b sm:border-b-0 sm:border-r border-black p-2 space-y-2">
@@ -773,13 +791,11 @@ export default function OwnerBillingPage() {
                 type="text"
                 value={header.owner_name}
                 onChange={e => setHeader(h => ({ ...h, owner_name: e.target.value }))}
-                placeholder="Owner Company Name"
                 className="w-full font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
               />
               <textarea
                 value={header.owner_address}
                 onChange={e => setHeader(h => ({ ...h, owner_address: e.target.value }))}
-                placeholder="Accounts Payable Dept / PO Box, Address"
                 rows={2}
                 className="w-full text-[9px] text-black border-none resize-none focus:outline-none bg-transparent mt-0.5"
               />
@@ -790,13 +806,11 @@ export default function OwnerBillingPage() {
                 type="text"
                 value={header.contractor_name}
                 onChange={e => setHeader(h => ({ ...h, contractor_name: e.target.value }))}
-                placeholder="Contractor Company Name"
                 className="w-full font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
               />
               <textarea
                 value={header.contractor_address}
                 onChange={e => setHeader(h => ({ ...h, contractor_address: e.target.value }))}
-                placeholder="Contractor Address"
                 rows={2}
                 className="w-full text-[9px] text-black border-none resize-none focus:outline-none bg-transparent mt-0.5"
               />
@@ -811,13 +825,11 @@ export default function OwnerBillingPage() {
                 type="text"
                 value={header.project_name}
                 onChange={e => setHeader(h => ({ ...h, project_name: e.target.value }))}
-                placeholder="Project Name"
                 className="w-full font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
               />
               <textarea
                 value={header.project_address}
                 onChange={e => setHeader(h => ({ ...h, project_address: e.target.value }))}
-                placeholder="Project Site Address"
                 rows={2}
                 className="w-full text-[9px] text-black border-none resize-none focus:outline-none bg-transparent mt-0.5"
               />
@@ -828,7 +840,6 @@ export default function OwnerBillingPage() {
                 type="text"
                 value={header.via_architect}
                 onChange={e => setHeader(h => ({ ...h, via_architect: e.target.value }))}
-                placeholder="Architect Firm / Name"
                 className="w-full text-[9px] text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
               />
             </div>
@@ -860,7 +871,6 @@ export default function OwnerBillingPage() {
                 type="text"
                 value={header.project_nos}
                 onChange={e => setHeader(h => ({ ...h, project_nos: e.target.value }))}
-                placeholder="—"
                 className="w-24 text-right text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
               />
             </div>
@@ -879,7 +889,6 @@ export default function OwnerBillingPage() {
                 type="text"
                 value={header.purchase_order}
                 onChange={e => setHeader(h => ({ ...h, purchase_order: e.target.value }))}
-                placeholder="PO #"
                 className="w-24 text-right text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
               />
             </div>
@@ -911,7 +920,6 @@ export default function OwnerBillingPage() {
             type="text"
             value={header.contract_for}
             onChange={e => setHeader(h => ({ ...h, contract_for: e.target.value }))}
-            placeholder="Contract description / Project"
             className="flex-1 font-bold text-black border-b border-dotted border-gray-400 focus:outline-none bg-transparent"
           />
         </div>
@@ -932,7 +940,7 @@ export default function OwnerBillingPage() {
               </p>
             </div>
 
-            {/* Lines 1 to 9 Table matching uploaded photo */}
+            {/* Lines 1 to 9 Table */}
             <div className="border border-black">
               <table className="w-full text-[9px] border-collapse">
                 <tbody>
@@ -949,7 +957,6 @@ export default function OwnerBillingPage() {
                         value={header.original_contract_sum || ''}
                         onChange={e => setHeader(h => ({ ...h, original_contract_sum: parseFloat(e.target.value) || 0 }))}
                         className="w-full text-right font-bold text-black focus:outline-none bg-transparent"
-                        placeholder="0.00"
                       />
                     </td>
                   </tr>
@@ -974,7 +981,7 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-bold">$</td>
                     <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {fmt(totals.contract_sum_to_date)}
+                      {totals.contract_sum_to_date > 0 ? fmt(totals.contract_sum_to_date) : ''}
                     </td>
                   </tr>
 
@@ -987,7 +994,7 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-bold">$</td>
                     <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {fmt(totals.total_completed_and_stored)}
+                      {totals.total_completed_and_stored > 0 ? fmt(totals.total_completed_and_stored) : ''}
                     </td>
                   </tr>
 
@@ -1003,7 +1010,7 @@ export default function OwnerBillingPage() {
                       a.{' '}
                       <input
                         type="number"
-                        value={header.retainage_completed_pct}
+                        value={header.retainage_completed_pct || ''}
                         onChange={e => setHeader(h => ({ ...h, retainage_completed_pct: parseFloat(e.target.value) || 0 }))}
                         className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
                       />
@@ -1020,7 +1027,7 @@ export default function OwnerBillingPage() {
                       b.{' '}
                       <input
                         type="number"
-                        value={header.retainage_stored_pct}
+                        value={header.retainage_stored_pct || ''}
                         onChange={e => setHeader(h => ({ ...h, retainage_stored_pct: parseFloat(e.target.value) || 0 }))}
                         className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
                       />
@@ -1042,7 +1049,7 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-bold">$</td>
                     <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {fmt(totals.total_retainage)}
+                      {totals.total_retainage > 0 ? fmt(totals.total_retainage) : ''}
                     </td>
                   </tr>
 
@@ -1055,7 +1062,7 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-bold">$</td>
                     <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {fmt(totals.total_earned_less_retainage)}
+                      {totals.total_earned_less_retainage > 0 ? fmt(totals.total_earned_less_retainage) : ''}
                     </td>
                   </tr>
 
@@ -1073,7 +1080,6 @@ export default function OwnerBillingPage() {
                         value={header.less_previous_certificates || ''}
                         onChange={e => setHeader(h => ({ ...h, less_previous_certificates: parseFloat(e.target.value) || 0 }))}
                         className="w-full text-right font-bold text-black focus:outline-none bg-transparent"
-                        placeholder="0.00"
                       />
                     </td>
                   </tr>
@@ -1086,7 +1092,7 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-black">$</td>
                     <td className="p-1 text-right font-black text-[10px] border-l border-black bg-white">
-                      {fmt(Math.max(0, totals.current_payment_due))}
+                      {totals.current_payment_due > 0 ? fmt(totals.current_payment_due) : ''}
                     </td>
                   </tr>
 
@@ -1099,14 +1105,14 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-bold">$</td>
                     <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {fmt(Math.max(0, totals.balance_to_finish_incl_retainage))}
+                      {totals.balance_to_finish_incl_retainage > 0 ? fmt(totals.balance_to_finish_incl_retainage) : ''}
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {/* CHANGE ORDER SUMMARY TABLE matching uploaded photo */}
+            {/* CHANGE ORDER SUMMARY TABLE */}
             <div className="border border-black">
               <table className="w-full text-[8px] border-collapse">
                 <thead>
@@ -1127,7 +1133,6 @@ export default function OwnerBillingPage() {
                         value={header.change_order_additions_prev || ''}
                         onChange={e => setHeader(h => ({ ...h, change_order_additions_prev: parseFloat(e.target.value) || 0 }))}
                         className="w-full text-right focus:outline-none bg-transparent"
-                        placeholder="0.00"
                       />
                     </td>
                     <td className="p-1">
@@ -1136,7 +1141,6 @@ export default function OwnerBillingPage() {
                         value={header.change_order_deductions_prev || ''}
                         onChange={e => setHeader(h => ({ ...h, change_order_deductions_prev: parseFloat(e.target.value) || 0 }))}
                         className="w-full text-right focus:outline-none bg-transparent"
-                        placeholder="0.00"
                       />
                     </td>
                   </tr>
@@ -1150,7 +1154,6 @@ export default function OwnerBillingPage() {
                         value={header.change_order_additions_curr || ''}
                         onChange={e => setHeader(h => ({ ...h, change_order_additions_curr: parseFloat(e.target.value) || 0 }))}
                         className="w-full text-right focus:outline-none bg-transparent"
-                        placeholder="0.00"
                       />
                     </td>
                     <td className="p-1">
@@ -1159,7 +1162,6 @@ export default function OwnerBillingPage() {
                         value={header.change_order_deductions_curr || ''}
                         onChange={e => setHeader(h => ({ ...h, change_order_deductions_curr: parseFloat(e.target.value) || 0 }))}
                         className="w-full text-right focus:outline-none bg-transparent"
-                        placeholder="0.00"
                       />
                     </td>
                   </tr>
@@ -1168,10 +1170,10 @@ export default function OwnerBillingPage() {
                       TOTALS
                     </td>
                     <td className="p-1 text-right border-r border-black font-bold">
-                      ${fmt(totals.total_additions)}
+                      {totals.total_additions > 0 ? `$${fmt(totals.total_additions)}` : ''}
                     </td>
                     <td className="p-1 text-right font-bold">
-                      ${fmt(totals.total_deductions)}
+                      {totals.total_deductions > 0 ? `$${fmt(totals.total_deductions)}` : ''}
                     </td>
                   </tr>
                   <tr className="font-black bg-gray-100">
@@ -1179,7 +1181,7 @@ export default function OwnerBillingPage() {
                       NET CHANGES by Change Order
                     </td>
                     <td className="p-1 text-right" colSpan={2}>
-                      ${fmt(totals.net_co)}
+                      {totals.net_co !== 0 ? `$${fmt(totals.net_co)}` : ''}
                     </td>
                   </tr>
                 </tbody>
@@ -1189,6 +1191,7 @@ export default function OwnerBillingPage() {
 
           {/* ---------------- RIGHT COLUMN ---------------- */}
           {/* CONTRACTOR CERTIFICATION, NOTARY, ARCHITECT CERTIFICATE */}
+          {/* ALL BLANKS ARE COMPLETELY EMPTY LINES — NO SHADOWED WORDS */}
           <div className="space-y-2 flex flex-col justify-between">
             {/* Contractor Certification */}
             <div className="border border-black p-2 space-y-2">
@@ -1209,7 +1212,6 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.contractor_signature_by}
                       onChange={e => setHeader(h => ({ ...h, contractor_signature_by: e.target.value }))}
-                      placeholder="Authorized Signature"
                       className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent px-1"
                     />
                   </div>
@@ -1219,8 +1221,7 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.contractor_signature_date}
                       onChange={e => setHeader(h => ({ ...h, contractor_signature_date: e.target.value }))}
-                      placeholder="MM/DD/YYYY"
-                      className="w-20 font-bold text-black border-b border-black focus:outline-none bg-transparent text-center"
+                      className="w-24 font-bold text-black border-b border-black focus:outline-none bg-transparent text-center"
                     />
                   </div>
                 </div>
@@ -1235,7 +1236,7 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.state_of}
                       onChange={e => setHeader(h => ({ ...h, state_of: e.target.value }))}
-                      className="w-20 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
+                      className="w-24 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
                     />
                   </div>
                   <div className="flex items-baseline gap-1">
@@ -1244,7 +1245,7 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.county_of}
                       onChange={e => setHeader(h => ({ ...h, county_of: e.target.value }))}
-                      className="w-20 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
+                      className="w-24 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
                     />
                   </div>
                 </div>
@@ -1255,16 +1256,14 @@ export default function OwnerBillingPage() {
                     type="text"
                     value={header.notary_day}
                     onChange={e => setHeader(h => ({ ...h, notary_day: e.target.value }))}
-                    placeholder="29"
-                    className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
+                    className="w-10 text-center font-bold border-b border-black focus:outline-none bg-transparent"
                   />
                   <span>day of</span>
                   <input
                     type="text"
                     value={header.notary_month_year}
                     onChange={e => setHeader(h => ({ ...h, notary_month_year: e.target.value }))}
-                    placeholder="MAY, 2026"
-                    className="w-24 font-bold border-b border-black focus:outline-none bg-transparent"
+                    className="w-28 font-bold border-b border-black focus:outline-none bg-transparent"
                   />
                 </div>
 
@@ -1275,7 +1274,6 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.notary_public}
                       onChange={e => setHeader(h => ({ ...h, notary_public: e.target.value }))}
-                      placeholder="Notary Signature"
                       className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent"
                     />
                   </div>
@@ -1285,7 +1283,6 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.notary_commission_expires}
                       onChange={e => setHeader(h => ({ ...h, notary_commission_expires: e.target.value }))}
-                      placeholder="MM/DD/YYYY"
                       className="w-36 font-bold border-b border-black focus:outline-none bg-transparent"
                     />
                   </div>
@@ -1314,7 +1311,7 @@ export default function OwnerBillingPage() {
                   <span className="font-black text-black">$</span>
                   <input
                     type="number"
-                    value={header.amount_certified || Math.max(0, totals.current_payment_due)}
+                    value={header.amount_certified || (totals.current_payment_due > 0 ? totals.current_payment_due : '')}
                     onChange={e => setHeader(h => ({ ...h, amount_certified: parseFloat(e.target.value) || 0 }))}
                     className="w-28 text-right font-black text-[10px] text-black border-b border-black focus:outline-none bg-transparent"
                   />
@@ -1335,7 +1332,6 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.architect_signature_by}
                       onChange={e => setHeader(h => ({ ...h, architect_signature_by: e.target.value }))}
-                      placeholder="Architect Signature"
                       className="flex-1 font-script text-xs text-blue-900 border-b border-black focus:outline-none bg-transparent px-1"
                     />
                   </div>
@@ -1345,8 +1341,7 @@ export default function OwnerBillingPage() {
                       type="text"
                       value={header.architect_signature_date}
                       onChange={e => setHeader(h => ({ ...h, architect_signature_date: e.target.value }))}
-                      placeholder="MM/DD/YYYY"
-                      className="w-20 font-bold text-black border-b border-black focus:outline-none bg-transparent text-center"
+                      className="w-24 font-bold text-black border-b border-black focus:outline-none bg-transparent text-center"
                     />
                   </div>
                 </div>
@@ -1364,6 +1359,7 @@ export default function OwnerBillingPage() {
 
       {/* ============================================================ */}
       {/*  PAGE 2 — AIA G703 CONTINUATION SHEET                        */}
+      {/*  28 ROWS BY DEFAULT — NO PLACEHOLDERS / CLEAN EMPTY CELLS    */}
       {/* ============================================================ */}
       <div
         id="g703-continuation"
@@ -1392,18 +1388,18 @@ export default function OwnerBillingPage() {
             <thead>
               {/* Column Letter headers */}
               <tr className="bg-gray-100 border-b border-gray-300 print:border-black">
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-12 print:border-black">A</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 print:border-black">B</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">C</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black" colSpan={2}>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-10 print:border-black">A</th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 print:border-black">B</th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">C</th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black" colSpan={2}>
                   D &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; E
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">F</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">G</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-14 print:border-black">%</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">H</th>
-                <th className="p-1.5 text-center font-bold text-gray-500 w-24">I</th>
-                <th className="p-1.5 w-8 print:hidden"></th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">F</th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">G</th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-14 print:border-black">%</th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">H</th>
+                <th className="p-1 text-center font-bold text-gray-500 w-24">I</th>
+                <th className="p-1 w-6 print:hidden"></th>
               </tr>
               {/* Detailed headers */}
               <tr className="bg-gray-50 border-b-2 border-gray-400 text-[9px] print:border-black">
@@ -1448,92 +1444,101 @@ export default function OwnerBillingPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 print:divide-black">
-              {rows.map((row, idx) => (
-                <tr key={row.id} className="hover:bg-blue-50/30 group">
-                  {/* A — Item No */}
-                  <td className="p-1 text-center font-bold text-gray-500 border-r border-gray-200 bg-gray-50/50 print:border-black">
-                    {row.item_number}
-                  </td>
-                  {/* B — Description */}
-                  <td className="p-1 border-r border-gray-200 print:border-black">
-                    <input
-                      type="text"
-                      value={row.description}
-                      onChange={e => updateRow(idx, 'description', e.target.value)}
-                      className="w-full text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
-                      placeholder="Description of Work"
-                    />
-                  </td>
-                  {/* C — Scheduled Value */}
-                  <td className="p-1 border-r border-gray-200 print:border-black">
-                    <input
-                      type="number"
-                      value={row.scheduled_value || ''}
-                      onChange={e => updateRow(idx, 'scheduled_value', parseFloat(e.target.value) || 0)}
-                      className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
-                      placeholder="0.00"
-                    />
-                  </td>
-                  {/* D — From Previous */}
-                  <td className="p-1 border-r border-gray-200 print:border-black">
-                    <input
-                      type="number"
-                      value={row.work_completed_previous || ''}
-                      onChange={e => updateRow(idx, 'work_completed_previous', parseFloat(e.target.value) || 0)}
-                      className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
-                      placeholder="0.00"
-                    />
-                  </td>
-                  {/* E — This Period */}
-                  <td className="p-1 border-r border-gray-200 print:border-black">
-                    <input
-                      type="number"
-                      value={row.work_completed_this_period || ''}
-                      onChange={e => updateRow(idx, 'work_completed_this_period', parseFloat(e.target.value) || 0)}
-                      className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
-                      placeholder="0.00"
-                    />
-                  </td>
-                  {/* F — Stored */}
-                  <td className="p-1 border-r border-gray-200 print:border-black">
-                    <input
-                      type="number"
-                      value={row.stored_materials || ''}
-                      onChange={e => updateRow(idx, 'stored_materials', parseFloat(e.target.value) || 0)}
-                      className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
-                      placeholder="0.00"
-                    />
-                  </td>
-                  {/* G — Total (auto) */}
-                  <td className="p-1 text-right font-bold text-[11px] text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
-                    {fmt(row.total_completed)}
-                  </td>
-                  {/* G/C % (auto) */}
-                  <td className="p-1 text-center font-bold text-[11px] border-r border-gray-200 bg-gray-50/30 print:border-black">
-                    <span className={row.pct_complete >= 100 ? 'text-emerald-700' : row.pct_complete > 0 ? 'text-blue-700' : 'text-gray-400'}>
-                      {row.pct_complete}%
-                    </span>
-                  </td>
-                  {/* H — Balance (auto) */}
-                  <td className="p-1 text-right text-[11px] font-medium text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
-                    {fmt(row.balance_to_finish)}
-                  </td>
-                  {/* I — Retainage */}
-                  <td className="p-1 text-right text-[11px] font-medium text-amber-700 bg-gray-50/30 px-2">
-                    {fmt(row.retainage)}
-                  </td>
-                  {/* Delete button */}
-                  <td className="p-1 text-center print:hidden">
-                    <button
-                      onClick={() => deleteRow(idx)}
-                      className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity text-sm cursor-pointer"
-                      title="Remove row"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((row, idx) => {
+                const hasData = Boolean(
+                  row.description.trim() ||
+                  row.scheduled_value > 0 ||
+                  row.work_completed_previous > 0 ||
+                  row.work_completed_this_period > 0 ||
+                  row.stored_materials > 0
+                );
+
+                return (
+                  <tr key={row.id || idx} className="hover:bg-blue-50/30 group h-6">
+                    {/* A — Item No */}
+                    <td className="p-1 text-center font-bold text-gray-500 border-r border-gray-200 bg-gray-50/50 print:border-black text-[10px]">
+                      {row.item_number}
+                    </td>
+                    {/* B — Description — NO PLACEHOLDER */}
+                    <td className="p-1 border-r border-gray-200 print:border-black">
+                      <input
+                        type="text"
+                        value={row.description}
+                        onChange={e => updateRow(idx, 'description', e.target.value)}
+                        className="w-full text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                      />
+                    </td>
+                    {/* C — Scheduled Value — NO PLACEHOLDER */}
+                    <td className="p-1 border-r border-gray-200 print:border-black">
+                      <input
+                        type="number"
+                        value={row.scheduled_value || ''}
+                        onChange={e => updateRow(idx, 'scheduled_value', parseFloat(e.target.value) || 0)}
+                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                      />
+                    </td>
+                    {/* D — From Previous — NO PLACEHOLDER */}
+                    <td className="p-1 border-r border-gray-200 print:border-black">
+                      <input
+                        type="number"
+                        value={row.work_completed_previous || ''}
+                        onChange={e => updateRow(idx, 'work_completed_previous', parseFloat(e.target.value) || 0)}
+                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                      />
+                    </td>
+                    {/* E — This Period — NO PLACEHOLDER */}
+                    <td className="p-1 border-r border-gray-200 print:border-black">
+                      <input
+                        type="number"
+                        value={row.work_completed_this_period || ''}
+                        onChange={e => updateRow(idx, 'work_completed_this_period', parseFloat(e.target.value) || 0)}
+                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                      />
+                    </td>
+                    {/* F — Stored — NO PLACEHOLDER */}
+                    <td className="p-1 border-r border-gray-200 print:border-black">
+                      <input
+                        type="number"
+                        value={row.stored_materials || ''}
+                        onChange={e => updateRow(idx, 'stored_materials', parseFloat(e.target.value) || 0)}
+                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                      />
+                    </td>
+                    {/* G — Total — EMPTY IF NO DATA */}
+                    <td className="p-1 text-right font-bold text-[11px] text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
+                      {hasData && row.total_completed > 0 ? fmt(row.total_completed) : ''}
+                    </td>
+                    {/* G/C % — EMPTY IF NO DATA */}
+                    <td className="p-1 text-center font-bold text-[11px] border-r border-gray-200 bg-gray-50/30 print:border-black">
+                      {hasData && row.pct_complete > 0 ? (
+                        <span className={row.pct_complete >= 100 ? 'text-emerald-700' : 'text-blue-700'}>
+                          {row.pct_complete}%
+                        </span>
+                      ) : ''}
+                    </td>
+                    {/* H — Balance — EMPTY IF NO DATA */}
+                    <td className="p-1 text-right text-[11px] font-medium text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
+                      {hasData && row.scheduled_value > 0 ? fmt(row.balance_to_finish) : ''}
+                    </td>
+                    {/* I — Retainage — EMPTY IF NO DATA */}
+                    <td className="p-1 text-right text-[11px] font-medium text-amber-700 bg-gray-50/30 px-2">
+                      {hasData && row.retainage > 0 ? fmt(row.retainage) : ''}
+                    </td>
+                    {/* Delete button (clear or remove) */}
+                    <td className="p-1 text-center print:hidden">
+                      {hasData && (
+                        <button
+                          onClick={() => deleteRow(idx)}
+                          className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity text-xs cursor-pointer"
+                          title="Clear line"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
             {/* Totals row */}
             <tfoot>
@@ -1541,18 +1546,34 @@ export default function OwnerBillingPage() {
                 <td className="p-2 text-center border-r border-gray-300 print:border-black" colSpan={2}>
                   <span className="uppercase text-gray-700 font-black text-[10px] tracking-wider">TOTALS</span>
                 </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.scheduled_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.prev_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.this_period_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.stored_total)}</td>
-                <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">{fmt(totals.completed_total)}</td>
-                <td className="p-2 text-center border-r border-gray-300 print:border-black">
-                  <span className={totals.overall_pct >= 100 ? 'text-emerald-700 font-black' : 'text-blue-700 font-black'}>
-                    {totals.overall_pct}%
-                  </span>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
+                  {totals.scheduled_total > 0 ? fmt(totals.scheduled_total) : ''}
                 </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">{fmt(totals.balance_total)}</td>
-                <td className="p-2 text-right text-amber-700 font-black">{fmt(totals.retainage_total)}</td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
+                  {totals.prev_total > 0 ? fmt(totals.prev_total) : ''}
+                </td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
+                  {totals.this_period_total > 0 ? fmt(totals.this_period_total) : ''}
+                </td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
+                  {totals.stored_total > 0 ? fmt(totals.stored_total) : ''}
+                </td>
+                <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">
+                  {totals.completed_total > 0 ? fmt(totals.completed_total) : ''}
+                </td>
+                <td className="p-2 text-center border-r border-gray-300 print:border-black">
+                  {totals.overall_pct > 0 ? (
+                    <span className={totals.overall_pct >= 100 ? 'text-emerald-700 font-black' : 'text-blue-700 font-black'}>
+                      {totals.overall_pct}%
+                    </span>
+                  ) : ''}
+                </td>
+                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
+                  {totals.balance_total > 0 ? fmt(totals.balance_total) : ''}
+                </td>
+                <td className="p-2 text-right text-amber-700 font-black">
+                  {totals.retainage_total > 0 ? fmt(totals.retainage_total) : ''}
+                </td>
                 <td className="print:hidden"></td>
               </tr>
             </tfoot>
@@ -1570,7 +1591,7 @@ export default function OwnerBillingPage() {
           </button>
 
           <span className="text-[11px] text-gray-500 font-medium">
-            {rows.length} item{rows.length !== 1 ? 's' : ''} in Schedule of Values
+            {rows.length} lines on Continuation Sheet
           </span>
         </div>
       </div>
@@ -1729,6 +1750,21 @@ export default function OwnerBillingPage() {
       {/*  PRINT CSS STYLES FOR EXACT 1-PAGE OUTPUT                     */}
       {/* ============================================================ */}
       <style jsx global>{`
+        /* Remove spin buttons and placeholders completely */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+          -webkit-appearance: none !important;
+          margin: 0 !important;
+        }
+        input[type=number] {
+          -moz-appearance: textfield !important;
+        }
+        input::placeholder,
+        textarea::placeholder {
+          color: transparent !important;
+          opacity: 0 !important;
+        }
+
         @media print {
           @page {
             size: letter landscape;
