@@ -1357,16 +1357,30 @@ export default function OwnerBillingPage() {
           printMode === 'g702_only' ? 'print:hidden' : ''
         }`}
       >
-        {/* Title */}
-        <div className="bg-gray-900 text-white px-5 py-3 flex items-center justify-between print:bg-white print:text-black print:border-b-2 print:border-black">
-          <div>
-            <h2 className="text-sm sm:text-base font-black tracking-wide uppercase">
-              Continuation Sheet
-            </h2>
-            <p className="text-[10px] text-gray-400 print:text-gray-600 mt-0.5">
-              AIA Document G703™ — Attachment to Application #{header.application_number}
-            </p>
+        {/* Title & Actions */}
+        <div className="bg-gray-900 text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 print:bg-white print:text-black print:border-b-2 print:border-black">
+          <div className="flex flex-wrap items-center gap-4">
+            <div>
+              <h2 className="text-sm sm:text-base font-black tracking-wide uppercase flex items-center gap-2">
+                <span>Continuation Sheet</span>
+                <span className="text-[10px] font-bold bg-gray-800 text-gray-300 px-2 py-0.5 rounded print:hidden">G703</span>
+              </h2>
+              <p className="text-[10px] text-gray-400 print:text-gray-600 mt-0.5">
+                AIA Document G703™ — Attachment to Application #{header.application_number}
+              </p>
+            </div>
+
+            {/* PROMINENT IMPORT FROM PROJECT ESTIMATE BUTTON ON TOP OF CONTINUATION SHEET */}
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="print:hidden bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border-2 border-blue-400 active:scale-95 hover:shadow-blue-500/20"
+              title="Import line items from project estimate into this Continuation Sheet"
+            >
+              <span className="text-base">📥</span>
+              <span>Import from Project Estimate</span>
+            </button>
           </div>
+
           <div className="text-right text-[10px] text-gray-400 print:text-gray-600">
             <p>APPLICATION NUMBER: <span className="font-black text-white print:text-black">{header.application_number}</span></p>
             <p>PERIOD TO: <span className="font-bold text-white print:text-black">{header.period_to}</span></p>
