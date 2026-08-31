@@ -68,6 +68,7 @@ export default function OwnerBillingPage() {
   const [editingBilling, setEditingBilling] = useState<OwnerBilling | null>(null);
   const [printMode, setPrintMode] = useState<'all' | 'g702_only' | 'g703_only'>('all');
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [isEditingOrigSum, setIsEditingOrigSum] = useState(false);
 
   /* G702 header & certificate fields */
   const [header, setHeader] = useState({
@@ -85,7 +86,7 @@ export default function OwnerBillingPage() {
     contract_date: '',
     purchase_order: '',
     distribution_to: ['Const. Mgr'] as string[],
-    original_contract_sum: 0,
+    original_contract_sum: 1044266.65,
     retainage_completed_pct: 0,
     retainage_stored_pct: 0,
     less_previous_certificates: 0,
@@ -359,7 +360,7 @@ export default function OwnerBillingPage() {
       contract_date: b.contract_date || '',
       purchase_order: b.purchase_order || '',
       distribution_to: b.distribution_to || ['Const. Mgr'],
-      original_contract_sum: b.original_contract_sum || 0,
+      original_contract_sum: b.original_contract_sum || 1044266.65,
       retainage_completed_pct: b.retainage_completed_pct ?? 0,
       retainage_stored_pct: b.retainage_stored_pct ?? 0,
       less_previous_certificates: b.less_previous_certificates || 0,
@@ -416,8 +417,8 @@ export default function OwnerBillingPage() {
       contract_date: '',
       purchase_order: '',
       distribution_to: ['Const. Mgr'],
-      original_contract_sum: 0,
-      retainage_completed_pct: 10,
+      original_contract_sum: 1044266.65,
+      retainage_completed_pct: 0,
       retainage_stored_pct: 0,
       less_previous_certificates: 0,
       change_order_additions_prev: 0,
@@ -1000,11 +1001,24 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-bold w-4">$</td>
                     <td className="p-1 text-right w-28 border-l border-black bg-white">
+                      <span className="hidden print:inline font-black text-black">
+                        {header.original_contract_sum > 0 ? fmt(header.original_contract_sum) : ''}
+                      </span>
                       <input
-                        type="number"
-                        value={header.original_contract_sum || ''}
-                        onChange={e => setHeader(h => ({ ...h, original_contract_sum: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right font-bold text-black focus:outline-none bg-transparent"
+                        type="text"
+                        value={
+                          isEditingOrigSum
+                            ? (header.original_contract_sum || '')
+                            : (header.original_contract_sum > 0 ? fmt(header.original_contract_sum) : '')
+                        }
+                        onFocus={() => setIsEditingOrigSum(true)}
+                        onBlur={() => setIsEditingOrigSum(false)}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/[^0-9.-]+/g, '');
+                          setHeader(h => ({ ...h, original_contract_sum: parseFloat(raw) || 0 }));
+                        }}
+                        className="w-full text-right font-black text-black focus:outline-none bg-transparent print:hidden"
+                        title="Original Contract Sum (Total Budget: $1,044,266.65)"
                       />
                     </td>
                   </tr>
