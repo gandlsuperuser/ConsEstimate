@@ -37,6 +37,23 @@ const fmt = (n: number) =>
   (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* ------------------------------------------------------------------ */
+/*  Division Number Extractor for Sorting (Div 01 -> Div 28 -> Alts)  */
+/* ------------------------------------------------------------------ */
+function extractDivisionNumber(desc: string): number {
+  if (!desc) return 9999;
+  const d = desc.trim();
+  if (/alternate|alt\b/i.test(d)) {
+    const altMatch = d.match(/(?:alternate|alt)\s*#?\s*(\d+(?:\.\d+)?)/i);
+    return altMatch ? 1000 + parseFloat(altMatch[1]) : 1000;
+  }
+  const match = d.match(/(?:Division|Div|Section)?\s*(\d+(?:\.\d+)?)/i);
+  if (match) {
+    return parseFloat(match[1]);
+  }
+  return 9999;
+}
+
+/* ------------------------------------------------------------------ */
 /*  MAIN COMPONENT                                                     */
 /* ------------------------------------------------------------------ */
 export default function OwnerBillingPage() {
@@ -167,6 +184,29 @@ export default function OwnerBillingPage() {
     });
   };
 
+  /* ---- sort rows by division 1 to large numbers ---- */
+  const sortRowsByDivision = () => {
+    setRows(prev => {
+      const nonEmpty = prev.filter(r => r.description.trim() !== '' || r.scheduled_value > 0);
+      nonEmpty.sort((a, b) => {
+        const divA = extractDivisionNumber(a.description);
+        const divB = extractDivisionNumber(b.description);
+        if (divA !== divB) return divA - divB;
+        return a.description.localeCompare(b.description);
+      });
+      const finalCount = Math.max(DEFAULT_G703_ROWS, nonEmpty.length);
+      const res: OwnerBillingItem[] = [];
+      for (let i = 0; i < finalCount; i++) {
+        if (i < nonEmpty.length) {
+          res.push({ ...nonEmpty[i], item_number: i + 1 });
+        } else {
+          res.push(emptyRow(i + 1));
+        }
+      }
+      return res;
+    });
+  };
+
   /* ---- auto-calculated G702 totals from G703 rows ---- */
   const totals = useMemo(() => {
     const scheduled_total = rows.reduce((s, r) => s + (Number(r.scheduled_value) || 0), 0);
@@ -227,7 +267,9 @@ export default function OwnerBillingPage() {
       id: `imp-${el.id}-${Date.now()}-${idx}`,
       billing_id: '',
       item_number: idx + 1,
-      description: el.description || el.category,
+      description: el.division_code && !el.description.toLowerCase().includes('div')
+        ? `Division ${el.division_code}: ${el.description}`
+        : el.description || el.category,
       scheduled_value: el.estimated_total || 0,
       work_completed_previous: 0,
       work_completed_this_period: 0,
@@ -240,10 +282,18 @@ export default function OwnerBillingPage() {
 
     const existingNonEmpty = rows.filter(r => r.description.trim() !== '' || r.scheduled_value > 0);
     const combined = [...existingNonEmpty, ...newRows];
-    while (combined.length < DEFAULT_G703_ROWS) {
-      combined.push(emptyRow(combined.length + 1));
+    combined.sort((a, b) => {
+      const divA = extractDivisionNumber(a.description);
+      const divB = extractDivisionNumber(b.description);
+      if (divA !== divB) return divA - divB;
+      return a.description.localeCompare(b.description);
+    });
+
+    const renumbered = combined.map((r, i) => ({ ...r, item_number: i + 1 }));
+    while (renumbered.length < DEFAULT_G703_ROWS) {
+      renumbered.push(emptyRow(renumbered.length + 1));
     }
-    setRows(combined.map((r, i) => ({ ...r, item_number: i + 1 })));
+    setRows(renumbered);
     setShowImportModal(false);
     setSelectedImportIds(new Set());
   };
@@ -333,10 +383,18 @@ export default function OwnerBillingPage() {
     const loadedRows = (b.items && b.items.length > 0)
       ? b.items.map(item => recalcRow(item))
       : [];
-    while (loadedRows.length < DEFAULT_G703_ROWS) {
-      loadedRows.push(emptyRow(loadedRows.length + 1));
+    const nonEmpty = loadedRows.filter(r => r.description.trim() !== '' || r.scheduled_value > 0);
+    nonEmpty.sort((a, b) => {
+      const divA = extractDivisionNumber(a.description);
+      const divB = extractDivisionNumber(b.description);
+      if (divA !== divB) return divA - divB;
+      return a.description.localeCompare(b.description);
+    });
+    const finalRows = nonEmpty.map((r, i) => ({ ...r, item_number: i + 1 }));
+    while (finalRows.length < DEFAULT_G703_ROWS) {
+      finalRows.push(emptyRow(finalRows.length + 1));
     }
-    setRows(loadedRows);
+    setRows(finalRows);
     setEditingBilling(b);
     setActiveView('form');
   };
@@ -1378,6 +1436,16 @@ export default function OwnerBillingPage() {
             >
               <span className="text-base">📥</span>
               <span>Import from Project Estimate</span>
+            </button>
+
+            {/* SORT BY DIVISION BUTTON (DIVISION 1 TO LARGE NUMBERS) */}
+            <button
+              onClick={sortRowsByDivision}
+              className="print:hidden bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border-2 border-amber-300 active:scale-95 hover:shadow-amber-500/20"
+              title="Sort Continuation Sheet lines in order from Division 1 to large numbers"
+            >
+              <span className="text-base">🔢</span>
+              <span>Sort Div 1 → 28</span>
             </button>
           </div>
 
