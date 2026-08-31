@@ -84,6 +84,7 @@ function syncToDisk() {
 }
 
 export async function getWorkflowData<T>(table: string, projectId?: string, filterKey = 'project_id'): Promise<T[]> {
+  initPersistedStore();
   try {
     const supabase = await createClient();
     let query = supabase.from(table).select('*');

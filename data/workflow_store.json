@@ -40,12 +40,12 @@
       "net_change_orders": 0,
       "contract_sum_to_date": 290292.89,
       "total_completed_and_stored": 290292.89,
-      "retainage_completed_pct": 10,
+      "retainage_completed_pct": 0,
       "retainage_stored_pct": 0,
-      "retainage_amount": 29029.289000000004,
-      "total_earned_less_retainage": 261263.60100000002,
+      "retainage_amount": 0,
+      "total_earned_less_retainage": 290292.89,
       "less_previous_certificates": 0,
-      "current_payment_due": 261263.60100000002,
+      "current_payment_due": 290292.89,
       "balance_to_finish_incl_retainage": 29029.28899999999,
       "change_order_additions": 0,
       "change_order_deductions": 0,
@@ -60,7 +60,7 @@
       "notary_month_year": "",
       "notary_public": "",
       "notary_commission_expires": "",
-      "amount_certified": 261263.60100000002,
+      "amount_certified": 290292.89,
       "architect_signature_by": "",
       "architect_signature_date": "",
       "status": "submitted"
@@ -88,12 +88,12 @@
       "net_change_orders": 0,
       "contract_sum_to_date": 290292.89,
       "total_completed_and_stored": 290292.89,
-      "retainage_completed_pct": 10,
+      "retainage_completed_pct": 0,
       "retainage_stored_pct": 0,
-      "retainage_amount": 29029.289000000004,
-      "total_earned_less_retainage": 261263.60100000002,
+      "retainage_amount": 0,
+      "total_earned_less_retainage": 290292.89,
       "less_previous_certificates": 0,
-      "current_payment_due": 261263.60100000002,
+      "current_payment_due": 290292.89,
       "balance_to_finish_incl_retainage": 29029.28899999999,
       "change_order_additions": 0,
       "change_order_deductions": 0,
@@ -108,7 +108,7 @@
       "notary_month_year": "",
       "notary_public": "",
       "notary_commission_expires": "",
-      "amount_certified": 261263.60100000002,
+      "amount_certified": 290292.89,
       "architect_signature_by": "",
       "architect_signature_date": "",
       "status": "submitted"
@@ -136,12 +136,12 @@
       "net_change_orders": 0,
       "contract_sum_to_date": 290292.89,
       "total_completed_and_stored": 290292.89,
-      "retainage_completed_pct": 10,
+      "retainage_completed_pct": 0,
       "retainage_stored_pct": 0,
-      "retainage_amount": 29029.289000000004,
-      "total_earned_less_retainage": 261263.60100000002,
+      "retainage_amount": 0,
+      "total_earned_less_retainage": 290292.89,
       "less_previous_certificates": 0,
-      "current_payment_due": 261263.60100000002,
+      "current_payment_due": 290292.89,
       "balance_to_finish_incl_retainage": 29029.28899999999,
       "change_order_additions": 0,
       "change_order_deductions": 0,
@@ -156,7 +156,7 @@
       "notary_month_year": "",
       "notary_public": "",
       "notary_commission_expires": "",
-      "amount_certified": 261263.60100000002,
+      "amount_certified": 290292.89,
       "architect_signature_by": "",
       "architect_signature_date": "",
       "status": "submitted"
@@ -176,7 +176,7 @@
       "total_completed": 6533.33,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 653.33
+      "retainage": 0
     },
     {
       "id": "231b4bbf-95a2-48ac-8c11-a73d7abbf10a",
@@ -191,7 +191,7 @@
       "total_completed": 21842.4,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2184.24
+      "retainage": 0
     },
     {
       "id": "f8e10d30-bbae-4984-97e6-ec75803236fa",
@@ -206,7 +206,7 @@
       "total_completed": 21802,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2180.2
+      "retainage": 0
     },
     {
       "id": "83539d1b-cafc-49a4-9275-59fe3661f915",
@@ -221,7 +221,7 @@
       "total_completed": 896.94,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 89.69
+      "retainage": 0
     },
     {
       "id": "f415da69-de59-4c48-8cbe-44b237f6d73c",
@@ -236,7 +236,7 @@
       "total_completed": 8000,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 800
+      "retainage": 0
     },
     {
       "id": "1544fdd1-2ba6-4d03-a8b7-179322e2da40",
@@ -251,7 +251,7 @@
       "total_completed": 16234.48,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 1623.45
+      "retainage": 0
     },
     {
       "id": "c5e10e83-7650-4c66-abd1-95b85a778101",
@@ -266,7 +266,7 @@
       "total_completed": 8126.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 812.67
+      "retainage": 0
     },
     {
       "id": "96c6789a-2f5c-42dc-af48-f2d008a42614",
@@ -281,7 +281,7 @@
       "total_completed": 2566.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 256.67
+      "retainage": 0
     },
     {
       "id": "1f55d511-774b-4e41-a80f-13f8034c2d9e",
@@ -296,7 +296,7 @@
       "total_completed": 1933.33,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 193.33
+      "retainage": 0
     },
     {
       "id": "4326099e-5336-48d7-a987-54f559ba2913",
@@ -311,7 +311,7 @@
       "total_completed": 55649.31,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 5564.93
+      "retainage": 0
     },
     {
       "id": "98e263ee-8b7f-4f1f-a9f7-ae9a7fd3f3f5",
@@ -326,7 +326,7 @@
       "total_completed": 1218,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 121.8
+      "retainage": 0
     },
     {
       "id": "6f790d84-5dd9-41b5-bf31-a740dc6cbf97",
@@ -341,7 +341,7 @@
       "total_completed": 29266.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2926.67
+      "retainage": 0
     },
     {
       "id": "672147d3-e12c-474f-a127-7998ed187baf",
@@ -356,7 +356,7 @@
       "total_completed": 40415.12,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 4041.51
+      "retainage": 0
     },
     {
       "id": "17ea3e32-f9eb-40af-9df6-4d5a1db0d094",
@@ -371,7 +371,7 @@
       "total_completed": 41608,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 4160.8
+      "retainage": 0
     },
     {
       "id": "52d6ab8e-97e8-44d9-9eec-bf6c630d1cfb",
@@ -386,7 +386,7 @@
       "total_completed": 3000,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 300
+      "retainage": 0
     },
     {
       "id": "d805233e-2be0-4aab-80cb-67205dcd69ef",
@@ -401,7 +401,7 @@
       "total_completed": 31200,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 3120
+      "retainage": 0
     },
     {
       "id": "dae02666-5276-49ce-a2ae-1a2aa08eb932",
@@ -416,7 +416,7 @@
       "total_completed": 6533.33,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 653.33
+      "retainage": 0
     },
     {
       "id": "0f57dbb6-da5d-4fff-ba7d-bb74aeb0fc47",
@@ -431,7 +431,7 @@
       "total_completed": 21842.4,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2184.24
+      "retainage": 0
     },
     {
       "id": "73517be2-d84b-4bd6-9162-4b4104bc3d0d",
@@ -446,7 +446,7 @@
       "total_completed": 21802,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2180.2
+      "retainage": 0
     },
     {
       "id": "f8d63b3c-52e8-4e47-b591-1d9287abbacf",
@@ -461,7 +461,7 @@
       "total_completed": 896.94,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 89.69
+      "retainage": 0
     },
     {
       "id": "c47467e9-e2a3-412f-b053-bd4a42391cc9",
@@ -476,7 +476,7 @@
       "total_completed": 8000,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 800
+      "retainage": 0
     },
     {
       "id": "5957c72f-05ea-47f7-9990-a10e4b180056",
@@ -491,7 +491,7 @@
       "total_completed": 16234.48,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 1623.45
+      "retainage": 0
     },
     {
       "id": "e0988c89-ab92-4beb-b6d2-1791830a0b0f",
@@ -506,7 +506,7 @@
       "total_completed": 8126.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 812.67
+      "retainage": 0
     },
     {
       "id": "0adc7cb9-f489-4433-9b76-a37cb19e37b9",
@@ -521,7 +521,7 @@
       "total_completed": 2566.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 256.67
+      "retainage": 0
     },
     {
       "id": "dd9f0ee9-6afd-471c-949d-729a3e5b3fbb",
@@ -536,7 +536,7 @@
       "total_completed": 1933.33,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 193.33
+      "retainage": 0
     },
     {
       "id": "b4246578-a5bc-4f2d-b354-8184f52fa9a8",
@@ -551,7 +551,7 @@
       "total_completed": 55649.31,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 5564.93
+      "retainage": 0
     },
     {
       "id": "0e701f4a-544b-41ee-b78e-1f7f7a60c45c",
@@ -566,7 +566,7 @@
       "total_completed": 1218,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 121.8
+      "retainage": 0
     },
     {
       "id": "afe25164-78af-4616-ac36-51bfd2cd02d6",
@@ -581,7 +581,7 @@
       "total_completed": 29266.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2926.67
+      "retainage": 0
     },
     {
       "id": "70a9fccc-597b-4a2f-87dd-968b47ea743b",
@@ -596,7 +596,7 @@
       "total_completed": 40415.12,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 4041.51
+      "retainage": 0
     },
     {
       "id": "279ea030-45da-4741-a98a-764ad873bd12",
@@ -611,7 +611,7 @@
       "total_completed": 41608,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 4160.8
+      "retainage": 0
     },
     {
       "id": "c6a7ebf2-c82f-4339-a6c8-dbb50d68c5c7",
@@ -626,7 +626,7 @@
       "total_completed": 3000,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 300
+      "retainage": 0
     },
     {
       "id": "594324c8-3245-43a8-b032-5fef09dbeae7",
@@ -641,7 +641,7 @@
       "total_completed": 31200,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 3120
+      "retainage": 0
     },
     {
       "id": "f92598d4-b349-4f51-9f6b-a8aa04e8ec24",
@@ -656,7 +656,7 @@
       "total_completed": 6533.33,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 653.33
+      "retainage": 0
     },
     {
       "id": "a41d8cb1-52aa-49f9-8bfa-8e19f516e9c3",
@@ -671,7 +671,7 @@
       "total_completed": 21842.4,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2184.24
+      "retainage": 0
     },
     {
       "id": "8953a3c6-608a-4799-803c-003b6933e7fe",
@@ -686,7 +686,7 @@
       "total_completed": 21802,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2180.2
+      "retainage": 0
     },
     {
       "id": "651b417a-9de9-40ff-92bc-5ec1b7230b2f",
@@ -701,7 +701,7 @@
       "total_completed": 896.94,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 89.69
+      "retainage": 0
     },
     {
       "id": "de089458-2502-4a87-a38a-3020a6cb099d",
@@ -716,7 +716,7 @@
       "total_completed": 8000,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 800
+      "retainage": 0
     },
     {
       "id": "70d29818-4ba0-4c1c-be83-f822f9aed756",
@@ -731,7 +731,7 @@
       "total_completed": 16234.48,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 1623.45
+      "retainage": 0
     },
     {
       "id": "f04c7aa9-38bf-44f3-9284-0b5985ed783e",
@@ -746,7 +746,7 @@
       "total_completed": 8126.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 812.67
+      "retainage": 0
     },
     {
       "id": "7eab3018-58fb-4ef8-b081-00e1813ede16",
@@ -761,7 +761,7 @@
       "total_completed": 2566.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 256.67
+      "retainage": 0
     },
     {
       "id": "ec6b132a-aa37-4491-b708-05f11bc752d4",
@@ -776,7 +776,7 @@
       "total_completed": 1933.33,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 193.33
+      "retainage": 0
     },
     {
       "id": "2fdb7029-4227-46cb-9469-8a0ddb7348e0",
@@ -791,7 +791,7 @@
       "total_completed": 55649.31,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 5564.93
+      "retainage": 0
     },
     {
       "id": "325c4731-8a5d-4802-9e8b-2909705ba07e",
@@ -806,7 +806,7 @@
       "total_completed": 1218,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 121.8
+      "retainage": 0
     },
     {
       "id": "3f436bb2-4ba1-4be7-a5df-18e84c4e1e22",
@@ -821,7 +821,7 @@
       "total_completed": 29266.66,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 2926.67
+      "retainage": 0
     },
     {
       "id": "cd994508-8e68-4c0c-887a-b795245fc2ad",
@@ -836,7 +836,7 @@
       "total_completed": 40415.12,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 4041.51
+      "retainage": 0
     },
     {
       "id": "4bc938bb-11ac-46fe-915e-ca79c4adea06",
@@ -851,7 +851,7 @@
       "total_completed": 41608,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 4160.8
+      "retainage": 0
     },
     {
       "id": "d60cfdd2-83cf-487e-bd10-cce6232da118",
@@ -866,7 +866,7 @@
       "total_completed": 3000,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 300
+      "retainage": 0
     },
     {
       "id": "e6231e6d-48bf-436d-8957-700d46a5b1b5",
@@ -881,7 +881,7 @@
       "total_completed": 31200,
       "pct_complete": 100,
       "balance_to_finish": 0,
-      "retainage": 3120
+      "retainage": 0
     }
   ],
   "vendor_partners": [],
