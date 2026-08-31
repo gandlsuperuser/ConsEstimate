@@ -17,12 +17,17 @@ const STANDARD_DIVISIONS = [
   { code: '08', name: 'Openings', defaultCode: '08-1100' },
   { code: '09', name: 'Finishes', defaultCode: '09-2200' },
   { code: '10', name: 'Specialties', defaultCode: '10-2800' },
-  { code: '11', name: 'Equipments', defaultCode: '11-3100' },
+  { code: '11', name: 'Equipment', defaultCode: '11-3100' },
   { code: '12', name: 'Furnishings', defaultCode: '12-3500' },
+  { code: '13', name: 'Special Construction', defaultCode: '13-0000' },
+  { code: '14', name: 'Conveying Equipment', defaultCode: '14-0000' },
   { code: '21', name: 'Fire Suppression', defaultCode: '21-1300' },
   { code: '22', name: 'Plumbing', defaultCode: '22-1100' },
   { code: '23', name: 'HVAC', defaultCode: '23-0500' },
+  { code: '25', name: 'Integrated Automation', defaultCode: '25-0000' },
   { code: '26', name: 'Electrical', defaultCode: '26-0500' },
+  { code: '27', name: 'Communications', defaultCode: '27-0000' },
+  { code: '28', name: 'Electronic Safety & Security', defaultCode: '28-0000' },
 ];
 
 const DEFAULT_CLARIFICATIONS = [
