@@ -1,4 +1,8 @@
+import fs from 'fs';
+import path from 'path';
 import { createClient } from './supabase-server';
+
+const STORE_PATH = path.join(process.cwd(), 'data', 'workflow_store.json');
 
 // In-memory fallback cache for smooth offline/local development
 const memStore: Record<string, any[]> = {
@@ -20,6 +24,7 @@ const memStore: Record<string, any[]> = {
   action_plan_items: [],
   project_messages: [],
   owner_billings: [],
+  owner_billing_items: [],
   vendor_partners: [],
   audit_activities: [],
   in_app_notifications: [
@@ -52,6 +57,31 @@ const memStore: Record<string, any[]> = {
     }
   ],
 };
+
+function initPersistedStore() {
+  try {
+    if (fs.existsSync(STORE_PATH)) {
+      const content = fs.readFileSync(STORE_PATH, 'utf8');
+      const loaded = JSON.parse(content);
+      for (const k of Object.keys(loaded)) {
+        memStore[k] = loaded[k];
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+initPersistedStore();
+
+function syncToDisk() {
+  try {
+    const dir = path.dirname(STORE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(STORE_PATH, JSON.stringify(memStore, null, 2), 'utf8');
+  } catch (e) {
+    // ignore
+  }
+}
 
 export async function getWorkflowData<T>(table: string, projectId?: string, filterKey = 'project_id'): Promise<T[]> {
   try {
@@ -94,6 +124,7 @@ export async function insertWorkflowRecord<T extends { id?: string }>(table: str
     if (!error && data) {
       if (!memStore[table]) memStore[table] = [];
       memStore[table].unshift(data);
+      syncToDisk();
       return data as T;
     }
   } catch (err) {
@@ -102,6 +133,7 @@ export async function insertWorkflowRecord<T extends { id?: string }>(table: str
 
   if (!memStore[table]) memStore[table] = [];
   memStore[table].unshift(itemWithId);
+  syncToDisk();
   return itemWithId as T;
 }
 
@@ -119,6 +151,7 @@ export async function updateWorkflowRecord<T>(table: string, id: string, updates
       if (memStore[table]) {
         const idx = memStore[table].findIndex((i) => i.id === id);
         if (idx >= 0) memStore[table][idx] = { ...memStore[table][idx], ...data };
+        syncToDisk();
       }
       return data as T;
     }
@@ -130,6 +163,7 @@ export async function updateWorkflowRecord<T>(table: string, id: string, updates
     const idx = memStore[table].findIndex((i) => i.id === id);
     if (idx >= 0) {
       memStore[table][idx] = { ...memStore[table][idx], ...updates };
+      syncToDisk();
       return memStore[table][idx] as T;
     }
   }
@@ -147,6 +181,7 @@ export async function deleteWorkflowRecord(table: string, id: string): Promise<b
 
   if (memStore[table]) {
     memStore[table] = memStore[table].filter((i) => i.id !== id);
+    syncToDisk();
   }
 
   return true;
