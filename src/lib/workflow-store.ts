@@ -188,6 +188,22 @@ export async function deleteWorkflowRecord(table: string, id: string): Promise<b
   return true;
 }
 
+export async function deleteWorkflowRecordsByFilter(table: string, filterKey: string, filterValue: any): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    await supabase.from(table).delete().eq(filterKey, filterValue);
+  } catch (err) {
+    // ignore
+  }
+
+  if (memStore[table]) {
+    memStore[table] = memStore[table].filter((i) => i[filterKey] !== filterValue);
+    syncToDisk();
+  }
+
+  return true;
+}
+
 export function logAuditActivity(projectId: string, actor: string, actionType: any, moduleName: string, desc: string) {
   insertWorkflowRecord('audit_activities', {
     project_id: projectId,

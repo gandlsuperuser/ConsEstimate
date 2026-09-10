@@ -423,6 +423,10 @@ export interface OwnerBillingItem {
   pct_complete: number;         // auto: total / scheduled * 100
   balance_to_finish: number;    // auto: scheduled - total
   retainage: number;            // auto or variable rate
+  scheduled_value_formula?: string;
+  work_completed_previous_formula?: string;
+  work_completed_this_period_formula?: string;
+  stored_materials_formula?: string;
 }
 
 export interface OwnerBilling {

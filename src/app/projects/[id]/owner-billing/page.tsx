@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { OwnerBilling, OwnerBillingItem, EstimateLine, ChangeOrder, Project } from '@/types';
 
+import CurrencyInput, { formatCurrencyUSD } from '@/components/CurrencyInput';
+import {
+  parseAndEvaluateFormula,
+  recalculateAllFormulas,
+  getFormulaSuggestions,
+} from '@/lib/continuation-formulas';
+
 const DEFAULT_G703_ROWS = 28;
 
 /* ------------------------------------------------------------------ */
@@ -23,6 +30,10 @@ function emptyRow(itemNumber: number): OwnerBillingItem {
     pct_complete: 0,
     balance_to_finish: 0,
     retainage: 0,
+    scheduled_value_formula: undefined,
+    work_completed_previous_formula: undefined,
+    work_completed_this_period_formula: undefined,
+    stored_materials_formula: undefined,
   };
 }
 
@@ -30,9 +41,6 @@ function createInitialRows(count = DEFAULT_G703_ROWS): OwnerBillingItem[] {
   return Array.from({ length: count }, (_, i) => emptyRow(i + 1));
 }
 
-/* ------------------------------------------------------------------ */
-/*  Currency formatter                                                 */
-/* ------------------------------------------------------------------ */
 const fmt = (n: number) =>
   (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -52,6 +60,62 @@ function extractDivisionNumber(desc: string): number {
   }
   return 9999;
 }
+
+function extractEstimateDivisionNumber(el: EstimateLine): number {
+  if (el.division_code) {
+    const cleaned = el.division_code.trim().replace(/^div(?:ision)?\.?\s*/i, '');
+    const num = parseFloat(cleaned);
+    if (!isNaN(num)) return num;
+  }
+  const text = `${el.description || ''} ${el.category || ''}`.trim();
+  return extractDivisionNumber(text);
+}
+
+/* Standard CSI MasterFormat divisions used on the Proposal & Estimate Form */
+const STANDARD_DIVISIONS = [
+  { code: '01', name: 'General Requirements' },
+  { code: '02', name: 'Existing Conditions / Demolition' },
+  { code: '03', name: 'Concrete' },
+  { code: '04', name: 'Masonry' },
+  { code: '05', name: 'Metals' },
+  { code: '06', name: 'Wood, Plastics & Composites' },
+  { code: '07', name: 'Thermal & Moisture Protection' },
+  { code: '08', name: 'Openings' },
+  { code: '09', name: 'Finishes' },
+  { code: '10', name: 'Specialties' },
+  { code: '11', name: 'Equipment' },
+  { code: '12', name: 'Furnishings' },
+  { code: '13', name: 'Special Construction' },
+  { code: '14', name: 'Conveying Equipment' },
+  { code: '21', name: 'Fire Suppression' },
+  { code: '22', name: 'Plumbing' },
+  { code: '23', name: 'HVAC' },
+  { code: '25', name: 'Integrated Automation' },
+  { code: '26', name: 'Electrical' },
+  { code: '27', name: 'Communications' },
+  { code: '28', name: 'Electronic Safety & Security' },
+];
+
+interface DivisionGroup {
+  code: string;
+  name: string;
+  lines: EstimateLine[];
+  subtotal: number;
+}
+
+export interface EstimateAlternate {
+  id: string | number;
+  number: number;
+  desc: string;
+  total: number;
+}
+
+export const DEFAULT_ESTIMATE_ALTERNATES: EstimateAlternate[] = [
+  { id: 1, number: 1, desc: 'Additional plumbing allowances for the service hook up from city', total: 16500.00 },
+  { id: 2, number: 2, desc: 'fire alarm system allowances', total: 7000.00 },
+  { id: 3, number: 3, desc: 'Temporary power generator 3-phase 300kw allowances', total: 12000.00 },
+  { id: 4, number: 4, desc: 'Project Supervision', total: 78000.00 },
+];
 
 /* ------------------------------------------------------------------ */
 /*  MAIN COMPONENT                                                     */
@@ -110,10 +174,53 @@ export default function OwnerBillingPage() {
   /* G703 continuation sheet rows — initialized with 28 lines by default */
   const [rows, setRows] = useState<OwnerBillingItem[]>(() => createInitialRows(DEFAULT_G703_ROWS));
 
-  /* Estimate lines for import */
+  /* Estimate lines for import & division aggregation */
   const [estimateLines, setEstimateLines] = useState<EstimateLine[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
+  const [aggregateByDivision, setAggregateByDivision] = useState(true);
+  const [expandedDivisions, setExpandedDivisions] = useState<Set<string>>(new Set());
+
+  /* Alternates state (Exact match to Humana proposal & synced from Estimate tab) */
+  const [alternatesData] = useState<EstimateAlternate[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`project_alternates_${projectId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((item, idx) => ({
+              id: item.id || idx + 1,
+              number: item.number || item.id || idx + 1,
+              desc: item.desc || item.description || '',
+              total: Number(item.total) || 0,
+            }));
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse project alternates from localStorage:', e);
+      }
+    }
+    return DEFAULT_ESTIMATE_ALTERNATES;
+  });
+
+  const alternateLines = useMemo((): EstimateLine[] => {
+    return alternatesData.map((alt) => ({
+      id: `alt-${alt.id || alt.number}`,
+      project_id: projectId,
+      category: 'Alternates & Allowances',
+      division_code: 'ALT',
+      description: `Alternate #${alt.number || alt.id}: ${alt.desc}`,
+      quantity: 1,
+      unit: 'LS',
+      labor_unit_cost: alt.total,
+      material_unit_cost: 0,
+      sub_cost: 0,
+      estimated_total: alt.total,
+      actual_total: 0,
+      notes: `Alternate #${alt.number || alt.id}`,
+    }));
+  }, [alternatesData, projectId]);
 
   /* Change orders for reference */
   const [, setChangeOrders] = useState<ChangeOrder[]>([]);
@@ -133,7 +240,13 @@ export default function OwnerBillingPage() {
       const projData = await projRes.json();
 
       setBillings(billData.billings || []);
-      setEstimateLines(elData.lines || []);
+      const sortedLines = (elData.lines || []).sort((a: EstimateLine, b: EstimateLine) => {
+        const divA = extractEstimateDivisionNumber(a);
+        const divB = extractEstimateDivisionNumber(b);
+        if (divA !== divB) return divA - divB;
+        return (a.description || a.category || '').localeCompare(b.description || b.category || '');
+      });
+      setEstimateLines(sortedLines);
       setChangeOrders(coData.changeOrders || []);
       if (projData.project) {
         setProject(projData.project);
@@ -161,27 +274,65 @@ export default function OwnerBillingPage() {
 
   const updateRow = (idx: number, field: keyof OwnerBillingItem, value: number | string) => {
     setRows(prev => {
-      const updated = [...prev];
-      updated[idx] = { ...updated[idx], [field]: value };
+      let updated = [...prev];
+      // If setting a direct value, clear any existing formula for this field
+      const formulaKey = `${String(field)}_formula` as keyof OwnerBillingItem;
+      updated[idx] = {
+        ...updated[idx],
+        [field]: value,
+        [formulaKey]: undefined,
+      };
       updated[idx] = recalcRow(updated[idx]);
+      // Re-evaluate all other formulas (e.g. cascading sums / subtotals)
+      updated = recalculateAllFormulas(updated);
       return updated;
     });
   };
 
+  const updateRowWithFormula = (
+    idx: number,
+    field: keyof OwnerBillingItem,
+    value: number,
+    formula?: string
+  ) => {
+    setRows(prev => {
+      let updated = [...prev];
+      const formulaKey = `${String(field)}_formula` as keyof OwnerBillingItem;
+      updated[idx] = {
+        ...updated[idx],
+        [field]: value,
+        [formulaKey]: formula || undefined,
+      };
+      updated[idx] = recalcRow(updated[idx]);
+      // Cascading formula recalculation
+      updated = recalculateAllFormulas(updated);
+      return updated;
+    });
+  };
+
+  const insertEmptyRow = (atIndex?: number) => {
+    setRows(prev => {
+      const targetIdx = atIndex !== undefined ? atIndex : prev.length;
+      const updated = [...prev];
+      const newRow = emptyRow(targetIdx + 1);
+      updated.splice(targetIdx, 0, newRow);
+      const renumbered = updated.map((r, i) => ({ ...r, item_number: i + 1 }));
+      return recalculateAllFormulas(renumbered);
+    });
+  };
+
   const addRow = () => {
-    setRows(prev => [...prev, emptyRow(prev.length + 1)]);
+    insertEmptyRow();
   };
 
   const deleteRow = (idx: number) => {
     setRows(prev => {
-      if (prev.length <= DEFAULT_G703_ROWS) {
-        // Clear row content instead of deleting if at or below 28 rows
-        const updated = [...prev];
-        updated[idx] = emptyRow(idx + 1);
-        return updated;
+      if (prev.length <= 1) {
+        return [emptyRow(1)];
       }
       const updated = prev.filter((_, i) => i !== idx);
-      return updated.map((r, i) => ({ ...r, item_number: i + 1 }));
+      const renumbered = updated.map((r, i) => ({ ...r, item_number: i + 1 }));
+      return recalculateAllFormulas(renumbered);
     });
   };
 
@@ -208,40 +359,93 @@ export default function OwnerBillingPage() {
     });
   };
 
+  /* ---- row reordering (drag & drop and nudge) ---- */
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  const moveRow = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= rows.length || toIdx >= rows.length) return;
+    setRows(prev => {
+      const updated = [...prev];
+      const [movedItem] = updated.splice(fromIdx, 1);
+      updated.splice(toIdx, 0, movedItem);
+      return updated.map((r, i) => ({ ...r, item_number: i + 1 }));
+    });
+  };
+
+  const moveRowUp = (idx: number) => {
+    if (idx <= 0) return;
+    moveRow(idx, idx - 1);
+  };
+
+  const moveRowDown = (idx: number) => {
+    if (idx >= rows.length - 1) return;
+    moveRow(idx, idx + 1);
+  };
+
   /* ---- auto-calculated G702 totals from G703 rows ---- */
   const totals = useMemo(() => {
-    const scheduled_total = rows.reduce((s, r) => s + (Number(r.scheduled_value) || 0), 0);
-    const prev_total = rows.reduce((s, r) => s + (Number(r.work_completed_previous) || 0), 0);
-    const this_period_total = rows.reduce((s, r) => s + (Number(r.work_completed_this_period) || 0), 0);
-    const stored_total = rows.reduce((s, r) => s + (Number(r.stored_materials) || 0), 0);
-    const completed_total = rows.reduce((s, r) => s + (Number(r.total_completed) || 0), 0);
-    const balance_total = rows.reduce((s, r) => s + (Number(r.balance_to_finish) || 0), 0);
-    const retainage_total = rows.reduce((s, r) => s + (Number(r.retainage) || 0), 0);
+    // Helper to identify custom subtotal/summary rows (never double count in division totals)
+    const isSummaryRow = (desc: string) => {
+      const d = (desc || '').trim().toLowerCase();
+      return /^(lump sum|overhead|profit|subtotal|total\b|markup|taxes|tax\b|permit fee|the draw|draw\b|the balance|balance:)/i.test(d);
+    };
+
+    // Find any explicit Draw row if entered on the continuation sheet
+    const drawRow = rows.find(r => /^\s*(the\s+)?draw\b/i.test(r.description));
+    const drawRowAmount = drawRow
+      ? (Number(drawRow.work_completed_this_period) || Number(drawRow.scheduled_value) || Number(drawRow.total_completed) || 0)
+      : 0;
+
+    // Items excluding summary rows (only genuine scope/division items)
+    const divisionRows = rows.filter(r => !isSummaryRow(r.description));
+
+    const scheduled_total = Math.round(divisionRows.reduce((s, r) => s + (Number(r.scheduled_value) || 0), 0) * 100) / 100;
+    const prev_total = Math.round(divisionRows.reduce((s, r) => s + (Number(r.work_completed_previous) || 0), 0) * 100) / 100;
+    let this_period_total = Math.round(divisionRows.reduce((s, r) => s + (Number(r.work_completed_this_period) || 0), 0) * 100) / 100;
+    const stored_total = Math.round(divisionRows.reduce((s, r) => s + (Number(r.stored_materials) || 0), 0) * 100) / 100;
+    const divisionCompletedTotal = Math.round(divisionRows.reduce((s, r) => s + (Number(r.total_completed) || 0), 0) * 100) / 100;
+    const balance_total = Math.round(divisionRows.reduce((s, r) => s + (Number(r.balance_to_finish) || 0), 0) * 100) / 100;
+    const retainage_total = Math.round(divisionRows.reduce((s, r) => s + (Number(r.retainage) || 0), 0) * 100) / 100;
 
     const total_additions = (Number(header.change_order_additions_prev) || 0) + (Number(header.change_order_additions_curr) || 0);
     const total_deductions = (Number(header.change_order_deductions_prev) || 0) + (Number(header.change_order_deductions_curr) || 0);
     const net_co = total_additions - total_deductions;
 
-    const original_contract_sum = Number(header.original_contract_sum) || 0;
+    const original_contract_sum = Number(header.original_contract_sum) || 1044266.65;
     const contract_sum_to_date = original_contract_sum + net_co;
+
+    // Calculate completed_total (The Draw to date) without double counting
+    let completed_total = divisionCompletedTotal;
+    if (completed_total === 0 && drawRowAmount > 0) {
+      completed_total = drawRowAmount;
+    } else if (drawRowAmount > 0 && Math.abs(divisionCompletedTotal - drawRowAmount) < 1) {
+      completed_total = drawRowAmount;
+    }
+    completed_total = Math.round(completed_total * 100) / 100;
+
+    if (this_period_total === 0 && drawRowAmount > 0) {
+      this_period_total = Math.round(drawRowAmount * 100) / 100;
+    }
+
     const total_completed_and_stored = completed_total;
 
     // Retainage split
-    const work_completed_total = prev_total + this_period_total;
+    const work_completed_total = (prev_total > 0 || this_period_total > 0) ? (prev_total + this_period_total) : completed_total;
     const retainage_on_completed = work_completed_total * ((Number(header.retainage_completed_pct) || 0) / 100);
     const retainage_on_stored = stored_total * ((Number(header.retainage_stored_pct) || 0) / 100);
     const total_retainage = retainage_total > 0 ? retainage_total : (retainage_on_completed + retainage_on_stored);
 
-    const total_earned_less_retainage = total_completed_and_stored - total_retainage;
-    const current_payment_due = total_earned_less_retainage - (Number(header.less_previous_certificates) || 0);
-    const balance_to_finish_incl_retainage = contract_sum_to_date - total_earned_less_retainage;
+    const total_earned_less_retainage = Math.round((total_completed_and_stored - total_retainage) * 100) / 100;
+    const current_payment_due = Math.round((total_earned_less_retainage - (Number(header.less_previous_certificates) || 0)) * 100) / 100;
+    const balance_to_finish_incl_retainage = Math.round((contract_sum_to_date - total_earned_less_retainage) * 100) / 100;
 
-    const overall_pct = scheduled_total > 0 ? Math.round((completed_total / scheduled_total) * 100) : 0;
+    const overall_pct = original_contract_sum > 0 ? Math.round((completed_total / original_contract_sum) * 100) : 0;
 
     return {
       scheduled_total,
       prev_total,
-      this_period_total,
+      this_period_total: this_period_total > 0 ? this_period_total : completed_total,
       stored_total,
       completed_total,
       balance_total,
@@ -261,25 +465,180 @@ export default function OwnerBillingPage() {
     };
   }, [rows, header]);
 
+  /* Sorted estimate lines for import modal (guaranteed division order + alternates) */
+  const sortedEstimateLines = useMemo(() => {
+    const baseLines = [...estimateLines].sort((a, b) => {
+      const divA = extractEstimateDivisionNumber(a);
+      const divB = extractEstimateDivisionNumber(b);
+      if (divA !== divB) return divA - divB;
+      return (a.description || a.category || '').localeCompare(b.description || b.category || '');
+    });
+    return [...baseLines, ...alternateLines];
+  }, [estimateLines, alternateLines]);
+
+  /* Group estimate lines by division (identical to estimate tab) */
+  const groupedEstimateDivisions = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; lines: EstimateLine[] }>();
+
+    // Pre-seed standard divisions in order
+    STANDARD_DIVISIONS.forEach((d) => {
+      map.set(d.code, { code: d.code, name: d.name, lines: [] });
+    });
+
+    sortedEstimateLines.forEach((line) => {
+      if (line.division_code === 'ALT') return;
+      let divCode = (line.division_code || '').trim().replace(/^div(?:ision)?\.?\s*/i, '');
+      if (!divCode && line.category) {
+        const match = line.category.match(/^(\d{2})/);
+        if (match) divCode = match[1];
+      }
+      if (!divCode) {
+        const match = (line.description || '').match(/(?:Division|Div|Section)?\s*(\d{2})/i);
+        if (match) divCode = match[1];
+      }
+      if (!divCode) divCode = '01';
+
+      if (!map.has(divCode)) {
+        const std = STANDARD_DIVISIONS.find((d) => d.code === divCode);
+        const name = std?.name || line.category || `Division ${divCode}`;
+        map.set(divCode, { code: divCode, name, lines: [] });
+      }
+
+      map.get(divCode)!.lines.push(line);
+    });
+
+    const result: DivisionGroup[] = [];
+    map.forEach((grp) => {
+      if (grp.lines.length > 0) {
+        const subtotal = grp.lines.reduce((s, l) => s + (Number(l.estimated_total) || 0), 0);
+        result.push({
+          code: grp.code,
+          name: grp.name,
+          lines: grp.lines,
+          subtotal,
+        });
+      }
+    });
+
+    result.sort((a, b) => {
+      const numA = extractDivisionNumber(a.code);
+      const numB = extractDivisionNumber(b.code);
+      if (numA !== numB) return numA - numB;
+      return a.code.localeCompare(b.code);
+    });
+
+    // Add Alternates & Allowances as a distinct, dedicated group
+    if (alternateLines.length > 0) {
+      const altSubtotal = alternateLines.reduce((s, l) => s + (Number(l.estimated_total) || 0), 0);
+      result.push({
+        code: 'ALT',
+        name: 'Alternates & Allowances',
+        lines: alternateLines,
+        subtotal: altSubtotal,
+      });
+    }
+
+    return result;
+  }, [sortedEstimateLines, alternateLines]);
+
+  /* Toggle whole division selection */
+  const toggleDivision = (divCode: string) => {
+    const group = groupedEstimateDivisions.find(g => g.code === divCode);
+    if (!group) return;
+    const groupLineIds = group.lines.map(l => l.id);
+    const allSelected = groupLineIds.every(id => selectedImportIds.has(id));
+
+    setSelectedImportIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        groupLineIds.forEach(id => next.delete(id));
+      } else {
+        groupLineIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleExpandDivision = (divCode: string) => {
+    setExpandedDivisions(prev => {
+      const next = new Set(prev);
+      if (next.has(divCode)) next.delete(divCode);
+      else next.add(divCode);
+      return next;
+    });
+  };
+
+  const expandAllDivisions = () => {
+    setExpandedDivisions(new Set(groupedEstimateDivisions.map(g => g.code)));
+  };
+
+  const collapseAllDivisions = () => {
+    setExpandedDivisions(new Set());
+  };
+
   /* ---- import from estimate ---- */
   const handleImport = () => {
-    const selected = estimateLines.filter(el => selectedImportIds.has(el.id));
-    const newRows: OwnerBillingItem[] = selected.map((el, idx) => ({
-      id: `imp-${el.id}-${Date.now()}-${idx}`,
-      billing_id: '',
-      item_number: idx + 1,
-      description: el.division_code && !el.description.toLowerCase().includes('div')
-        ? `Division ${el.division_code}: ${el.description}`
-        : el.description || el.category,
-      scheduled_value: el.estimated_total || 0,
-      work_completed_previous: 0,
-      work_completed_this_period: 0,
-      stored_materials: 0,
-      total_completed: 0,
-      pct_complete: 0,
-      balance_to_finish: el.estimated_total || 0,
-      retainage: 0,
-    }));
+    let newRows: OwnerBillingItem[] = [];
+
+    if (aggregateByDivision) {
+      // 1 aggregated row per selected division (Standard G703 SOV)
+      newRows = groupedEstimateDivisions
+        .filter(grp => grp.lines.some(l => selectedImportIds.has(l.id)))
+        .map((grp, idx) => {
+          const selectedLines = grp.lines.filter(l => selectedImportIds.has(l.id));
+          const totalVal = selectedLines.reduce((s, l) => s + (Number(l.estimated_total) || 0), 0);
+
+          let desc = `Division ${grp.code}: ${grp.name}`;
+          if (grp.code === 'ALT') {
+            if (selectedLines.length === 1) {
+              desc = selectedLines[0].description;
+            } else {
+              desc = `Alternates & Allowances (Subtotal of ${selectedLines.length} Alternates)`;
+            }
+          }
+
+          return {
+            id: `imp-div-${grp.code}-${Date.now()}-${idx}`,
+            billing_id: '',
+            item_number: idx + 1,
+            description: desc,
+            scheduled_value: totalVal,
+            work_completed_previous: 0,
+            work_completed_this_period: 0,
+            stored_materials: 0,
+            total_completed: 0,
+            pct_complete: 0,
+            balance_to_finish: totalVal,
+            retainage: 0,
+          };
+        });
+    } else {
+      // Detailed items
+      const selected = sortedEstimateLines.filter(el => selectedImportIds.has(el.id));
+      newRows = selected.map((el, idx) => {
+        let desc = el.description || el.category;
+        if (el.division_code === 'ALT') {
+          desc = el.description.startsWith('Alternate') ? el.description : `Alternate: ${el.description}`;
+        } else if (el.division_code && !desc.toLowerCase().includes('div')) {
+          desc = `Division ${el.division_code}: ${desc}`;
+        }
+
+        return {
+          id: `imp-${el.id}-${Date.now()}-${idx}`,
+          billing_id: '',
+          item_number: idx + 1,
+          description: desc,
+          scheduled_value: el.estimated_total || 0,
+          work_completed_previous: 0,
+          work_completed_this_period: 0,
+          stored_materials: 0,
+          total_completed: 0,
+          pct_complete: 0,
+          balance_to_finish: el.estimated_total || 0,
+          retainage: 0,
+        };
+      });
+    }
 
     const existingNonEmpty = rows.filter(r => r.description.trim() !== '' || r.scheduled_value > 0);
     const combined = [...existingNonEmpty, ...newRows];
@@ -301,6 +660,21 @@ export default function OwnerBillingPage() {
 
   /* ---- save / submit ---- */
   const handleSave = async (status: 'draft' | 'submitted') => {
+    // Preserve all rows in their exact position and order without stripping empty rows
+    let lastActiveIdx = rows.length - 1;
+    while (
+      lastActiveIdx >= DEFAULT_G703_ROWS &&
+      lastActiveIdx >= 0 &&
+      !rows[lastActiveIdx].description.trim() &&
+      !rows[lastActiveIdx].scheduled_value &&
+      !rows[lastActiveIdx].work_completed_this_period &&
+      !rows[lastActiveIdx].work_completed_previous &&
+      !rows[lastActiveIdx].stored_materials
+    ) {
+      lastActiveIdx--;
+    }
+    const rowsToSave = rows.slice(0, lastActiveIdx + 1);
+
     const payload = {
       project_id: projectId,
       ...header,
@@ -310,20 +684,22 @@ export default function OwnerBillingPage() {
       total_completed_and_stored: totals.total_completed_and_stored,
       amount_certified: header.amount_certified || Math.max(0, totals.current_payment_due),
       status,
-      items: rows
-        .filter(r => r.description.trim() !== '' || r.scheduled_value > 0)
-        .map((r, idx) => ({
-          item_number: idx + 1,
-          description: r.description,
-          scheduled_value: Number(r.scheduled_value) || 0,
-          work_completed_previous: Number(r.work_completed_previous) || 0,
-          work_completed_this_period: Number(r.work_completed_this_period) || 0,
-          stored_materials: Number(r.stored_materials) || 0,
-          total_completed: Number(r.total_completed) || 0,
-          pct_complete: Number(r.pct_complete) || 0,
-          balance_to_finish: Number(r.balance_to_finish) || 0,
-          retainage: Number(r.retainage) || 0,
-        })),
+      items: rowsToSave.map((r, idx) => ({
+        item_number: idx + 1,
+        description: r.description || '',
+        scheduled_value: Number(r.scheduled_value) || 0,
+        work_completed_previous: Number(r.work_completed_previous) || 0,
+        work_completed_this_period: Number(r.work_completed_this_period) || 0,
+        stored_materials: Number(r.stored_materials) || 0,
+        total_completed: Number(r.total_completed) || 0,
+        pct_complete: Number(r.pct_complete) || 0,
+        balance_to_finish: Number(r.balance_to_finish) || 0,
+        retainage: Number(r.retainage) || 0,
+        scheduled_value_formula: r.scheduled_value_formula,
+        work_completed_previous_formula: r.work_completed_previous_formula,
+        work_completed_this_period_formula: r.work_completed_this_period_formula,
+        stored_materials_formula: r.stored_materials_formula,
+      })),
     };
 
     try {
@@ -353,7 +729,7 @@ export default function OwnerBillingPage() {
       project_name: b.project_name || project?.name || '',
       project_address: b.project_address || project?.address || '',
       contract_for: b.contract_for || project?.name || '',
-      via_architect: b.via_architect || '',
+      via_architect: b.via_architect === 'A&E Design Partners' ? '' : (b.via_architect || ''),
       application_number: b.application_number,
       period_to: b.period_to,
       project_nos: b.project_nos || '',
@@ -381,21 +757,19 @@ export default function OwnerBillingPage() {
       architect_signature_date: b.architect_signature_date || '',
     });
 
+    // Load rows strictly in saved order without changing positions or auto-sorting
     const loadedRows = (b.items && b.items.length > 0)
-      ? b.items.map(item => recalcRow(item))
+      ? [...b.items]
+          .sort((a, b) => (Number(a.item_number) || 0) - (Number(b.item_number) || 0))
+          .map(item => recalcRow(item))
       : [];
-    const nonEmpty = loadedRows.filter(r => r.description.trim() !== '' || r.scheduled_value > 0);
-    nonEmpty.sort((a, b) => {
-      const divA = extractDivisionNumber(a.description);
-      const divB = extractDivisionNumber(b.description);
-      if (divA !== divB) return divA - divB;
-      return a.description.localeCompare(b.description);
-    });
-    const finalRows = nonEmpty.map((r, i) => ({ ...r, item_number: i + 1 }));
+
+    const finalRows = loadedRows.map((r, i) => ({ ...r, item_number: i + 1 }));
     while (finalRows.length < DEFAULT_G703_ROWS) {
       finalRows.push(emptyRow(finalRows.length + 1));
     }
-    setRows(finalRows);
+    const evaluatedRows = recalculateAllFormulas(finalRows);
+    setRows(evaluatedRows);
     setEditingBilling(b);
     setActiveView('form');
   };
@@ -731,6 +1105,17 @@ export default function OwnerBillingPage() {
   /* ================================================================ */
   /*  FORM VIEW — Combined G702 + G703                                 */
   /* ================================================================ */
+  /* Executive financial metrics for Budget, Draw, and Balance */
+  const contractBudget = totals.contract_sum_to_date || Number(header.original_contract_sum) || 0;
+  const currentDraw = Math.max(0, totals.current_payment_due);
+  const remainingBalance = Math.max(0, totals.balance_to_finish_incl_retainage);
+  const previousDraws = Number(header.less_previous_certificates) || 0;
+
+  const pctDrawn = contractBudget > 0 ? (currentDraw / contractBudget) * 100 : 0;
+  const pctPrevious = contractBudget > 0 ? (previousDraws / contractBudget) * 100 : 0;
+  const pctBalance = contractBudget > 0 ? (remainingBalance / contractBudget) * 100 : 0;
+  const pctTotalEarned = contractBudget > 0 ? ((totals.total_earned_less_retainage / contractBudget) * 100) : 0;
+
   return (
     <div className="space-y-4">
       {/* Top Main Toolbar */}
@@ -756,7 +1141,7 @@ export default function OwnerBillingPage() {
                 </span>
               </div>
               <p className="text-[11px] text-gray-400 mt-0.5">
-                Current Payment Due: <span className="text-emerald-400 font-black text-xs">${fmt(Math.max(0, totals.current_payment_due))}</span> · Contract Sum: <span className="text-white font-bold">${fmt(totals.contract_sum_to_date)}</span>
+                Current Draw: <span className="text-emerald-400 font-black text-xs">${fmt(currentDraw)}</span> · Total Budget: <span className="text-white font-bold">${fmt(contractBudget)}</span> · Balance: <span className="text-amber-400 font-bold">${fmt(remainingBalance)}</span>
               </p>
             </div>
           </div>
@@ -805,6 +1190,142 @@ export default function OwnerBillingPage() {
                 </>
               )}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/*  FINANCIAL SUMMARY BAR: THE BUDGET · THE DRAW · THE BALANCE  */}
+      {/* ============================================================ */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5 print:hidden space-y-4">
+        {/* Top title and badge */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-gray-900">
+              Draw Request #{header.application_number} — Financial Summary
+            </h3>
+            <span className="text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+              Live G702 / G703 Sync
+            </span>
+          </div>
+          <div className="text-[11px] font-bold text-gray-500">
+            Billing Period: <span className="text-gray-900 font-black">{header.period_to || 'Current Period'}</span>
+          </div>
+        </div>
+
+        {/* 3 Executive Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* 1. THE BUDGET */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white p-4 sm:p-5 rounded-xl shadow-md border border-slate-700/80">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-blue-300 flex items-center gap-1.5">
+                <span className="text-sm">🏛️</span> 1. The Budget
+              </span>
+              <span className="text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full uppercase">
+                Contract Sum
+              </span>
+            </div>
+            <div className="mt-2 text-2xl sm:text-3xl font-black text-white tracking-tight">
+              ${fmt(contractBudget)}
+            </div>
+            <div className="mt-2.5 pt-2.5 border-t border-slate-700 flex items-center justify-between text-[11px] text-slate-300">
+              <span>Orig Contract: <strong className="text-white">${fmt(header.original_contract_sum)}</strong></span>
+              <span>Net COs: <strong className={totals.net_co >= 0 ? "text-emerald-300" : "text-rose-300"}>{totals.net_co >= 0 ? '+' : ''}${fmt(totals.net_co)}</strong></span>
+            </div>
+          </div>
+
+          {/* 2. THE DRAW */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-950 text-white p-4 sm:p-5 rounded-xl shadow-md border-2 border-emerald-500/50 ring-2 ring-emerald-500/10">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                <span className="text-sm">💵</span> 2. The Draw
+              </span>
+              <span className="text-[10px] font-black bg-emerald-400 text-gray-950 px-2.5 py-0.5 rounded-full uppercase shadow-xs">
+                Draw #{header.application_number}
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">
+                ${fmt(currentDraw)}
+              </span>
+              <span className="text-xs font-black text-emerald-200 bg-emerald-800/80 border border-emerald-400/40 px-2 py-0.5 rounded-md">
+                {pctDrawn.toFixed(1)}% of Budget
+              </span>
+            </div>
+            <div className="mt-2.5 pt-2.5 border-t border-emerald-800 flex items-center justify-between text-[11px] text-emerald-200">
+              <span>Period Work: <strong className="text-white">${fmt(totals.this_period_total)}</strong></span>
+              <span>Retainage: <strong className="text-amber-300">-${fmt(totals.total_retainage)}</strong></span>
+            </div>
+          </div>
+
+          {/* 3. THE BALANCE */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-amber-950 via-stone-900 to-slate-900 text-white p-4 sm:p-5 rounded-xl shadow-md border border-amber-500/40">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <span className="text-sm">⚖️</span> 3. The Balance
+              </span>
+              <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full uppercase">
+                To Finish
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight">
+                ${fmt(remainingBalance)}
+              </span>
+              <span className="text-xs font-black text-amber-200 bg-amber-900/80 border border-amber-400/40 px-2 py-0.5 rounded-md">
+                {pctBalance.toFixed(1)}% Left
+              </span>
+            </div>
+            <div className="mt-2.5 pt-2.5 border-t border-stone-700 flex items-center justify-between text-[11px] text-amber-200/90">
+              <span>Earned to Date: <strong className="text-white">${fmt(totals.total_earned_less_retainage)}</strong></span>
+              <span>Overall: <strong className="text-white">{totals.overall_pct}% Billed</strong></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Allocation Bar */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex justify-between text-[11px] font-bold text-gray-500">
+            <span>Budget Allocation Progress</span>
+            <span>{pctTotalEarned.toFixed(1)}% Earned to Date · {pctBalance.toFixed(1)}% Remaining</span>
+          </div>
+          <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden flex border border-gray-200 p-0.5 gap-0.5">
+            {pctPrevious > 0 && (
+              <div
+                style={{ width: `${Math.min(100, pctPrevious)}%` }}
+                className="bg-blue-600 rounded-full h-full transition-all"
+                title={`Previous Draws: $${fmt(previousDraws)} (${pctPrevious.toFixed(1)}%)`}
+              />
+            )}
+            {pctDrawn > 0 && (
+              <div
+                style={{ width: `${Math.min(100, pctDrawn)}%` }}
+                className="bg-emerald-500 rounded-full h-full transition-all"
+                title={`Current Draw: $${fmt(currentDraw)} (${pctDrawn.toFixed(1)}%)`}
+              />
+            )}
+            {pctBalance > 0 && (
+              <div
+                style={{ width: `${Math.min(100, pctBalance)}%` }}
+                className="bg-amber-400 rounded-full h-full transition-all"
+                title={`Balance to Finish: $${fmt(remainingBalance)} (${pctBalance.toFixed(1)}%)`}
+              />
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-[10px] text-gray-600 font-semibold pt-0.5">
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-xs bg-blue-600 inline-block" />
+              Previous Draws: ${fmt(previousDraws)}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 inline-block" />
+              Current Draw: ${fmt(currentDraw)}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-xs bg-amber-400 inline-block" />
+              Remaining Balance: ${fmt(remainingBalance)}
+            </span>
           </div>
         </div>
       </div>
@@ -1137,11 +1658,12 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-bold">$</td>
                     <td className="p-1 text-right w-28 border-l border-black bg-white">
-                      <input
-                        type="number"
-                        value={header.less_previous_certificates || ''}
-                        onChange={e => setHeader(h => ({ ...h, less_previous_certificates: parseFloat(e.target.value) || 0 }))}
+                      <CurrencyInput
+                        value={header.less_previous_certificates}
+                        onChange={val => setHeader(h => ({ ...h, less_previous_certificates: val }))}
                         className="w-full text-right font-bold text-black focus:outline-none bg-transparent"
+                        allowEmpty={true}
+                        showDollarSign={false}
                       />
                     </td>
                   </tr>
@@ -1190,19 +1712,21 @@ export default function OwnerBillingPage() {
                       Total changes approved in previous months by Owner
                     </td>
                     <td className="p-1 border-r border-black">
-                      <input
-                        type="number"
-                        value={header.change_order_additions_prev || ''}
-                        onChange={e => setHeader(h => ({ ...h, change_order_additions_prev: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right focus:outline-none bg-transparent"
+                      <CurrencyInput
+                        value={header.change_order_additions_prev}
+                        onChange={val => setHeader(h => ({ ...h, change_order_additions_prev: val }))}
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                     <td className="p-1">
-                      <input
-                        type="number"
-                        value={header.change_order_deductions_prev || ''}
-                        onChange={e => setHeader(h => ({ ...h, change_order_deductions_prev: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right focus:outline-none bg-transparent"
+                      <CurrencyInput
+                        value={header.change_order_deductions_prev}
+                        onChange={val => setHeader(h => ({ ...h, change_order_deductions_prev: val }))}
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                   </tr>
@@ -1211,19 +1735,21 @@ export default function OwnerBillingPage() {
                       Total approved this Month
                     </td>
                     <td className="p-1 border-r border-black">
-                      <input
-                        type="number"
-                        value={header.change_order_additions_curr || ''}
-                        onChange={e => setHeader(h => ({ ...h, change_order_additions_curr: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right focus:outline-none bg-transparent"
+                      <CurrencyInput
+                        value={header.change_order_additions_curr}
+                        onChange={val => setHeader(h => ({ ...h, change_order_additions_curr: val }))}
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                     <td className="p-1">
-                      <input
-                        type="number"
-                        value={header.change_order_deductions_curr || ''}
-                        onChange={e => setHeader(h => ({ ...h, change_order_deductions_curr: parseFloat(e.target.value) || 0 }))}
-                        className="w-full text-right focus:outline-none bg-transparent"
+                      <CurrencyInput
+                        value={header.change_order_deductions_curr}
+                        onChange={val => setHeader(h => ({ ...h, change_order_deductions_curr: val }))}
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                   </tr>
@@ -1371,11 +1897,12 @@ export default function OwnerBillingPage() {
                 </span>
                 <div className="flex items-baseline gap-1">
                   <span className="font-black text-black">$</span>
-                  <input
-                    type="number"
-                    value={header.amount_certified || (totals.current_payment_due > 0 ? totals.current_payment_due : '')}
-                    onChange={e => setHeader(h => ({ ...h, amount_certified: parseFloat(e.target.value) || 0 }))}
+                  <CurrencyInput
+                    value={header.amount_certified || (totals.current_payment_due > 0 ? totals.current_payment_due : 0)}
+                    onChange={val => setHeader(h => ({ ...h, amount_certified: val }))}
                     className="w-28 text-right font-black text-[10px] text-black border-b border-black focus:outline-none bg-transparent"
+                    allowEmpty={false}
+                    showDollarSign={false}
                   />
                 </div>
               </div>
@@ -1431,7 +1958,7 @@ export default function OwnerBillingPage() {
       >
         {/* Title & Actions */}
         <div className="bg-gray-900 text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 print:bg-white print:text-black print:border-b-2 print:border-black">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-4">
             <div>
               <h2 className="text-sm sm:text-base font-black tracking-wide uppercase flex items-center gap-2">
                 <span>Continuation Sheet</span>
@@ -1442,25 +1969,25 @@ export default function OwnerBillingPage() {
               </p>
             </div>
 
-            {/* PROMINENT IMPORT FROM PROJECT ESTIMATE BUTTON ON TOP OF CONTINUATION SHEET */}
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="print:hidden bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border-2 border-blue-400 active:scale-95 hover:shadow-blue-500/20"
-              title="Import line items from project estimate into this Continuation Sheet"
-            >
-              <span className="text-base">📥</span>
-              <span>Import from Project Estimate</span>
-            </button>
+            <div className="hidden sm:flex items-center gap-2 print:hidden ml-2">
+              <button
+                type="button"
+                onClick={sortRowsByDivision}
+                className="text-[11px] font-bold px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white rounded border border-gray-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Sort all items by CSI Division (01-28) and Alternates"
+              >
+                <span>⇅</span>
+                <span>Sort by Division</span>
+              </button>
 
-            {/* SORT BY DIVISION BUTTON (DIVISION 1 TO LARGE NUMBERS) */}
-            <button
-              onClick={sortRowsByDivision}
-              className="print:hidden bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border-2 border-amber-300 active:scale-95 hover:shadow-amber-500/20"
-              title="Sort Continuation Sheet lines in order from Division 1 to large numbers"
-            >
-              <span className="text-base">🔢</span>
-              <span>Sort Div 1 → 28</span>
-            </button>
+              <span
+                className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded font-mono hidden lg:inline-flex items-center gap-1 cursor-help"
+                title="Type /sum in any numeric cell to sum the column above. Also supports ranges like /sum(1..18) or =C19-C24"
+              >
+                <span className="font-bold text-emerald-300">fx</span>
+                <span>Type /sum to sum column</span>
+              </span>
+            </div>
           </div>
 
           <div className="text-right text-[10px] text-gray-400 print:text-gray-600">
@@ -1469,12 +1996,39 @@ export default function OwnerBillingPage() {
           </div>
         </div>
 
+        {/* CONTINUATION SHEET FINANCIAL STRIP: BUDGET · DRAW · BALANCE */}
+        <div className="bg-gray-950 text-white px-5 py-2.5 border-t border-gray-800 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider font-extrabold text-blue-400">The Budget:</span>
+              <span className="font-black text-white text-sm">${fmt(contractBudget)}</span>
+            </div>
+            <div className="h-4 w-px bg-gray-800" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400">The Draw:</span>
+              <span className="font-black text-emerald-400 text-sm bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
+                ${fmt(currentDraw)}
+              </span>
+            </div>
+            <div className="h-4 w-px bg-gray-800" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-400">The Balance:</span>
+              <span className="font-black text-amber-400 text-sm bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30">
+                ${fmt(remainingBalance)}
+              </span>
+            </div>
+          </div>
+          <div className="text-[11px] text-gray-400 flex items-center gap-3">
+            <span>Completed &amp; Stored: <strong className="text-white">${fmt(totals.total_completed_and_stored)}</strong></span>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-[11px] min-w-[1050px] border-collapse">
             <thead>
               {/* Column Letter headers */}
               <tr className="bg-gray-100 border-b border-gray-300 print:border-black">
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-10 print:border-black">A</th>
+                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-14 print:w-10 print:border-black">A</th>
                 <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 print:border-black">B</th>
                 <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">C</th>
                 <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black" colSpan={2}>
@@ -1489,7 +2043,7 @@ export default function OwnerBillingPage() {
               </tr>
               {/* Detailed headers */}
               <tr className="bg-gray-50 border-b-2 border-gray-400 text-[9px] print:border-black">
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 w-14 print:w-10 print:border-black">
                   Item<br />No
                 </th>
                 <th className="p-1.5 text-left font-bold text-gray-700 border-r border-gray-300 print:border-black">
@@ -1539,16 +2093,96 @@ export default function OwnerBillingPage() {
                   row.stored_materials > 0
                 );
 
+                const isDragging = draggedIdx === idx;
+                const isDragOver = dragOverIdx === idx && draggedIdx !== idx;
+
                 return (
-                  <tr key={row.id || idx} className="hover:bg-blue-50/30 group h-6">
-                    {/* A — Item No */}
-                    <td className="p-1 text-center font-bold text-gray-500 border-r border-gray-200 bg-gray-50/50 print:border-black text-[10px]">
-                      {row.item_number}
+                  <tr
+                    key={row.id || idx}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragOverIdx !== idx) setDragOverIdx(idx);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedIdx !== null && draggedIdx !== idx) {
+                        moveRow(draggedIdx, idx);
+                      }
+                      setDraggedIdx(null);
+                      setDragOverIdx(null);
+                    }}
+                    className={`hover:bg-blue-50/30 group h-6 transition-colors ${
+                      isDragging ? 'opacity-35 bg-blue-50' : ''
+                    } ${
+                      isDragOver ? 'border-t-2 border-blue-500 bg-blue-50/60' : ''
+                    }`}
+                  >
+                    {/* A — Item No & Reorder Controls */}
+                    <td className="p-0.5 border-r border-gray-200 bg-gray-50/50 print:border-black text-[10px]">
+                      <div className="flex items-center justify-between gap-0.5 px-1">
+                        {/* Drag handle */}
+                        <span
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggedIdx(idx);
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', String(idx));
+                          }}
+                          onDragEnd={() => {
+                            setDraggedIdx(null);
+                            setDragOverIdx(null);
+                          }}
+                          title="Drag to reorder row"
+                          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-800 print:hidden text-xs select-none px-0.5"
+                        >
+                          ⋮⋮
+                        </span>
+
+                        {/* Item number */}
+                        <span className="font-bold text-gray-600 flex-1 text-center select-none">
+                          {row.item_number}
+                        </span>
+
+                        {/* Up / Down nudge buttons */}
+                        <div className="flex flex-col gap-0.5 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveRowUp(idx);
+                            }}
+                            className={`text-[8px] leading-none px-0.5 py-0.2 rounded hover:bg-gray-200 transition-colors ${
+                              idx === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-black cursor-pointer'
+                            }`}
+                            title="Move row up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === rows.length - 1}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveRowDown(idx);
+                            }}
+                            className={`text-[8px] leading-none px-0.5 py-0.2 rounded hover:bg-gray-200 transition-colors ${
+                              idx === rows.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-black cursor-pointer'
+                            }`}
+                            title="Move row down"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
                     </td>
                     {/* B — Description — NO PLACEHOLDER */}
                     <td className="p-1 border-r border-gray-200 print:border-black">
                       <input
                         type="text"
+                        draggable={false}
+                        onDragStart={e => e.stopPropagation()}
                         value={row.description}
                         onChange={e => updateRow(idx, 'description', e.target.value)}
                         className="w-full text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
@@ -1556,43 +2190,67 @@ export default function OwnerBillingPage() {
                     </td>
                     {/* C — Scheduled Value — NO PLACEHOLDER */}
                     <td className="p-1 border-r border-gray-200 print:border-black">
-                      <input
-                        type="number"
-                        value={row.scheduled_value || ''}
-                        onChange={e => updateRow(idx, 'scheduled_value', parseFloat(e.target.value) || 0)}
+                      <CurrencyInput
+                        value={row.scheduled_value}
+                        formula={row.scheduled_value_formula}
+                        cellReference={`C${row.item_number}`}
+                        onChange={v => updateRow(idx, 'scheduled_value', v)}
+                        onFormulaChange={(f, v) => updateRowWithFormula(idx, 'scheduled_value', v, f)}
+                        onEvaluateFormula={text => parseAndEvaluateFormula(text, 'scheduled_value', idx, rows)}
+                        getSuggestions={query => getFormulaSuggestions(query, 'scheduled_value', idx, rows)}
                         className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                     {/* D — From Previous — NO PLACEHOLDER */}
                     <td className="p-1 border-r border-gray-200 print:border-black">
-                      <input
-                        type="number"
-                        value={row.work_completed_previous || ''}
-                        onChange={e => updateRow(idx, 'work_completed_previous', parseFloat(e.target.value) || 0)}
+                      <CurrencyInput
+                        value={row.work_completed_previous}
+                        formula={row.work_completed_previous_formula}
+                        cellReference={`D${row.item_number}`}
+                        onChange={v => updateRow(idx, 'work_completed_previous', v)}
+                        onFormulaChange={(f, v) => updateRowWithFormula(idx, 'work_completed_previous', v, f)}
+                        onEvaluateFormula={text => parseAndEvaluateFormula(text, 'work_completed_previous', idx, rows)}
+                        getSuggestions={query => getFormulaSuggestions(query, 'work_completed_previous', idx, rows)}
                         className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                     {/* E — This Period — NO PLACEHOLDER */}
                     <td className="p-1 border-r border-gray-200 print:border-black">
-                      <input
-                        type="number"
-                        value={row.work_completed_this_period || ''}
-                        onChange={e => updateRow(idx, 'work_completed_this_period', parseFloat(e.target.value) || 0)}
+                      <CurrencyInput
+                        value={row.work_completed_this_period}
+                        formula={row.work_completed_this_period_formula}
+                        cellReference={`E${row.item_number}`}
+                        onChange={v => updateRow(idx, 'work_completed_this_period', v)}
+                        onFormulaChange={(f, v) => updateRowWithFormula(idx, 'work_completed_this_period', v, f)}
+                        onEvaluateFormula={text => parseAndEvaluateFormula(text, 'work_completed_this_period', idx, rows)}
+                        getSuggestions={query => getFormulaSuggestions(query, 'work_completed_this_period', idx, rows)}
                         className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                     {/* F — Stored — NO PLACEHOLDER */}
                     <td className="p-1 border-r border-gray-200 print:border-black">
-                      <input
-                        type="number"
-                        value={row.stored_materials || ''}
-                        onChange={e => updateRow(idx, 'stored_materials', parseFloat(e.target.value) || 0)}
+                      <CurrencyInput
+                        value={row.stored_materials}
+                        formula={row.stored_materials_formula}
+                        cellReference={`F${row.item_number}`}
+                        onChange={v => updateRow(idx, 'stored_materials', v)}
+                        onFormulaChange={(f, v) => updateRowWithFormula(idx, 'stored_materials', v, f)}
+                        onEvaluateFormula={text => parseAndEvaluateFormula(text, 'stored_materials', idx, rows)}
+                        getSuggestions={query => getFormulaSuggestions(query, 'stored_materials', idx, rows)}
                         className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        allowEmpty={true}
+                        showDollarSign={true}
                       />
                     </td>
                     {/* G — Total — EMPTY IF NO DATA */}
                     <td className="p-1 text-right font-bold text-[11px] text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
-                      {hasData && row.total_completed > 0 ? fmt(row.total_completed) : ''}
+                      {hasData && row.total_completed > 0 ? formatCurrencyUSD(row.total_completed) : ''}
                     </td>
                     {/* G/C % — EMPTY IF NO DATA */}
                     <td className="p-1 text-center font-bold text-[11px] border-r border-gray-200 bg-gray-50/30 print:border-black">
@@ -1604,81 +2262,100 @@ export default function OwnerBillingPage() {
                     </td>
                     {/* H — Balance — EMPTY IF NO DATA */}
                     <td className="p-1 text-right text-[11px] font-medium text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
-                      {hasData && row.scheduled_value > 0 ? fmt(row.balance_to_finish) : ''}
+                      {hasData && row.scheduled_value > 0 ? formatCurrencyUSD(row.balance_to_finish) : ''}
                     </td>
                     {/* I — Retainage — EMPTY IF NO DATA */}
                     <td className="p-1 text-right text-[11px] font-medium text-amber-700 bg-gray-50/30 px-2">
-                      {hasData && row.retainage > 0 ? fmt(row.retainage) : ''}
+                      {hasData && row.retainage > 0 ? formatCurrencyUSD(row.retainage) : ''}
                     </td>
-                    {/* Delete button (clear or remove) */}
-                    <td className="p-1 text-center print:hidden">
-                      {hasData && (
+                    {/* Row action buttons: Insert empty row & Delete */}
+                    <td className="p-0.5 text-center print:hidden whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
+                          type="button"
+                          onClick={() => insertEmptyRow(idx + 1)}
+                          className="text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100/80 px-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-colors leading-none"
+                          title="Insert empty row below this line"
+                        >
+                          + Row
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => deleteRow(idx)}
-                          className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity text-xs cursor-pointer"
-                          title="Clear line"
+                          className="text-red-400 hover:text-red-600 hover:bg-red-100/80 px-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-colors leading-none"
+                          title="Delete this row"
                         >
                           ✕
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-            {/* Totals row */}
+            {/* Totals row - Only sum Column E at the bottom as requested ($290,292.89) */}
             <tfoot>
               <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold text-[11px] print:border-black">
                 <td className="p-2 text-center border-r border-gray-300 print:border-black" colSpan={2}>
                   <span className="uppercase text-gray-700 font-black text-[10px] tracking-wider">TOTALS</span>
                 </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
-                  {totals.scheduled_total > 0 ? fmt(totals.scheduled_total) : ''}
-                </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
-                  {totals.prev_total > 0 ? fmt(totals.prev_total) : ''}
-                </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
-                  {totals.this_period_total > 0 ? fmt(totals.this_period_total) : ''}
-                </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
-                  {totals.stored_total > 0 ? fmt(totals.stored_total) : ''}
-                </td>
+                {/* Column C: Scheduled Value - empty (no bottom total price info) */}
+                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
+                {/* Column D: Work Completed From Previous - empty */}
+                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
+                {/* Column E: Work Completed This Period - ONLY sum column E */}
                 <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">
-                  {totals.completed_total > 0 ? fmt(totals.completed_total) : ''}
+                  {totals.this_period_total > 0 ? formatCurrencyUSD(totals.this_period_total) : '$0.00'}
                 </td>
-                <td className="p-2 text-center border-r border-gray-300 print:border-black">
-                  {totals.overall_pct > 0 ? (
-                    <span className={totals.overall_pct >= 100 ? 'text-emerald-700 font-black' : 'text-blue-700 font-black'}>
-                      {totals.overall_pct}%
-                    </span>
-                  ) : ''}
-                </td>
-                <td className="p-2 text-right border-r border-gray-300 text-procore-text print:border-black">
-                  {totals.balance_total > 0 ? fmt(totals.balance_total) : ''}
-                </td>
-                <td className="p-2 text-right text-amber-700 font-black">
-                  {totals.retainage_total > 0 ? fmt(totals.retainage_total) : ''}
-                </td>
+                {/* Column F: Materials Stored - empty */}
+                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
+                {/* Column G: Total Completed & Stored - empty */}
+                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
+                {/* Column G/C%: Complete - empty */}
+                <td className="p-2 text-center border-r border-gray-300 print:border-black"></td>
+                {/* Column H: Balance to Finish - empty */}
+                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
+                {/* Column I: Retainage - empty */}
+                <td className="p-2 text-right print:border-black"></td>
                 <td className="print:hidden"></td>
               </tr>
             </tfoot>
           </table>
         </div>
 
-        {/* Add row button */}
-        <div className="px-4 py-2.5 border-t border-gray-200 print:hidden flex justify-between items-center bg-gray-50/50">
-          <button
-            onClick={addRow}
-            className="text-procore-orange hover:text-procore-orange-hover text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <span className="bg-procore-orange text-white rounded w-4 h-4 flex items-center justify-center text-xs">+</span>
-            Add Line Item
-          </button>
+        {/* Add row button & Sort */}
+        <div className="px-4 py-2.5 border-t border-gray-200 print:hidden flex flex-wrap justify-between items-center gap-3 bg-gray-50/50">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => insertEmptyRow()}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm active:scale-95"
+              title="Add a new empty row to the continuation sheet"
+            >
+              <span className="text-sm leading-none font-bold">+</span>
+              Add Empty Row
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              type="button"
+              onClick={sortRowsByDivision}
+              className="text-gray-600 hover:text-gray-900 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              title="Sort lines by CSI Division (01-28) and Alternates"
+            >
+              <span>⇅</span>
+              Sort by Division
+            </button>
+          </div>
 
-          <span className="text-[11px] text-gray-500 font-medium">
-            {rows.length} lines on Continuation Sheet
-          </span>
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <span className="text-[10px] text-gray-400">
+              Drag <strong className="text-gray-600">⋮⋮</strong> handle or click <strong className="text-gray-600">▲▼</strong> to reorder lines
+            </span>
+            <span className="text-gray-300">•</span>
+            <span className="text-[11px] text-gray-500 font-medium">
+              {rows.length} lines on Continuation Sheet
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1687,9 +2364,21 @@ export default function OwnerBillingPage() {
       {/* ============================================================ */}
       <div className="fixed bottom-4 right-4 z-40 print:hidden">
         <div className="bg-gray-900 text-white rounded-2xl shadow-2xl border-2 border-gray-700 p-2.5 flex items-center gap-3 backdrop-blur-md">
-          <div className="hidden sm:block pl-2 text-xs">
-            <span className="text-gray-400">Payment Due: </span>
-            <span className="text-emerald-400 font-black text-sm">${fmt(Math.max(0, totals.current_payment_due))}</span>
+          <div className="hidden sm:flex items-center gap-3 pl-2 pr-2 text-xs border-r border-gray-700">
+            <div>
+              <span className="text-[9px] uppercase tracking-wider text-blue-400 block font-black">Budget</span>
+              <span className="text-white font-black text-xs sm:text-sm">${fmt(contractBudget)}</span>
+            </div>
+            <div className="h-5 w-px bg-gray-700" />
+            <div>
+              <span className="text-[9px] uppercase tracking-wider text-emerald-400 block font-black">Draw</span>
+              <span className="text-emerald-400 font-black text-xs sm:text-sm">${fmt(currentDraw)}</span>
+            </div>
+            <div className="h-5 w-px bg-gray-700" />
+            <div>
+              <span className="text-[9px] uppercase tracking-wider text-amber-400 block font-black">Balance</span>
+              <span className="text-amber-400 font-black text-xs sm:text-sm">${fmt(remainingBalance)}</span>
+            </div>
           </div>
 
           <button
@@ -1729,7 +2418,7 @@ export default function OwnerBillingPage() {
               <div>
                 <h3 className="font-black text-base text-procore-text">Import from Project Estimate</h3>
                 <p className="text-xs text-procore-text-muted mt-0.5">
-                  Select estimate line items to populate Continuation Sheet (Schedule of Values) rows.
+                  Choose whole divisions or individual lines to populate Continuation Sheet (Schedule of Values).
                 </p>
               </div>
               <button
@@ -1740,60 +2429,170 @@ export default function OwnerBillingPage() {
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-4">
-              {estimateLines.length > 0 ? (
-                <div className="space-y-1.5">
-                  {/* Select all bar */}
-                  <label className="flex items-center gap-2.5 text-xs font-black text-procore-text p-2.5 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200/70 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={selectedImportIds.size === estimateLines.length && estimateLines.length > 0}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          setSelectedImportIds(new Set(estimateLines.map(el => el.id)));
-                        } else {
-                          setSelectedImportIds(new Set());
-                        }
-                      }}
-                      className="w-4 h-4 rounded border-gray-400 text-procore-orange focus:ring-procore-orange cursor-pointer"
-                    />
-                    Select All ({estimateLines.length} estimate lines)
-                  </label>
+            {/* Modal Controls: Select All, Aggregation Mode, Expand/Collapse */}
+            <div className="p-3 bg-gray-50/90 border-b border-procore-border space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="flex items-center gap-2.5 text-xs font-black text-procore-text cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={selectedImportIds.size === sortedEstimateLines.length && sortedEstimateLines.length > 0}
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setSelectedImportIds(new Set(sortedEstimateLines.map(el => el.id)));
+                      } else {
+                        setSelectedImportIds(new Set());
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-gray-400 text-procore-orange focus:ring-procore-orange cursor-pointer"
+                  />
+                  Select All ({sortedEstimateLines.length} items across {groupedEstimateDivisions.length} divisions &amp; alternates)
+                </label>
 
-                  {estimateLines.map(el => (
-                    <label
-                      key={el.id}
-                      className={`flex items-center gap-3 text-xs p-2.5 rounded-lg cursor-pointer transition-all ${
-                        selectedImportIds.has(el.id)
-                          ? 'bg-orange-50/90 border border-procore-orange/40 shadow-xs'
-                          : 'hover:bg-gray-50 border border-transparent'
-                      }`}
+                <div className="flex items-center gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={expandAllDivisions}
+                    className="text-blue-700 hover:text-blue-900 font-bold hover:underline cursor-pointer"
+                  >
+                    Expand All
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    type="button"
+                    onClick={collapseAllDivisions}
+                    className="text-gray-600 hover:text-gray-900 font-bold hover:underline cursor-pointer"
+                  >
+                    Collapse All
+                  </button>
+                </div>
+              </div>
+
+              {/* Aggregation Mode Selector */}
+              <div className="flex items-center justify-between bg-blue-50/90 border border-blue-200 p-2.5 rounded-xl text-xs">
+                <label className="flex items-center gap-2.5 cursor-pointer font-bold text-blue-950 select-none">
+                  <input
+                    type="checkbox"
+                    checked={aggregateByDivision}
+                    onChange={e => setAggregateByDivision(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>Aggregate by Division (1 row per division on Continuation Sheet)</span>
+                </label>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
+                  {aggregateByDivision ? 'Summary SOV' : 'Detailed Lines'}
+                </span>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+              {groupedEstimateDivisions.length > 0 ? (
+                groupedEstimateDivisions.map(group => {
+                  const selectedCount = group.lines.filter(l => selectedImportIds.has(l.id)).length;
+                  const allSelected = group.lines.length > 0 && selectedCount === group.lines.length;
+                  const someSelected = selectedCount > 0 && !allSelected;
+                  const isExpanded = expandedDivisions.has(group.code);
+                  const selectedSubtotal = group.lines
+                    .filter(l => selectedImportIds.has(l.id))
+                    .reduce((s, l) => s + (Number(l.estimated_total) || 0), 0);
+
+                  return (
+                    <div
+                      key={`div-card-${group.code}`}
+                      className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs bg-white transition-all"
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedImportIds.has(el.id)}
-                        onChange={e => {
-                          const next = new Set(selectedImportIds);
-                          if (e.target.checked) next.add(el.id);
-                          else next.delete(el.id);
-                          setSelectedImportIds(next);
-                        }}
-                        className="w-4 h-4 rounded border-gray-300 text-procore-orange focus:ring-procore-orange shrink-0 cursor-pointer"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-procore-text truncate">
-                          {el.division_code ? `${el.division_code} — ` : ''}{el.description || el.category}
+                      {/* Division Sub-Total Header Row (Matching Estimate Tab) */}
+                      <div
+                        className={`p-3 flex items-center justify-between transition-colors ${
+                          allSelected
+                            ? 'bg-blue-100/90 border-b border-blue-300'
+                            : someSelected
+                            ? 'bg-blue-50/70 border-b border-blue-200'
+                            : 'bg-gray-100/90 hover:bg-gray-200/60 border-b border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            ref={el => {
+                              if (el) el.indeterminate = someSelected;
+                            }}
+                            onChange={() => toggleDivision(group.code)}
+                            className="w-4 h-4 rounded border-gray-400 text-blue-700 focus:ring-blue-600 cursor-pointer shrink-0"
+                            title={`Select whole ${group.code === 'ALT' ? 'Alternates' : 'Division ' + group.code}`}
+                          />
+                          <div
+                            onClick={() => toggleExpandDivision(group.code)}
+                            className="cursor-pointer flex items-center gap-2 truncate select-none"
+                          >
+                            <span className={`${group.code === 'ALT' ? 'bg-purple-700' : 'bg-[#203764]'} text-white text-[10px] font-black px-2 py-0.5 rounded shrink-0`}>
+                              {group.code === 'ALT' ? 'Alternates' : `Div ${group.code}`}
+                            </span>
+                            <span className="font-black text-gray-900 text-xs sm:text-sm truncate">
+                              {group.name}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-500 shrink-0">
+                              ({selectedCount > 0 ? `${selectedCount}/${group.lines.length}` : `${group.lines.length}`} {group.code === 'ALT' ? 'alternates' : 'items'})
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-[10px] text-procore-text-muted mt-0.5">
-                          {el.category} · {el.quantity} {el.unit}
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="font-black text-xs sm:text-sm text-[#203764] font-mono">
+                            ${fmt(selectedCount > 0 ? selectedSubtotal : group.subtotal)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleExpandDivision(group.code)}
+                            className="text-gray-500 hover:text-gray-900 p-1 text-xs cursor-pointer font-bold"
+                            title={isExpanded ? 'Collapse' : 'Expand'}
+                          >
+                            {isExpanded ? '▲' : '▼'}
+                          </button>
                         </div>
                       </div>
-                      <span className="font-black text-procore-text text-sm shrink-0">
-                        ${fmt(el.estimated_total)}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+
+                      {/* Expanded Individual Line Items in Division */}
+                      {isExpanded && (
+                        <div className="p-2 space-y-1 bg-gray-50/60 divide-y divide-gray-100">
+                          {group.lines.map(el => (
+                            <label
+                              key={el.id}
+                              className={`flex items-center gap-3 text-xs p-2 rounded-lg cursor-pointer transition-all ${
+                                selectedImportIds.has(el.id)
+                                  ? 'bg-orange-50/90 border border-procore-orange/40 shadow-xs'
+                                  : 'hover:bg-gray-100/80 border border-transparent'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedImportIds.has(el.id)}
+                                onChange={e => {
+                                  const next = new Set(selectedImportIds);
+                                  if (e.target.checked) next.add(el.id);
+                                  else next.delete(el.id);
+                                  setSelectedImportIds(next);
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 text-procore-orange focus:ring-procore-orange shrink-0 cursor-pointer"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-procore-text truncate">
+                                  {el.description || el.category}
+                                </div>
+                                <div className="text-[10px] text-procore-text-muted mt-0.5">
+                                  {el.category} · {el.division_code === 'ALT' ? 'Proposal Alternate' : `${el.quantity} ${el.unit || 'LS'}`}
+                                </div>
+                              </div>
+                              <span className="font-black text-procore-text text-xs shrink-0 font-mono">
+                                ${fmt(el.estimated_total)}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 <div className="py-12 text-center text-sm text-procore-text-muted">
                   No estimate lines found for this project. Add items on the Estimate page first.
@@ -1804,10 +2603,14 @@ export default function OwnerBillingPage() {
             {/* STICKY UNMISSABLE MODAL FOOTER */}
             <div className="sticky bottom-0 p-4 border-t border-procore-border bg-white flex items-center justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
               <span className="text-xs text-procore-text-muted font-bold">
-                {selectedImportIds.size} item{selectedImportIds.size !== 1 ? 's' : ''} selected
+                {selectedImportIds.size} item{selectedImportIds.size !== 1 ? 's' : ''} selected across{' '}
+                <strong className="text-gray-800">
+                  {groupedEstimateDivisions.filter(g => g.lines.some(l => selectedImportIds.has(l.id))).length}
+                </strong>{' '}
+                division(s) &amp; alternates
                 {selectedImportIds.size > 0 && (
                   <span className="text-emerald-700 font-black ml-1">
-                    · ${fmt(estimateLines.filter(el => selectedImportIds.has(el.id)).reduce((s, el) => s + el.estimated_total, 0))}
+                    · ${fmt(sortedEstimateLines.filter(el => selectedImportIds.has(el.id)).reduce((s, el) => s + (Number(el.estimated_total) || 0), 0))}
                   </span>
                 )}
               </span>
@@ -1824,7 +2627,12 @@ export default function OwnerBillingPage() {
                   className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-lg shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
                 >
                   <span>✓</span>
-                  <span>SAVE &amp; IMPORT ({selectedImportIds.size})</span>
+                  <span>
+                    SAVE &amp; IMPORT{' '}
+                    {aggregateByDivision
+                      ? `(${groupedEstimateDivisions.filter(g => g.lines.some(l => selectedImportIds.has(l.id))).length} GROUPS)`
+                      : `(${selectedImportIds.size} ITEMS)`}
+                  </span>
                 </button>
               </div>
             </div>
