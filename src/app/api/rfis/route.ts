@@ -50,33 +50,56 @@ export async function POST(request: NextRequest) {
       rfi_number,
       subject,
       question,
+      suggestion = '',
+      official_response = '',
+      transmittal_id = '',
+      rfi_type = '',
+      purpose = '',
+      via = '',
       assigned_to = 'Architect / Engineer',
       drawing_number = '',
       spec_section = '',
+      drawing_spec_ref = '',
+      attachments = '',
+      cost_impact_choice = '',
+      schedule_impact_choice = '',
       schedule_impact_days = 0,
       cost_impact_estimate = 0,
       status = 'open',
-      official_response = '',
     } = body;
+
+    if (!project_id) {
+      return NextResponse.json({ error: 'project_id is required' }, { status: 400 });
+    }
 
     const newRFI = await insertWorkflowRecord<RFI>('rfis', {
       project_id,
-      rfi_number: rfi_number || `RFI-${Math.floor(100 + Math.random() * 900)}`,
-      subject,
-      question,
-      assigned_to,
-      drawing_number,
-      spec_section,
-      schedule_impact_days: Number(schedule_impact_days),
-      cost_impact_estimate: Number(cost_impact_estimate),
-      status,
+      rfi_number: rfi_number || `RFI-0${Math.floor(1 + Math.random() * 9)}`,
+      subject: subject || 'Untitled RFI',
+      question: question || '',
+      suggestion,
       official_response,
+      transmittal_id,
+      rfi_type,
+      purpose,
+      via,
+      assigned_to: assigned_to || 'Architect / Engineer',
+      drawing_number: drawing_number || drawing_spec_ref,
+      spec_section: spec_section || drawing_spec_ref,
+      drawing_spec_ref: drawing_spec_ref || drawing_number || spec_section,
+      attachments,
+      cost_impact_choice: cost_impact_choice || undefined,
+      schedule_impact_choice: schedule_impact_choice || undefined,
+      schedule_impact_days: Number(schedule_impact_days || 0),
+      cost_impact_estimate: Number(cost_impact_estimate || 0),
+      status: status || 'open',
       responded_at: official_response ? new Date().toISOString() : null,
       has_change_event: false,
     });
 
     return NextResponse.json({ success: true, rfi: newRFI }, { status: 201 });
   } catch (err: any) {
+    console.error('Error creating RFI:', err);
     return NextResponse.json({ error: err.message || 'Error processing RFI' }, { status: 500 });
   }
 }

@@ -16,6 +16,8 @@ export default function RFIsPage() {
   const [selectedRFI, setSelectedRFI] = useState<RFI | null>(null);
   const [viewMode, setViewMode] = useState<'register' | 'transmittal'>('register');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showQuickModal, setShowQuickModal] = useState(false);
 
   // Blank Form State - NO pre-filled sample text
   const [transmittalForm, setTransmittalForm] = useState({
@@ -23,9 +25,9 @@ export default function RFIsPage() {
     transmittal_id: '',
     date: new Date().toISOString().split('T')[0],
     subject: '',
-    rfi_type: '',
-    purpose: '',
-    via: '',
+    rfi_type: 'Design Clarification',
+    purpose: 'For Directive',
+    via: 'Email / Portal',
     question: '',
     suggestion: '',
     official_response: '',
@@ -35,7 +37,7 @@ export default function RFIsPage() {
     schedule_impact_days: 0,
     drawing_spec_ref: '',
     attachments: '',
-    assigned_to: '',
+    assigned_to: 'Architect / Engineer',
   });
 
   const fetchProjectAndRFIs = async () => {
@@ -68,14 +70,15 @@ export default function RFIsPage() {
   const openNewTransmittal = () => {
     setIsCreatingNew(true);
     setSelectedRFI(null);
+    setShowQuickModal(false);
     setTransmittalForm({
       rfi_number: `RFI-0${rfis.length + 1}`,
       transmittal_id: `TR-0${rfis.length + 1}`,
       date: new Date().toISOString().split('T')[0],
       subject: '',
-      rfi_type: '',
-      purpose: '',
-      via: '',
+      rfi_type: 'Design Clarification',
+      purpose: 'For Directive',
+      via: 'Email / Portal',
       question: '',
       suggestion: '',
       official_response: '',
@@ -85,23 +88,49 @@ export default function RFIsPage() {
       schedule_impact_days: 0,
       drawing_spec_ref: '',
       attachments: '',
-      assigned_to: '',
+      assigned_to: 'Architect / Engineer',
     });
     setViewMode('transmittal');
+  };
+
+  const openQuickModal = () => {
+    setIsCreatingNew(true);
+    setSelectedRFI(null);
+    setTransmittalForm({
+      rfi_number: `RFI-0${rfis.length + 1}`,
+      transmittal_id: `TR-0${rfis.length + 1}`,
+      date: new Date().toISOString().split('T')[0],
+      subject: '',
+      rfi_type: 'Design Clarification',
+      purpose: 'For Directive',
+      via: 'Email / Portal',
+      question: '',
+      suggestion: '',
+      official_response: '',
+      cost_impact_choice: '',
+      cost_impact_estimate: 0,
+      schedule_impact_choice: '',
+      schedule_impact_days: 0,
+      drawing_spec_ref: '',
+      attachments: '',
+      assigned_to: 'Architect / Engineer',
+    });
+    setShowQuickModal(true);
   };
 
   // View an existing RFI in the official Transmittal letterhead
   const viewRfiTransmittal = (rfi: RFI) => {
     setSelectedRFI(rfi);
     setIsCreatingNew(false);
+    setShowQuickModal(false);
     setTransmittalForm({
       rfi_number: rfi.rfi_number || '',
       transmittal_id: rfi.transmittal_id || '',
       date: rfi.created_at ? rfi.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
       subject: rfi.subject || '',
-      rfi_type: rfi.rfi_type || '',
-      purpose: rfi.purpose || '',
-      via: rfi.via || '',
+      rfi_type: rfi.rfi_type || 'Design Clarification',
+      purpose: rfi.purpose || 'For Directive',
+      via: rfi.via || 'Email / Portal',
       question: rfi.question || '',
       suggestion: rfi.suggestion || '',
       official_response: rfi.official_response || '',
@@ -111,46 +140,78 @@ export default function RFIsPage() {
       schedule_impact_days: rfi.schedule_impact_days || 0,
       drawing_spec_ref: rfi.drawing_spec_ref || rfi.drawing_number || rfi.spec_section || '',
       attachments: rfi.attachments || '',
-      assigned_to: rfi.assigned_to || '',
+      assigned_to: rfi.assigned_to || 'Architect / Engineer',
     });
     setViewMode('transmittal');
   };
 
-  const handleSaveTransmittal = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveTransmittal = async (e?: React.FormEvent, forceCreateNew = false) => {
+    if (e) e.preventDefault();
+    if (!transmittalForm.subject.trim()) {
+      alert('Please enter an RFI Subject / Title.');
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      if (isCreatingNew) {
-        const res = await fetch('/api/rfis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      const isNew = forceCreateNew || isCreatingNew || !selectedRFI;
+      const url = '/api/rfis';
+      const method = isNew ? 'POST' : 'PATCH';
+      const payload = isNew
+        ? {
             ...transmittalForm,
             project_id: projectId,
             status: transmittalForm.official_response ? 'responded' : 'open',
-          }),
-        });
-        if (res.ok) {
-          setIsCreatingNew(false);
-          await fetchProjectAndRFIs();
-          setViewMode('register');
-        }
-      } else if (selectedRFI) {
-        const res = await fetch('/api/rfis', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: selectedRFI.id,
+          }
+        : {
+            id: selectedRFI?.id,
             ...transmittalForm,
             status: transmittalForm.official_response ? 'responded' : 'open',
-          }),
-        });
-        if (res.ok) {
-          await fetchProjectAndRFIs();
-          alert('RFI Transmittal updated successfully!');
+          };
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save RFI');
+      }
+
+      setIsCreatingNew(false);
+      setShowQuickModal(false);
+      await fetchProjectAndRFIs();
+      if (data.rfi) {
+        setSelectedRFI(data.rfi);
+      }
+      setViewMode('register');
+      alert(isNew ? 'RFI created successfully and added to the register!' : 'RFI updated successfully!');
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error saving RFI: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteRFI = async (rfiId: string) => {
+    if (!confirm('Are you sure you want to delete this RFI?')) return;
+    try {
+      const res = await fetch(`/api/rfis?id=${rfiId}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchProjectAndRFIs();
+        if (selectedRFI?.id === rfiId) {
+          setSelectedRFI(null);
         }
+        setViewMode('register');
+      } else {
+        alert('Failed to delete RFI.');
       }
     } catch (err) {
       console.error(err);
+      alert('Error deleting RFI.');
     }
   };
 
@@ -225,10 +286,20 @@ export default function RFIsPage() {
           </div>
 
           <button
-            onClick={openNewTransmittal}
-            className="w-full sm:w-auto bg-procore-orange hover:bg-procore-orange-hover text-white text-xs font-bold px-3.5 py-2 rounded-md shadow-xs flex items-center justify-center gap-1.5 transition-colors"
+            type="button"
+            onClick={openQuickModal}
+            className="w-full sm:w-auto bg-procore-orange hover:bg-procore-orange-hover text-white text-xs font-bold px-3.5 py-2 rounded-md shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            title="Create an RFI immediately"
           >
-            <span>+</span> Create RFI Transmittal
+            <span>+</span> Quick Create RFI
+          </button>
+          <button
+            type="button"
+            onClick={openNewTransmittal}
+            className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-2 rounded-md shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            title="Open official letterhead document format"
+          >
+            <span>📝</span> New Transmittal Form
           </button>
         </div>
       </div>
@@ -265,8 +336,17 @@ export default function RFIsPage() {
           {/* Table */}
           <div className="bg-white rounded-lg border border-procore-border shadow-xs overflow-hidden">
             <div className="p-4 border-b border-procore-border bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <h2 className="text-sm font-bold text-procore-text">RFI Register ({rfis.length})</h2>
-              <span className="text-xs text-procore-text-muted">Click any row to open the full BTX RFI Transmittal document</span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-procore-text">RFI Register ({rfis.length})</h2>
+                <span className="text-xs text-procore-text-muted">Click any row to view full transmittal</span>
+              </div>
+              <button
+                type="button"
+                onClick={openQuickModal}
+                className="bg-procore-orange hover:bg-procore-orange-hover text-white font-bold text-xs px-3 py-1.5 rounded shadow-xs cursor-pointer flex items-center gap-1"
+              >
+                <span>+</span> Add RFI
+              </button>
             </div>
 
             {rfis.length > 0 ? (
@@ -281,7 +361,7 @@ export default function RFIsPage() {
                       <th className="p-3 text-right font-bold">Cost Impact</th>
                       <th className="p-3 text-center font-bold">Sched. Impact</th>
                       <th className="p-3 text-center font-bold">Status</th>
-                      <th className="p-3 text-center font-bold">Transmittal Actions</th>
+                      <th className="p-3 text-center font-bold w-40">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-procore-border-light">
@@ -322,9 +402,9 @@ export default function RFIsPage() {
                           <td className="p-3 text-center space-y-1" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => viewRfiTransmittal(r)}
-                              className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1 rounded block w-full shadow-2xs"
+                              className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1 rounded block w-full shadow-2xs cursor-pointer"
                             >
-                              📄 View Transmittal
+                              📄 View / Edit
                             </button>
                             {r.has_change_event ? (
                               <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded block">
@@ -333,11 +413,18 @@ export default function RFIsPage() {
                             ) : (
                               <button
                                 onClick={() => handleConvertToChangeEvent(r)}
-                                className="bg-procore-orange hover:bg-procore-orange-hover text-white font-bold text-[10px] px-2.5 py-1 rounded block w-full shadow-2xs"
+                                className="bg-procore-orange hover:bg-procore-orange-hover text-white font-bold text-[10px] px-2.5 py-1 rounded block w-full shadow-2xs cursor-pointer"
                               >
                                 + Convert to CE
                               </button>
                             )}
+                            <button
+                              onClick={() => handleDeleteRFI(r.id)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 font-bold text-[10px] px-2 py-0.5 rounded border border-red-200 block w-full transition-colors cursor-pointer"
+                              title="Delete RFI"
+                            >
+                              🗑️ Delete
+                            </button>
                           </td>
                         </tr>
                       );
@@ -348,7 +435,14 @@ export default function RFIsPage() {
             ) : (
               <div className="p-12 text-center text-sm text-procore-text-muted">
                 <p className="font-semibold text-base text-procore-text">No RFIs created yet</p>
-                <p className="mt-1">Click &quot;+ Create RFI Transmittal&quot; above to issue the first official RFI.</p>
+                <p className="mt-1 mb-4">Click &quot;+ Quick Create RFI&quot; above to log your first official RFI.</p>
+                <button
+                  type="button"
+                  onClick={openQuickModal}
+                  className="bg-procore-orange hover:bg-procore-orange-hover text-white text-xs font-bold px-4 py-2 rounded-md shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>+</span> Create First RFI
+                </button>
               </div>
             )}
           </div>
@@ -361,28 +455,50 @@ export default function RFIsPage() {
           {/* Top Bar for Transmittal */}
           <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-100 p-3 rounded-lg border border-procore-border print:hidden">
             <button
+              type="button"
               onClick={() => setViewMode('register')}
-              className="text-xs font-bold text-procore-text hover:text-procore-orange flex items-center gap-1.5"
+              className="text-xs font-bold text-procore-text hover:text-procore-orange flex items-center gap-1.5 cursor-pointer"
             >
               ← Back to RFI Register
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handlePrint}
-                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded shadow-xs flex items-center gap-1.5"
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                🖨️ Print / Save as PDF
+                🖨️ Print / PDF
               </button>
               {selectedRFI && !isCreatingNew && (
-                <button
-                  type="button"
-                  onClick={() => handleConvertToChangeEvent(selectedRFI)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded shadow-xs"
-                >
-                  Convert to CE →
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleConvertToChangeEvent(selectedRFI)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded shadow-xs cursor-pointer"
+                    title="Convert RFI into a Change Event"
+                  >
+                    Convert to CE →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRFI(selectedRFI.id)}
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded shadow-xs cursor-pointer"
+                    title="Delete this RFI"
+                  >
+                    🗑️ Delete
+                  </button>
+                </>
               )}
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={(e) => handleSaveTransmittal(e)}
+                className="bg-procore-orange hover:bg-procore-orange-hover text-white text-xs font-bold px-4 py-1.5 sm:px-4 sm:py-2 rounded shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                title="Save RFI to database and return to register"
+              >
+                <span>💾</span>
+                <span>{isSaving ? 'Saving...' : (isCreatingNew || !selectedRFI ? 'Save & Issue RFI' : 'Save Changes')}</span>
+              </button>
             </div>
           </div>
 
@@ -670,19 +786,149 @@ export default function RFIsPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode('register')}
-                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 text-center"
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 text-center cursor-pointer"
                 >
                   Cancel
                 </button>
+                {selectedRFI && !isCreatingNew && (
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={(e) => handleSaveTransmittal(e, true)}
+                    className="w-full sm:w-auto px-4 py-2 border border-procore-orange text-procore-orange hover:bg-orange-50 text-xs font-bold rounded text-center transition-colors cursor-pointer"
+                    title="Save this content as a brand new RFI instead of modifying the existing one"
+                  >
+                    Save as New RFI
+                  </button>
+                )}
                 <button
                   type="submit"
-                  className="w-full sm:w-auto px-6 py-2 bg-procore-orange hover:bg-procore-orange-hover text-white text-xs font-bold rounded shadow-sm transition-colors text-center"
+                  disabled={isSaving}
+                  className="w-full sm:w-auto px-6 py-2 bg-procore-orange hover:bg-procore-orange-hover text-white text-xs font-bold rounded shadow-sm transition-colors text-center disabled:opacity-50 cursor-pointer"
                 >
-                  {isCreatingNew ? 'Submit RFI Transmittal' : 'Save Changes'}
+                  {isSaving ? 'Saving...' : (isCreatingNew || !selectedRFI ? 'Submit RFI Transmittal' : 'Save Changes')}
                 </button>
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* QUICK CREATE RFI MODAL */}
+      {showQuickModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 print:hidden">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-gray-900 text-white p-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm">Quick Create RFI</h3>
+                <p className="text-[11px] text-gray-400">Request for Information — Phase 5 Field Communications</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickModal(false)}
+                className="text-gray-400 hover:text-white text-lg font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={(e) => handleSaveTransmittal(e, true)} className="p-5 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">RFI Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={transmittalForm.rfi_number}
+                    onChange={(e) => setTransmittalForm({ ...transmittalForm, rfi_number: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-procore-orange font-bold text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Assigned To</label>
+                  <input
+                    type="text"
+                    value={transmittalForm.assigned_to}
+                    onChange={(e) => setTransmittalForm({ ...transmittalForm, assigned_to: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-procore-orange text-gray-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Subject / Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Sanitary Sewer Invert Elevation Discrepancy"
+                  value={transmittalForm.subject}
+                  onChange={(e) => setTransmittalForm({ ...transmittalForm, subject: e.target.value })}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-procore-orange font-semibold text-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Question / Details *</label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Describe the clarification needed or plan discrepancy..."
+                  value={transmittalForm.question}
+                  onChange={(e) => setTransmittalForm({ ...transmittalForm, question: e.target.value })}
+                  className="w-full border border-gray-300 rounded p-2.5 focus:outline-none focus:border-procore-orange text-gray-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Drawing / Spec Ref</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. C-102, Detail 3/S-501"
+                    value={transmittalForm.drawing_spec_ref}
+                    onChange={(e) => setTransmittalForm({ ...transmittalForm, drawing_spec_ref: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-procore-orange text-gray-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Estimated Cost Impact ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={transmittalForm.cost_impact_estimate || ''}
+                    onChange={(e) => setTransmittalForm({ ...transmittalForm, cost_impact_estimate: parseFloat(e.target.value) || 0, cost_impact_choice: parseFloat(e.target.value) > 0 ? 'Yes' : 'No' })}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-procore-orange text-gray-800"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={openNewTransmittal}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer"
+                >
+                  Open in Full Letterhead Form →
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickModal(false)}
+                    className="px-3 py-1.5 border border-gray-300 rounded font-bold hover:bg-gray-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-4 py-1.5 bg-procore-orange hover:bg-procore-orange-hover text-white rounded font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isSaving ? 'Creating...' : 'Save & Issue RFI'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
