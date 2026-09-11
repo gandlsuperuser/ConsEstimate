@@ -29,7 +29,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
     };
 
     return (
-        <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6">
+        <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 print:m-0 print:p-0">
             {/* Procore-style project header bar */}
             <div className="bg-white border-b border-procore-border px-4 sm:px-6 lg:px-8 py-3 print:hidden">
                 <div className="max-w-[1400px] mx-auto">
@@ -82,7 +82,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
             </div>
 
             {/* Page Content */}
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 print:p-0 print:m-0 print:max-w-none">
                 {children}
             </div>
         </div>

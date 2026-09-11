@@ -17,6 +17,7 @@ export default function RFIsPage() {
   const [viewMode, setViewMode] = useState<'register' | 'transmittal'>('register');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [showQuickModal, setShowQuickModal] = useState(false);
 
   // Blank Form State - NO pre-filled sample text
@@ -238,6 +239,68 @@ export default function RFIsPage() {
     }
   };
 
+  const handleExportPDF = async (overrideRfi?: RFI) => {
+    setIsGeneratingPdf(true);
+    try {
+      const { toJpeg } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      // Allow React state to flush
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      const el = document.getElementById('rfi-transmittal-doc');
+      if (!el) {
+        alert('Transmittal document not found.');
+        return;
+      }
+
+      const imgData = await toJpeg(el, {
+        quality: 0.98,
+        pixelRatio: 2.5,
+        backgroundColor: '#ffffff',
+      });
+
+      // Standard Letter Portrait: 215.9mm x 279.4mm (8.5in x 11in)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'letter',
+      });
+
+      const pageWidth = 215.9;
+      const pageHeight = 279.4;
+      const margin = 8; // 8mm margin all around
+      const maxContentWidth = pageWidth - margin * 2; // 199.9mm
+      const maxContentHeight = pageHeight - margin * 2; // 263.4mm
+
+      const rect = el.getBoundingClientRect();
+      let renderWidth = maxContentWidth;
+      let renderHeight = (rect.height * renderWidth) / rect.width;
+
+      // Strictly enforce 1-page fit: scale down proportionally if height exceeds printable height
+      if (renderHeight > maxContentHeight) {
+        renderHeight = maxContentHeight;
+        renderWidth = (rect.width * renderHeight) / rect.height;
+      }
+
+      const posX = margin + (maxContentWidth - renderWidth) / 2;
+      const posY = margin + (maxContentHeight - renderHeight) / 2;
+
+      pdf.addImage(imgData, 'JPEG', posX, posY, renderWidth, renderHeight, undefined, 'FAST');
+
+      const rawSubject = transmittalForm.subject || overrideRfi?.subject || 'Transmittal';
+      const cleanSubject = rawSubject.trim().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+      const rfiNum = (transmittalForm.rfi_number || overrideRfi?.rfi_number || 'RFI').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      pdf.save(`${rfiNum}_${cleanSubject}.pdf`);
+    } catch (err) {
+      console.error('Direct PDF export error, falling back to browser print:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -404,7 +467,17 @@ export default function RFIsPage() {
                               onClick={() => viewRfiTransmittal(r)}
                               className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1 rounded block w-full shadow-2xs cursor-pointer"
                             >
-                              📄 View / Edit
+                              ✏️ Edit Transmittal
+                            </button>
+                            <button
+                              onClick={() => {
+                                viewRfiTransmittal(r);
+                                setTimeout(() => handleExportPDF(r), 120);
+                              }}
+                              className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-[10px] px-2 py-1 rounded block w-full shadow-2xs cursor-pointer"
+                              title="Convert this RFI to an official 1-page PDF"
+                            >
+                              📄 Convert to PDF
                             </button>
                             {r.has_change_event ? (
                               <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded block">
@@ -449,7 +522,7 @@ export default function RFIsPage() {
         </div>
       )}
 
-      {/* VIEW MODE 2: EXACT BTX RFI TRANSMITTAL DOCUMENT FORM (MOBILE OPTIMIZED, NO OVERLAP) */}
+      {/* VIEW MODE 2: EXACT BTX RFI TRANSMITTAL DOCUMENT FORM (GUARANTEED 1-PAGE PDF / PRINT) */}
       {viewMode === 'transmittal' && (
         <div className="space-y-4">
           {/* Top Bar for Transmittal */}
@@ -464,10 +537,22 @@ export default function RFIsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={handlePrint}
-                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded shadow-xs flex items-center gap-1.5 cursor-pointer"
+                disabled={isGeneratingPdf}
+                onClick={() => handleExportPDF()}
+                className="bg-slate-900 hover:bg-black text-white text-xs font-bold px-3.5 py-1.5 sm:px-4 sm:py-2 rounded shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60 transition-colors"
+                title="Convert this RFI to an official 1-page PDF file"
               >
-                🖨️ Print / PDF
+                <span>📄</span>
+                <span>{isGeneratingPdf ? 'Generating PDF...' : 'Convert to PDF'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="Print or Save as PDF via browser"
+              >
+                <span>🖨️</span>
+                <span>Print</span>
               </button>
               {selectedRFI && !isCreatingNew && (
                 <>
@@ -502,205 +587,287 @@ export default function RFIsPage() {
             </div>
           </div>
 
-          {/* EXACT RFI TRANSMITTAL DOCUMENT LAYOUT */}
+          {/* EXACT RFI TRANSMITTAL DOCUMENT LAYOUT (100% 1-PAGE FIT) */}
           <form onSubmit={handleSaveTransmittal}>
-            <div className="bg-white w-full max-w-[850px] mx-auto p-4 sm:p-10 md:p-14 border border-gray-300 shadow-2xl rounded-sm print:shadow-none print:border-none print:p-0 print:m-0 font-sans text-gray-900">
-              
+            <div
+              id="rfi-transmittal-doc"
+              className="bg-white w-full max-w-[800px] mx-auto p-6 sm:p-8 border border-gray-300 shadow-xl rounded-sm print:shadow-none print:border-none print:p-0 print:m-0 font-sans text-gray-900"
+            >
               {/* Document Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b-2 border-transparent pb-4">
+              <div className="flex justify-between items-center pb-2.5 mb-2.5 border-b-2 border-gray-900">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-serif font-normal text-gray-900 tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-gray-900 tracking-tight">
                     RFI Transmittal
                   </h1>
                 </div>
 
                 {/* BTX CONTRACTORS LOGO */}
-                <div className="w-36 sm:w-48 text-left sm:text-right">
-                  <div className="relative h-11 sm:h-14 w-36 sm:w-44 sm:ml-auto">
-                    <Image
-                      src="/btx-logo.png"
-                      alt="BTX CONTRACTORS"
-                      fill
-                      className="object-contain object-left sm:object-right"
-                      priority
-                    />
-                  </div>
+                <div className="text-right">
+                  <img
+                    src="/btx-logo.png"
+                    alt="BTX CONTRACTORS"
+                    className="h-10 sm:h-12 w-auto object-contain ml-auto"
+                  />
                 </div>
               </div>
 
-              {/* Information Grid: Responsive Stack on Mobile, Two Columns on Tablet/Desktop to prevent ANY text overlap */}
-              <div className="mt-4 text-[12px] sm:text-[13px] divide-y divide-gray-800/80 border-t border-b border-gray-800/80">
+              {/* Information Grid: Permanent 2-Column Table That NEVER Collapses */}
+              <div className="text-[12px] divide-y divide-gray-800 border-t border-b border-gray-800">
                 
                 {/* Row 1: Project Name & Date */}
-                <div className="grid grid-cols-1 md:grid-cols-12 py-2 gap-2 md:gap-4">
-                  <div className="md:col-span-8 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Project Name:</span>
-                    <input
-                      type="text"
-                      value={project?.name || ''}
-                      readOnly
-                      placeholder="Project Name"
-                      className="w-full min-w-0 flex-1 font-sans text-gray-800 bg-transparent focus:outline-none truncate"
-                    />
+                <div className="grid grid-cols-12 py-1.5 gap-2 items-center">
+                  <div className="col-span-8 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Project Name:</span>
+                    <span className="font-sans text-gray-900 font-medium truncate flex-1">{project?.name || 'Project'}</span>
                   </div>
-                  <div className="md:col-span-4 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Date:</span>
-                    <input
-                      type="date"
-                      value={transmittalForm.date}
-                      onChange={(e) => setTransmittalForm({ ...transmittalForm, date: e.target.value })}
-                      className="w-full min-w-0 flex-1 font-sans text-gray-800 bg-transparent focus:outline-none"
-                    />
+                  <div className="col-span-4 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Date:</span>
+                    {isGeneratingPdf ? (
+                      <span className="font-sans text-gray-900 font-medium">{transmittalForm.date}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="date"
+                          value={transmittalForm.date}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, date: e.target.value })}
+                          className="print:hidden w-full min-w-0 flex-1 font-sans text-gray-900 bg-transparent focus:outline-none"
+                        />
+                        <span className="hidden print:inline font-sans text-gray-900 font-medium">
+                          {transmittalForm.date}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Row 2: Project No */}
-                <div className="grid grid-cols-1 md:grid-cols-12 py-2 gap-2 md:gap-4">
-                  <div className="md:col-span-12 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Project No:</span>
-                    <input
-                      type="text"
-                      value={project?.id || ''}
-                      readOnly
-                      placeholder="Project ID / Number"
-                      className="w-full min-w-0 flex-1 font-sans text-gray-800 bg-transparent focus:outline-none truncate"
-                    />
+                <div className="grid grid-cols-12 py-1.5 gap-2 items-center">
+                  <div className="col-span-12 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Project No:</span>
+                    <span className="font-sans text-gray-900 font-medium truncate flex-1">{project?.id || '—'}</span>
                   </div>
                 </div>
 
                 {/* Row 3: Subject & RFI ID */}
-                <div className="grid grid-cols-1 md:grid-cols-12 py-2 gap-2 md:gap-4">
-                  <div className="md:col-span-8 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Subject:</span>
-                    <input
-                      type="text"
-                      required
-                      value={transmittalForm.subject}
-                      onChange={(e) => setTransmittalForm({ ...transmittalForm, subject: e.target.value })}
-                      placeholder="Enter RFI subject / title"
-                      className="w-full min-w-0 flex-1 font-sans font-semibold text-gray-900 bg-transparent focus:outline-none border-b border-transparent focus:border-procore-orange"
-                    />
+                <div className="grid grid-cols-12 py-1.5 gap-2 items-center">
+                  <div className="col-span-8 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Subject:</span>
+                    {isGeneratingPdf ? (
+                      <span className="font-sans font-semibold text-gray-900 truncate flex-1">{transmittalForm.subject || '—'}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          required
+                          value={transmittalForm.subject}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, subject: e.target.value })}
+                          placeholder="Enter RFI subject"
+                          className="print:hidden w-full min-w-0 flex-1 font-sans font-semibold text-gray-900 bg-transparent focus:outline-none border-b border-transparent focus:border-procore-orange"
+                        />
+                        <span className="hidden print:inline font-sans font-semibold text-gray-900 truncate flex-1">
+                          {transmittalForm.subject || '—'}
+                        </span>
+                      </>
+                    )}
                   </div>
-                  <div className="md:col-span-4 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">RFI ID:</span>
-                    <input
-                      type="text"
-                      required
-                      value={transmittalForm.rfi_number}
-                      onChange={(e) => setTransmittalForm({ ...transmittalForm, rfi_number: e.target.value })}
-                      placeholder="e.g. RFI-001"
-                      className="w-full min-w-0 flex-1 font-sans font-bold text-gray-900 bg-transparent focus:outline-none"
-                    />
+                  <div className="col-span-4 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">RFI ID:</span>
+                    {isGeneratingPdf ? (
+                      <span className="font-sans font-bold text-gray-900">{transmittalForm.rfi_number || '—'}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          required
+                          value={transmittalForm.rfi_number}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, rfi_number: e.target.value })}
+                          placeholder="e.g. RFI-001"
+                          className="print:hidden w-full min-w-0 flex-1 font-sans font-bold text-gray-900 bg-transparent focus:outline-none"
+                        />
+                        <span className="hidden print:inline font-sans font-bold text-gray-900">
+                          {transmittalForm.rfi_number || '—'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Row 4: Type & Transmittal ID */}
-                <div className="grid grid-cols-1 md:grid-cols-12 py-2 gap-2 md:gap-4">
-                  <div className="md:col-span-8 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Type:</span>
-                    <input
-                      type="text"
-                      value={transmittalForm.rfi_type}
-                      onChange={(e) => setTransmittalForm({ ...transmittalForm, rfi_type: e.target.value })}
-                      placeholder="e.g. Design Clarification / Field Scope"
-                      className="w-full min-w-0 flex-1 font-sans text-gray-800 bg-transparent focus:outline-none"
-                    />
+                <div className="grid grid-cols-12 py-1.5 gap-2 items-center">
+                  <div className="col-span-8 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Type:</span>
+                    {isGeneratingPdf ? (
+                      <span className="font-sans text-gray-900 truncate flex-1">{transmittalForm.rfi_type || '—'}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={transmittalForm.rfi_type}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, rfi_type: e.target.value })}
+                          placeholder="e.g. Design Clarification / Field Scope"
+                          className="print:hidden w-full min-w-0 flex-1 font-sans text-gray-900 bg-transparent focus:outline-none"
+                        />
+                        <span className="hidden print:inline font-sans text-gray-900 truncate flex-1">
+                          {transmittalForm.rfi_type || '—'}
+                        </span>
+                      </>
+                    )}
                   </div>
-                  <div className="md:col-span-4 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Transmittal ID:</span>
-                    <input
-                      type="text"
-                      value={transmittalForm.transmittal_id}
-                      onChange={(e) => setTransmittalForm({ ...transmittalForm, transmittal_id: e.target.value })}
-                      placeholder="e.g. TR-2024-001"
-                      className="w-full min-w-0 flex-1 font-sans text-gray-800 bg-transparent focus:outline-none"
-                    />
+                  <div className="col-span-4 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Transmittal ID:</span>
+                    {isGeneratingPdf ? (
+                      <span className="font-sans text-gray-900">{transmittalForm.transmittal_id || '—'}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={transmittalForm.transmittal_id}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, transmittal_id: e.target.value })}
+                          placeholder="e.g. TR-2024-001"
+                          className="print:hidden w-full min-w-0 flex-1 font-sans text-gray-900 bg-transparent focus:outline-none"
+                        />
+                        <span className="hidden print:inline font-sans text-gray-900">
+                          {transmittalForm.transmittal_id || '—'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Row 5: Purpose & Via */}
-                <div className="grid grid-cols-1 md:grid-cols-12 py-2 gap-2 md:gap-4">
-                  <div className="md:col-span-8 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Purpose:</span>
-                    <input
-                      type="text"
-                      value={transmittalForm.purpose}
-                      onChange={(e) => setTransmittalForm({ ...transmittalForm, purpose: e.target.value })}
-                      placeholder="e.g. For Review / For Directive"
-                      className="w-full min-w-0 flex-1 font-sans text-gray-800 bg-transparent focus:outline-none"
-                    />
+                <div className="grid grid-cols-12 py-1.5 gap-2 items-center">
+                  <div className="col-span-8 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Purpose:</span>
+                    {isGeneratingPdf ? (
+                      <span className="font-sans text-gray-900 truncate flex-1">{transmittalForm.purpose || '—'}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={transmittalForm.purpose}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, purpose: e.target.value })}
+                          placeholder="e.g. For Review / For Directive"
+                          className="print:hidden w-full min-w-0 flex-1 font-sans text-gray-900 bg-transparent focus:outline-none"
+                        />
+                        <span className="hidden print:inline font-sans text-gray-900 truncate flex-1">
+                          {transmittalForm.purpose || '—'}
+                        </span>
+                      </>
+                    )}
                   </div>
-                  <div className="md:col-span-4 flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2">
-                    <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Via:</span>
-                    <input
-                      type="text"
-                      value={transmittalForm.via}
-                      onChange={(e) => setTransmittalForm({ ...transmittalForm, via: e.target.value })}
-                      placeholder="e.g. Email / Portal"
-                      className="w-full min-w-0 flex-1 font-sans text-gray-800 bg-transparent focus:outline-none"
-                    />
+                  <div className="col-span-4 flex items-baseline gap-2 min-w-0">
+                    <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Via:</span>
+                    {isGeneratingPdf ? (
+                      <span className="font-sans text-gray-900">{transmittalForm.via || '—'}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={transmittalForm.via}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, via: e.target.value })}
+                          placeholder="e.g. Email / Portal"
+                          className="print:hidden w-full min-w-0 flex-1 font-sans text-gray-900 bg-transparent focus:outline-none"
+                        />
+                        <span className="hidden print:inline font-sans text-gray-900">
+                          {transmittalForm.via || '—'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Section 1: QUESTION */}
-              <div className="mt-6 sm:mt-8">
-                <h3 className="font-serif font-semibold text-[13px] tracking-wide text-gray-900 uppercase mb-2">
+              <div className="mt-3.5">
+                <h3 className="font-serif font-bold text-[12px] tracking-wide text-gray-900 uppercase mb-1">
                   QUESTION:
                 </h3>
-                <textarea
-                  rows={4}
-                  required
-                  value={transmittalForm.question}
-                  onChange={(e) => setTransmittalForm({ ...transmittalForm, question: e.target.value })}
-                  placeholder="Enter detailed RFI question, discrepancy, or clarification needed..."
-                  className="w-full text-xs font-sans leading-relaxed text-gray-800 p-3 bg-gray-50/50 border border-gray-300 rounded focus:border-procore-orange focus:bg-white print:border-none print:p-0 print:bg-transparent"
-                />
+                {isGeneratingPdf ? (
+                  <div className="w-full text-xs font-sans leading-relaxed text-gray-900 p-2.5 bg-gray-50/70 border border-gray-300 rounded min-h-[64px] whitespace-pre-wrap">
+                    {transmittalForm.question || '—'}
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      rows={3}
+                      required
+                      value={transmittalForm.question}
+                      onChange={(e) => setTransmittalForm({ ...transmittalForm, question: e.target.value })}
+                      placeholder="Enter detailed RFI question, discrepancy, or clarification needed..."
+                      className="print:hidden w-full text-xs font-sans leading-relaxed text-gray-900 p-2.5 bg-gray-50/70 border border-gray-300 rounded focus:border-procore-orange focus:bg-white resize-none"
+                    />
+                    <div className="hidden print:block w-full text-xs font-sans leading-relaxed text-gray-900 p-2.5 bg-gray-50/70 border border-gray-300 rounded min-h-[60px] whitespace-pre-wrap">
+                      {transmittalForm.question || '—'}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Section 2: SUGGESTION */}
-              <div className="mt-5 sm:mt-6">
-                <h3 className="font-serif font-semibold text-[13px] tracking-wide text-gray-900 uppercase mb-2">
+              <div className="mt-2.5">
+                <h3 className="font-serif font-bold text-[12px] tracking-wide text-gray-900 uppercase mb-1">
                   SUGGESTION:
                 </h3>
-                <textarea
-                  rows={3}
-                  value={transmittalForm.suggestion}
-                  onChange={(e) => setTransmittalForm({ ...transmittalForm, suggestion: e.target.value })}
-                  placeholder="Proposed resolution or contractor recommended solution..."
-                  className="w-full text-xs font-sans leading-relaxed text-gray-800 p-3 bg-gray-50/50 border border-gray-300 rounded focus:border-procore-orange focus:bg-white print:border-none print:p-0 print:bg-transparent"
-                />
+                {isGeneratingPdf ? (
+                  <div className="w-full text-xs font-sans leading-relaxed text-gray-900 p-2 bg-gray-50/70 border border-gray-300 rounded min-h-[48px] whitespace-pre-wrap">
+                    {transmittalForm.suggestion || '—'}
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      rows={2}
+                      value={transmittalForm.suggestion}
+                      onChange={(e) => setTransmittalForm({ ...transmittalForm, suggestion: e.target.value })}
+                      placeholder="Proposed resolution or contractor recommended solution..."
+                      className="print:hidden w-full text-xs font-sans leading-relaxed text-gray-900 p-2 bg-gray-50/70 border border-gray-300 rounded focus:border-procore-orange focus:bg-white resize-none"
+                    />
+                    <div className="hidden print:block w-full text-xs font-sans leading-relaxed text-gray-900 p-2 bg-gray-50/70 border border-gray-300 rounded min-h-[45px] whitespace-pre-wrap">
+                      {transmittalForm.suggestion || '—'}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Section 3: ANSWER */}
-              <div className="mt-5 sm:mt-6 border-t border-gray-300 pt-4">
-                <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
-                  <h3 className="font-serif font-semibold text-[13px] tracking-wide text-gray-900 uppercase">
+              <div className="mt-2.5 pt-2 border-t border-gray-300">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <h3 className="font-serif font-bold text-[12px] tracking-wide text-gray-900 uppercase">
                     ANSWER:
                   </h3>
-                  <span className="text-[10px] text-gray-500 font-sans italic print:hidden">
+                  <span className="text-[10px] text-gray-500 font-sans italic">
                     (Architect / Engineer Official Response)
                   </span>
                 </div>
-                <textarea
-                  rows={4}
-                  value={transmittalForm.official_response}
-                  onChange={(e) => setTransmittalForm({ ...transmittalForm, official_response: e.target.value })}
-                  placeholder="Official engineering directive, approved alterations, or instructions..."
-                  className="w-full text-xs font-sans leading-relaxed text-gray-900 font-medium p-3 bg-emerald-50/30 border border-emerald-300 rounded focus:border-emerald-600 focus:bg-white print:border-none print:p-0 print:bg-transparent"
-                />
+                {isGeneratingPdf ? (
+                  <div className="w-full text-xs font-sans leading-relaxed text-gray-900 font-medium p-2.5 bg-emerald-50/40 border border-emerald-300 rounded min-h-[64px] whitespace-pre-wrap">
+                    {transmittalForm.official_response || 'Pending Architect / Engineer directive.'}
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      rows={3}
+                      value={transmittalForm.official_response}
+                      onChange={(e) => setTransmittalForm({ ...transmittalForm, official_response: e.target.value })}
+                      placeholder="Official engineering directive, approved alterations, or instructions..."
+                      className="print:hidden w-full text-xs font-sans leading-relaxed text-gray-900 font-medium p-2.5 bg-emerald-50/40 border border-emerald-300 rounded focus:border-emerald-600 focus:bg-white resize-none"
+                    />
+                    <div className="hidden print:block w-full text-xs font-sans leading-relaxed text-gray-900 font-medium p-2.5 bg-emerald-50/40 border border-emerald-300 rounded min-h-[60px] whitespace-pre-wrap">
+                      {transmittalForm.official_response || 'Pending Architect / Engineer directive.'}
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Bottom Impacts & References: Stacked cleanly on mobile so radios never collide */}
-              <div className="mt-6 sm:mt-8 pt-4 border-t border-gray-300 text-xs space-y-4 font-sans">
+              {/* Bottom Impacts & References: Structured, clean, never overflowing */}
+              <div className="mt-3 pt-2.5 border-t border-gray-300 text-xs space-y-2 font-sans">
                 
                 {/* Cost & Schedule Impact Selectors */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {/* Cost Impact */}
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <span className="font-serif text-gray-900 font-medium shrink-0">Cost Impact:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-serif text-gray-900 font-bold shrink-0">Cost Impact:</span>
                     {(['Yes', 'No', 'TBD'] as const).map((opt) => (
-                      <label key={opt} className="flex items-center gap-1 cursor-pointer font-medium">
+                      <label key={opt} className="flex items-center gap-1 cursor-pointer font-medium text-xs">
                         <input
                           type="radio"
                           name="cost_impact"
@@ -712,21 +879,24 @@ export default function RFIsPage() {
                       </label>
                     ))}
                     {transmittalForm.cost_impact_choice === 'Yes' && (
-                      <input
-                        type="number"
-                        value={transmittalForm.cost_impact_estimate || ''}
-                        onChange={(e) => setTransmittalForm({ ...transmittalForm, cost_impact_estimate: parseFloat(e.target.value) || 0 })}
-                        placeholder="$ Impact"
-                        className="w-24 border border-gray-300 p-1 text-xs rounded"
-                      />
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold text-gray-700">$</span>
+                        <input
+                          type="number"
+                          value={transmittalForm.cost_impact_estimate || ''}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, cost_impact_estimate: parseFloat(e.target.value) || 0 })}
+                          placeholder="Amount"
+                          className="w-20 border border-gray-300 px-1.5 py-0.5 text-xs rounded bg-white"
+                        />
+                      </div>
                     )}
                   </div>
 
                   {/* Schedule Impact */}
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <span className="font-serif text-gray-900 font-medium shrink-0">Schedule Impact:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-serif text-gray-900 font-bold shrink-0">Schedule Impact:</span>
                     {(['Yes', 'No', 'TBD'] as const).map((opt) => (
-                      <label key={opt} className="flex items-center gap-1 cursor-pointer font-medium">
+                      <label key={opt} className="flex items-center gap-1 cursor-pointer font-medium text-xs">
                         <input
                           type="radio"
                           name="schedule_impact"
@@ -738,51 +908,72 @@ export default function RFIsPage() {
                       </label>
                     ))}
                     {transmittalForm.schedule_impact_choice === 'Yes' && (
-                      <input
-                        type="number"
-                        value={transmittalForm.schedule_impact_days || ''}
-                        onChange={(e) => setTransmittalForm({ ...transmittalForm, schedule_impact_days: parseInt(e.target.value) || 0 })}
-                        placeholder="Days"
-                        className="w-20 border border-gray-300 p-1 text-xs rounded"
-                      />
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={transmittalForm.schedule_impact_days || ''}
+                          onChange={(e) => setTransmittalForm({ ...transmittalForm, schedule_impact_days: parseInt(e.target.value) || 0 })}
+                          placeholder="Days"
+                          className="w-16 border border-gray-300 px-1.5 py-0.5 text-xs rounded bg-white"
+                        />
+                        <span className="text-gray-700 font-medium">Days</span>
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Drawing / Spec Reference */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2 pt-1">
-                  <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Drawing / Spec Reference:</span>
-                  <input
-                    type="text"
-                    value={transmittalForm.drawing_spec_ref}
-                    onChange={(e) => setTransmittalForm({ ...transmittalForm, drawing_spec_ref: e.target.value })}
-                    placeholder="e.g. M-201, S-102 (Detail 4/S-501)"
-                    className="w-full min-w-0 flex-1 text-xs font-sans text-gray-800 bg-transparent border-b border-gray-300 focus:outline-none focus:border-procore-orange"
-                  />
+                <div className="flex items-baseline gap-2 pt-0.5">
+                  <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Drawing / Spec Reference:</span>
+                  {isGeneratingPdf ? (
+                    <span className="font-sans text-gray-900 flex-1">{transmittalForm.drawing_spec_ref || '—'}</span>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={transmittalForm.drawing_spec_ref}
+                        onChange={(e) => setTransmittalForm({ ...transmittalForm, drawing_spec_ref: e.target.value })}
+                        placeholder="e.g. M-201, S-102 (Detail 4/S-501)"
+                        className="print:hidden w-full min-w-0 flex-1 text-xs font-sans text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-procore-orange"
+                      />
+                      <span className="hidden print:inline font-sans text-gray-900 flex-1">
+                        {transmittalForm.drawing_spec_ref || '—'}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {/* Attachments */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-baseline gap-1 sm:gap-2 pt-1">
-                  <span className="font-serif text-gray-900 font-medium whitespace-nowrap shrink-0">Attachments:</span>
-                  <input
-                    type="text"
-                    value={transmittalForm.attachments}
-                    onChange={(e) => setTransmittalForm({ ...transmittalForm, attachments: e.target.value })}
-                    placeholder="e.g. Cut sheets, 2D plan markup, photo attachments"
-                    className="w-full min-w-0 flex-1 text-xs font-sans text-gray-800 bg-transparent border-b border-gray-300 focus:outline-none focus:border-procore-orange"
-                  />
+                <div className="flex items-baseline gap-2 pt-0.5">
+                  <span className="font-serif text-gray-900 font-bold whitespace-nowrap shrink-0">Attachments:</span>
+                  {isGeneratingPdf ? (
+                    <span className="font-sans text-gray-900 flex-1">{transmittalForm.attachments || '—'}</span>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={transmittalForm.attachments}
+                        onChange={(e) => setTransmittalForm({ ...transmittalForm, attachments: e.target.value })}
+                        placeholder="e.g. Cut sheets, 2D plan markup, photo attachments"
+                        className="print:hidden w-full min-w-0 flex-1 text-xs font-sans text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-procore-orange"
+                      />
+                      <span className="hidden print:inline font-sans text-gray-900 flex-1">
+                        {transmittalForm.attachments || '—'}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Exact Footer with Line Border: Responsive layout */}
-              <div className="mt-10 sm:mt-14 pt-3 border-t-2 border-gray-900 flex flex-col sm:flex-row justify-between items-center text-center sm:text-left gap-2 text-[11px] font-sans font-bold text-gray-900">
+              {/* Exact Footer with Line Border */}
+              <div className="mt-4 pt-2 border-t-2 border-gray-900 flex justify-between items-center text-left text-[11px] font-sans font-bold text-gray-900">
                 <div>BTX CONTRACTORS</div>
                 <div className="text-gray-700 font-medium">712 Main St. | Jourdanton, TX 78026</div>
                 <div>830-879-5474</div>
               </div>
 
               {/* Action Buttons in Web Mode */}
-              <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 print:hidden">
+              <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 print:hidden">
                 <button
                   type="button"
                   onClick={() => setViewMode('register')}
@@ -811,6 +1002,44 @@ export default function RFIsPage() {
               </div>
             </div>
           </form>
+
+          {/* Strict 1-Page Letter Portrait Print Styles */}
+          <style jsx global>{`
+            @media print {
+              @page {
+                size: letter portrait;
+                margin: 0.3in 0.35in;
+              }
+              html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                height: 100% !important;
+                overflow: hidden !important;
+              }
+              .print\\:hidden {
+                display: none !important;
+              }
+              #rfi-transmittal-doc {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+                page-break-before: avoid !important;
+                break-before: avoid !important;
+                overflow: hidden !important;
+              }
+            }
+          `}</style>
         </div>
       )}
 
