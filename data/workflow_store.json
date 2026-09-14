@@ -989,6 +989,16 @@
   "vendor_partners": [],
   "audit_activities": [
     {
+      "id": "rec-1789425460000",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_logged",
+      "module": "Expenses",
+      "description": "Logged $93.88 invoice #4708030 from MG Building Materials (Insulation Batts) - Conviva Jourdanton",
+      "timestamp": "2026-09-14T22:37:40.296Z",
+      "created_at": "2026-09-14T22:37:40.296Z"
+    },
+    {
       "id": "rec-1789425427000",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "actor_name": "Admin",
