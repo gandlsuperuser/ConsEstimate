@@ -388,7 +388,8 @@ export default function OwnerBillingPage() {
     // Helper to identify custom subtotal/summary rows (never double count in division totals)
     const isSummaryRow = (desc: string) => {
       const d = (desc || '').trim().toLowerCase();
-      return /^(lump sum|overhead|profit|subtotal|total\b|markup|taxes|tax\b|permit fee|the draw|draw\b|the balance|balance:)/i.test(d);
+      return /^(lump sum price|the draw\b|the balance\b)/i.test(d) ||
+        (/^subtotal/i.test(d) && !/materials/i.test(d));
     };
 
     // Find any explicit Draw row if entered on the continuation sheet
@@ -2293,30 +2294,44 @@ export default function OwnerBillingPage() {
                 );
               })}
             </tbody>
-            {/* Totals row - Only sum Column E at the bottom as requested ($290,292.89) */}
+            {/* Totals row - Reconciles Column C to Contract Sum ($1,044,266.65) and Column E/G to Draw ($290,292.89) */}
             <tfoot>
               <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold text-[11px] print:border-black">
                 <td className="p-2 text-center border-r border-gray-300 print:border-black" colSpan={2}>
                   <span className="uppercase text-gray-700 font-black text-[10px] tracking-wider">TOTALS</span>
                 </td>
-                {/* Column C: Scheduled Value - empty (no bottom total price info) */}
-                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
-                {/* Column D: Work Completed From Previous - empty */}
-                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
-                {/* Column E: Work Completed This Period - ONLY sum column E */}
+                {/* Column C: Scheduled Value */}
+                <td className="p-2 text-right border-r border-gray-300 font-black text-gray-900 print:border-black">
+                  {totals.scheduled_total > 0 ? formatCurrencyUSD(totals.scheduled_total) : '$0.00'}
+                </td>
+                {/* Column D: Work Completed From Previous */}
+                <td className="p-2 text-right border-r border-gray-300 text-gray-700 print:border-black">
+                  {totals.prev_total > 0 ? formatCurrencyUSD(totals.prev_total) : ''}
+                </td>
+                {/* Column E: Work Completed This Period */}
                 <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">
                   {totals.this_period_total > 0 ? formatCurrencyUSD(totals.this_period_total) : '$0.00'}
                 </td>
-                {/* Column F: Materials Stored - empty */}
-                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
-                {/* Column G: Total Completed & Stored - empty */}
-                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
-                {/* Column G/C%: Complete - empty */}
-                <td className="p-2 text-center border-r border-gray-300 print:border-black"></td>
-                {/* Column H: Balance to Finish - empty */}
-                <td className="p-2 text-right border-r border-gray-300 print:border-black"></td>
-                {/* Column I: Retainage - empty */}
-                <td className="p-2 text-right print:border-black"></td>
+                {/* Column F: Materials Stored */}
+                <td className="p-2 text-right border-r border-gray-300 text-gray-700 print:border-black">
+                  {totals.stored_total > 0 ? formatCurrencyUSD(totals.stored_total) : ''}
+                </td>
+                {/* Column G: Total Completed & Stored */}
+                <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">
+                  {totals.total_completed_and_stored > 0 ? formatCurrencyUSD(totals.total_completed_and_stored) : '$0.00'}
+                </td>
+                {/* Column G/C%: Complete */}
+                <td className="p-2 text-center border-r border-gray-300 font-bold text-gray-700 print:border-black">
+                  {totals.scheduled_total > 0 ? `${Math.round((totals.total_completed_and_stored / totals.scheduled_total) * 100)}%` : ''}
+                </td>
+                {/* Column H: Balance to Finish */}
+                <td className="p-2 text-right border-r border-gray-300 font-black text-gray-900 print:border-black">
+                  {totals.balance_total > 0 ? formatCurrencyUSD(totals.balance_total) : '$0.00'}
+                </td>
+                {/* Column I: Retainage */}
+                <td className="p-2 text-right print:border-black text-gray-700 font-medium">
+                  {totals.total_retainage > 0 ? formatCurrencyUSD(totals.total_retainage) : ''}
+                </td>
                 <td className="print:hidden"></td>
               </tr>
             </tfoot>
