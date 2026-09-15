@@ -959,6 +959,16 @@
   "vendor_partners": [],
   "audit_activities": [
     {
+      "id": "rec-1789513700000",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_updated",
+      "module": "Expenses",
+      "description": "Updated HVAC ducts expense: Logged $7,790.84 final invoice #9129 from Duct Werx S&K Metal Co. (replaces estimate #3345 for $7,881.95) - Conviva Jourdanton",
+      "timestamp": "2026-09-15T23:08:22.000Z",
+      "created_at": "2026-09-15T23:08:22.000Z"
+    },
+    {
       "id": "rec-1789425460000",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "actor_name": "Admin",
