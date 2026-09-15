@@ -959,6 +959,16 @@
   "vendor_partners": [],
   "audit_activities": [
     {
+      "id": "rec-1789513745000",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_logged",
+      "module": "Expenses",
+      "description": "Logged $197.67 invoice #3118630-2 from Action Gypsum Supply (Phase 1 Structural) - Conviva Jourdanton",
+      "timestamp": "2026-09-15T23:09:03.413Z",
+      "created_at": "2026-09-15T23:09:03.413Z"
+    },
+    {
       "id": "rec-1789513700000",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "actor_name": "Admin",
