@@ -959,6 +959,26 @@
   "vendor_partners": [],
   "audit_activities": [
     {
+      "id": "rec-1789668350000",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_logged",
+      "module": "Expenses",
+      "description": "Logged $172.11 Amazon order #113-2593070-9387410 (Apple iPad 9th Gen) under Supplies - Conviva Jourdanton",
+      "timestamp": "2026-09-17T18:05:56.417Z",
+      "created_at": "2026-09-17T18:05:56.417Z"
+    },
+    {
+      "id": "rec-1789668351000",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_logged",
+      "module": "Expenses",
+      "description": "Logged $210.01 Amazon order #113-6057191-8425050 (Apple iPad 9th Gen) under Supplies - Conviva Jourdanton",
+      "timestamp": "2026-09-17T18:05:56.626Z",
+      "created_at": "2026-09-17T18:05:56.626Z"
+    },
+    {
       "id": "rec-1789668300000",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "actor_name": "Admin",
