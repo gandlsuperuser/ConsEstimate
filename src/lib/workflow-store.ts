@@ -27,6 +27,9 @@ const memStore: Record<string, any[]> = {
   owner_billing_items: [],
   vendor_partners: [],
   audit_activities: [],
+  estimate_catalog_items: [],
+  btx_estimates: [],
+  submittal_extensions: [],
   in_app_notifications: [
     {
       id: 'notif-1',

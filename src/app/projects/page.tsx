@@ -267,10 +267,10 @@ export default function ProjectsPage() {
       )}
 
       {/* Filter Bar */}
-      <div className="bg-white rounded-lg border border-procore-border p-3 mb-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+      <div className="bg-[#121215] rounded-xl border border-[#27272a] p-3 mb-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 w-full sm:w-auto">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-procore-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input
@@ -278,7 +278,7 @@ export default function ProjectsPage() {
             placeholder="Search projects..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-procore-border rounded-md focus:border-procore-orange focus:ring-1 focus:ring-procore-orange transition-colors bg-white"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-[#27272a] rounded-lg focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5] transition-colors bg-[#09090b] text-[#f4f4f5] placeholder-[#71717a]"
           />
         </div>
 
@@ -286,16 +286,16 @@ export default function ProjectsPage() {
         <div className="flex items-center gap-1.5 flex-wrap">
           {(['all', 'active', 'bidding', 'complete'] as const).map((status) => {
             const chipStyles: Record<string, string> = {
-              all: statusFilter === 'all' ? 'bg-procore-text text-white' : 'bg-gray-100 text-procore-text-secondary hover:bg-gray-200',
-              active: statusFilter === 'active' ? 'bg-green-600 text-white' : 'bg-green-50 text-green-700 hover:bg-green-100',
-              bidding: statusFilter === 'bidding' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100',
-              complete: statusFilter === 'complete' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
+              all: statusFilter === 'all' ? 'bg-[#f4f4f5] text-[#09090b] font-extrabold' : 'bg-[#18181b] text-[#a1a1aa] hover:text-[#f4f4f5] border border-[#27272a]',
+              active: statusFilter === 'active' ? 'bg-emerald-600 text-white font-bold' : 'bg-[#0f1f14] text-emerald-400 hover:bg-[#14281a] border border-emerald-900/40',
+              bidding: statusFilter === 'bidding' ? 'bg-amber-600 text-white font-bold' : 'bg-[#1f1a0f] text-amber-400 hover:bg-[#282214] border border-amber-900/40',
+              complete: statusFilter === 'complete' ? 'bg-blue-600 text-white font-bold' : 'bg-[#0f172a] text-blue-400 hover:bg-[#15203b] border border-blue-900/40',
             };
             return (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors capitalize ${chipStyles[status]}`}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors capitalize ${chipStyles[status]}`}
               >
                 {status === 'all' ? 'All' : status} ({statusCounts[status]})
               </button>
@@ -307,7 +307,7 @@ export default function ProjectsPage() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="text-[12px] border border-procore-border rounded-md px-2.5 py-1.5 bg-white text-procore-text-secondary focus:border-procore-orange"
+          className="text-[12px] border border-[#27272a] rounded-lg px-2.5 py-1.5 bg-[#09090b] text-[#f4f4f5] focus:border-[#f4f4f5]"
         >
           <option value="all">All Types</option>
           <option value="commercial">Commercial</option>
@@ -315,10 +315,10 @@ export default function ProjectsPage() {
         </select>
 
         {/* View mode toggle */}
-        <div className="flex items-center border border-procore-border rounded-md overflow-hidden ml-auto">
+        <div className="flex items-center border border-[#27272a] rounded-lg overflow-hidden ml-auto">
           <button
             onClick={() => setViewMode('thumbnail')}
-            className={`p-1.5 transition-colors ${viewMode === 'thumbnail' ? 'bg-procore-orange text-white' : 'bg-white text-procore-text-muted hover:bg-gray-50'}`}
+            className={`p-1.5 transition-colors ${viewMode === 'thumbnail' ? 'bg-[#f4f4f5] text-[#09090b]' : 'bg-[#09090b] text-[#a1a1aa] hover:text-[#f4f4f5]'}`}
             title="Thumbnail View"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -327,7 +327,7 @@ export default function ProjectsPage() {
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-1.5 transition-colors ${viewMode === 'list' ? 'bg-procore-orange text-white' : 'bg-white text-procore-text-muted hover:bg-gray-50'}`}
+            className={`p-1.5 transition-colors ${viewMode === 'list' ? 'bg-[#f4f4f5] text-[#09090b]' : 'bg-[#09090b] text-[#a1a1aa] hover:text-[#f4f4f5]'}`}
             title="List View"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,45 +354,45 @@ export default function ProjectsPage() {
           </div>
         ) : (
           /* List View */
-          <div className="bg-white rounded-lg border border-procore-border overflow-hidden">
+          <div className="bg-[#121215] rounded-xl border border-[#27272a] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-procore-border">
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-procore-text-muted">Project</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-procore-text-muted hidden md:table-cell">Client</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-procore-text-muted hidden lg:table-cell">Location</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-procore-text-muted">Status</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-procore-text-muted hidden sm:table-cell">Type</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-procore-text-muted hidden lg:table-cell">Start Date</th>
-                  <th className="px-4 py-3 w-20 text-right text-[11px] font-bold uppercase tracking-wider text-procore-text-muted">Actions</th>
+                <tr className="bg-[#09090b] border-b border-[#27272a]">
+                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa]">Project</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden md:table-cell">Client</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden lg:table-cell">Location</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa]">Status</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden sm:table-cell">Type</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden lg:table-cell">Start Date</th>
+                  <th className="px-4 py-3 w-20 text-right text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa]">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProjects.map((project, i) => {
                   const statusBadge: Record<string, string> = {
-                    active: 'bg-green-100 text-green-800',
-                    bidding: 'bg-amber-100 text-amber-800',
-                    complete: 'bg-blue-100 text-blue-800',
+                    active: 'bg-emerald-950/80 text-emerald-400 border border-emerald-800',
+                    bidding: 'bg-amber-950/80 text-amber-400 border border-amber-800',
+                    complete: 'bg-blue-950/80 text-blue-400 border border-blue-800',
                   };
                   return (
                     <tr
                       key={project.id}
-                      className={`border-b border-procore-border-light hover:bg-procore-orange-light/50 transition-colors cursor-pointer project-card ${i % 2 === 0 ? '' : 'bg-gray-50/50'}`}
+                      className={`border-b border-[#27272a] hover:bg-[#18181b] transition-colors cursor-pointer project-card ${i % 2 === 0 ? 'bg-[#121215]' : 'bg-[#0e0e11]'}`}
                     >
                       <td className="px-4 py-3">
-                        <Link href={`/projects/${project.id}`} className="font-semibold text-procore-text hover:text-procore-orange transition-colors">
+                        <Link href={`/projects/${project.id}`} className="font-bold text-[#f4f4f5] hover:text-procore-orange transition-colors">
                           {project.name}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-procore-text-secondary hidden md:table-cell">{project.client_name}</td>
-                      <td className="px-4 py-3 text-procore-text-secondary hidden lg:table-cell truncate max-w-[200px]">{project.address}</td>
+                      <td className="px-4 py-3 text-[#d4d4d8] hidden md:table-cell">{project.client_name}</td>
+                      <td className="px-4 py-3 text-[#a1a1aa] hidden lg:table-cell truncate max-w-[200px]">{project.address}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${statusBadge[project.status] || 'bg-gray-100 text-gray-700'}`}>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${statusBadge[project.status] || 'bg-[#18181b] text-[#a1a1aa]'}`}>
                           {project.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-procore-text-secondary capitalize hidden sm:table-cell">{project.type}</td>
-                      <td className="px-4 py-3 text-procore-text-secondary hidden lg:table-cell">
+                      <td className="px-4 py-3 text-[#d4d4d8] capitalize hidden sm:table-cell">{project.type}</td>
+                      <td className="px-4 py-3 text-[#a1a1aa] hidden lg:table-cell">
                         {project.start_date ? new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                       </td>
                       <td className="px-4 py-3">
@@ -403,7 +403,7 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               handleEdit(project);
                             }}
-                            className="p-1.5 rounded text-procore-text-muted hover:text-procore-orange hover:bg-orange-50 transition-colors"
+                            className="p-1.5 rounded text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-[#27272a] transition-colors"
                             title="Edit Project"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -416,7 +416,7 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               openDeleteModal(project);
                             }}
-                            className="p-1.5 rounded text-procore-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-1.5 rounded text-[#a1a1aa] hover:text-red-400 hover:bg-[#27272a] transition-colors"
                             title="Delete Project (Admin)"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -433,19 +433,19 @@ export default function ProjectsPage() {
           </div>
         )
       ) : (
-        <div className="text-center py-16 bg-white rounded-lg border border-procore-border">
-          <svg className="w-12 h-12 text-procore-text-muted mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-16 bg-[#121215] rounded-xl border border-[#27272a]">
+          <svg className="w-12 h-12 text-[#71717a] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
           </svg>
           {search || statusFilter !== 'all' || typeFilter !== 'all' ? (
             <>
-              <p className="text-base font-semibold text-procore-text mb-1">No matching projects</p>
-              <p className="text-sm text-procore-text-muted">Try adjusting your search or filters</p>
+              <p className="text-base font-semibold text-[#f4f4f5] mb-1">No matching projects</p>
+              <p className="text-sm text-[#a1a1aa]">Try adjusting your search or filters</p>
             </>
           ) : (
             <>
-              <p className="text-base font-semibold text-procore-text mb-1">No projects yet</p>
-              <p className="text-sm text-procore-text-muted mb-4">Create your first project to get started</p>
+              <p className="text-base font-semibold text-[#f4f4f5] mb-1">No projects yet</p>
+              <p className="text-sm text-[#a1a1aa] mb-4">Create your first project to get started</p>
               <Link
                 href="/projects/new"
                 className="inline-flex items-center gap-1.5 bg-procore-orange text-white px-4 py-2 rounded-md hover:bg-procore-orange-hover transition-colors text-sm font-bold"
@@ -462,63 +462,63 @@ export default function ProjectsPage() {
 
       {/* Edit Modal */}
       {editingProject && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 border border-procore-border">
-            <h2 className="text-lg font-bold mb-4 text-procore-text">Edit Project</h2>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#121215] rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-[#27272a]">
+            <h2 className="text-lg font-bold mb-4 text-[#f4f4f5]">Edit Project</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Project Name</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Project Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange focus:ring-1 focus:ring-procore-orange"
+                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Type</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Type</label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as 'commercial' | 'residential' })}
-                  className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange"
+                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                 >
                   <option value="residential">Residential</option>
                   <option value="commercial">Commercial</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Client Name</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Client Name</label>
                 <input
                   type="text"
                   value={formData.client_name}
                   onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                  className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange focus:ring-1 focus:ring-procore-orange"
+                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Address</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Address</label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange focus:ring-1 focus:ring-procore-orange"
+                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Start Date</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Start Date</label>
                 <input
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange"
+                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Status</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Status</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'bidding' | 'complete' })}
-                  className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange"
+                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                 >
                   <option value="active">Active</option>
                   <option value="bidding">Bidding</option>
@@ -527,22 +527,22 @@ export default function ProjectsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Overhead %</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Overhead %</label>
                   <input
                     type="number"
                     value={formData.overhead_pct}
                     onChange={(e) => setFormData({ ...formData, overhead_pct: parseFloat(e.target.value) || 0 })}
-                    className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange"
+                    className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                     step="0.1"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">Profit %</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Profit %</label>
                   <input
                     type="number"
                     value={formData.profit_pct}
                     onChange={(e) => setFormData({ ...formData, profit_pct: parseFloat(e.target.value) || 0 })}
-                    className="w-full border border-procore-border rounded-md px-3 py-2 text-sm focus:border-procore-orange"
+                    className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                     step="0.1"
                   />
                 </div>
@@ -551,14 +551,14 @@ export default function ProjectsPage() {
             <div className="flex gap-2 mt-6 justify-end">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 text-sm border border-procore-border rounded-md hover:bg-gray-50 text-procore-text-secondary font-medium"
+                className="px-4 py-2 text-sm border border-[#27272a] rounded-lg hover:bg-[#18181b] text-[#d4d4d8] hover:text-[#f4f4f5] font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 text-sm bg-procore-orange text-white rounded-md hover:bg-procore-orange-hover disabled:opacity-50 font-bold"
+                className="px-4 py-2 text-sm bg-[#f4f4f5] text-[#09090b] font-extrabold rounded-lg hover:bg-white disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -569,41 +569,41 @@ export default function ProjectsPage() {
 
       {/* Delete Confirmation Modal (Admin) */}
       {projectToDelete && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full border border-red-200 overflow-hidden">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121215] rounded-xl shadow-2xl max-w-md w-full border border-[#27272a] overflow-hidden">
             {/* Header */}
             <div className="p-6 pb-4">
               <div className="flex items-start gap-3.5">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-red-600">
+                <div className="w-10 h-10 rounded-full bg-red-950/80 border border-red-800 flex items-center justify-center flex-shrink-0 text-red-400">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-procore-text">Delete Project</h3>
-                  <p className="text-xs text-procore-text-muted mt-0.5">Admin privilege required</p>
+                  <h3 className="text-base font-bold text-[#f4f4f5]">Delete Project</h3>
+                  <p className="text-xs text-[#a1a1aa] mt-0.5">Admin privilege required</p>
                 </div>
               </div>
 
-              <div className="mt-4 text-sm text-procore-text-secondary space-y-3">
+              <div className="mt-4 text-sm text-[#d4d4d8] space-y-3">
                 <p>
-                  Are you sure you want to permanently delete <strong className="text-procore-text font-semibold">"{projectToDelete.name}"</strong>?
+                  Are you sure you want to permanently delete <strong className="text-[#f4f4f5] font-bold">"{projectToDelete.name}"</strong>?
                 </p>
 
-                <div className="bg-red-50 border border-red-100 rounded-md p-3 text-xs text-red-800 space-y-1.5">
-                  <p className="font-bold flex items-center gap-1.5 text-red-900">
+                <div className="bg-[#1c0d0d] border border-red-900/60 rounded-lg p-3 text-xs text-red-300 space-y-1.5">
+                  <p className="font-bold flex items-center gap-1.5 text-red-400">
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     Warning: Permanent Deletion
                   </p>
-                  <p className="text-red-700 leading-relaxed">
+                  <p className="text-red-300 leading-relaxed">
                     This will permanently delete the project along with all associated estimates, change orders, owner billings, RFIs, photos, and records. This action cannot be undone.
                   </p>
                 </div>
 
                 {deleteError && (
-                  <div className="bg-red-100 border border-red-300 text-red-900 px-3 py-2 rounded text-xs">
+                  <div className="bg-red-950 border border-red-800 text-red-300 px-3 py-2 rounded-lg text-xs">
                     {deleteError}
                   </div>
                 )}
@@ -611,12 +611,12 @@ export default function ProjectsPage() {
             </div>
 
             {/* Footer buttons */}
-            <div className="bg-gray-50 px-6 py-3.5 border-t border-procore-border flex justify-end gap-2.5">
+            <div className="bg-[#09090b] px-6 py-3.5 border-t border-[#27272a] flex justify-end gap-2.5">
               <button
                 type="button"
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
-                className="px-3.5 py-1.5 text-xs font-semibold text-procore-text-secondary hover:text-procore-text hover:bg-gray-200/60 rounded-md transition-colors disabled:opacity-50"
+                className="px-3.5 py-1.5 text-xs font-semibold text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-[#18181b] rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -624,7 +624,7 @@ export default function ProjectsPage() {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="px-4 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-md shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isDeleting ? (
                   <>

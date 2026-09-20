@@ -23,43 +23,43 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
     }
 
     const statusStyles: Record<string, string> = {
-        active: 'bg-green-100 text-green-800',
-        bidding: 'bg-amber-100 text-amber-800',
-        complete: 'bg-blue-100 text-blue-800',
+        active: 'bg-emerald-950 text-emerald-300 border border-emerald-800',
+        bidding: 'bg-amber-950 text-amber-300 border border-amber-800',
+        complete: 'bg-blue-950 text-blue-300 border border-blue-800',
     };
 
     return (
         <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 print:m-0 print:p-0">
             {/* Procore-style project header bar */}
-            <div className="bg-white border-b border-procore-border px-4 sm:px-6 lg:px-8 py-3 print:hidden">
+            <div className="bg-[#09090b] border-b border-[#27272a] px-4 sm:px-6 lg:px-8 py-3 print:hidden">
                 <div className="max-w-[1400px] mx-auto">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Link
                                 href="/projects"
-                                className="text-procore-text-muted hover:text-procore-orange transition-colors"
+                                className="text-[#a1a1aa] hover:text-[#f4f4f5] transition-colors"
                                 title="Back to Portfolio"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
                                 </svg>
                             </Link>
-                            <div className="w-px h-6 bg-procore-border" />
+                            <div className="w-px h-6 bg-[#27272a]" />
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <h1 className="text-lg font-bold text-procore-text tracking-tight">{project.name}</h1>
-                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusStyles[project.status] || 'bg-gray-100 text-gray-700'}`}>
+                                    <h1 className="text-lg font-bold text-[#f4f4f5] tracking-tight">{project.name}</h1>
+                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusStyles[project.status] || 'bg-[#18181b] text-[#a1a1aa] border border-[#27272a]'}`}>
                                         {project.status}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-3 text-[12px] text-procore-text-secondary mt-0.5">
+                                <div className="flex items-center gap-3 text-[12px] text-[#a1a1aa] mt-0.5">
                                     <span className="flex items-center gap-1">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                                         </svg>
                                         {project.client_name}
                                     </span>
-                                    <span className="text-procore-border">|</span>
+                                    <span className="text-[#27272a]">|</span>
                                     <span className="flex items-center gap-1">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -67,7 +67,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
                                         </svg>
                                         {project.address}
                                     </span>
-                                    <span className="text-procore-border">|</span>
+                                    <span className="text-[#27272a]">|</span>
                                     <span className="capitalize">{project.type}</span>
                                 </div>
                             </div>

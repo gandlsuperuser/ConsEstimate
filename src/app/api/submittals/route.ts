@@ -1,6 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import {
+  getProjectTasks,
+  getSubmittalExtension,
+  saveSubmittalExtension,
+  enrichSubmittalWithSchedule,
+  SubmittalExtensionData,
+} from '@/lib/submittal-store';
+import { deleteWorkflowRecord } from '@/lib/workflow-store';
+import { Submittal } from '@/types';
 
 const statuses = ['draft', 'pending', 'under_review', 'approved', 'approved_as_noted', 'revise_resubmit', 'rejected'];
 const risks = ['low', 'medium', 'high', 'critical'];
@@ -58,11 +67,43 @@ function failure(error: unknown) {
 export async function GET(request: NextRequest) {
   try {
     const projectId = request.nextUrl.searchParams.get('projectId');
-    requireId(projectId, 'projectId');
     const supabase = await createClient();
-    const { data, error } = await supabase.from('submittals').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+
+    let query = supabase.from('submittals').select('*').order('created_at', { ascending: false });
+    if (projectId && projectId !== 'all') {
+      requireId(projectId, 'projectId');
+      query = query.eq('project_id', projectId);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    return NextResponse.json({ submittals: data ?? [] });
+
+    const rawSubmittals = (data ?? []) as Submittal[];
+    if (rawSubmittals.length === 0) {
+      return NextResponse.json({ submittals: [] });
+    }
+
+    // Cache project tasks by project_id
+    const projectTaskMap = new Map<string, any[]>();
+    const uniqueProjectIds = Array.from(new Set(rawSubmittals.map(s => s.project_id)));
+
+    await Promise.all(
+      uniqueProjectIds.map(async (pId) => {
+        const tasks = await getProjectTasks(pId);
+        projectTaskMap.set(pId, tasks);
+      })
+    );
+
+    // Enrich each submittal with schedule activities, backward dates, and extensions
+    const enriched = await Promise.all(
+      rawSubmittals.map(async (submittal) => {
+        const tasks = projectTaskMap.get(submittal.project_id) || [];
+        const extension = await getSubmittalExtension(submittal.id, submittal.project_id);
+        return enrichSubmittalWithSchedule(submittal, tasks, extension);
+      })
+    );
+
+    return NextResponse.json({ submittals: enriched });
   } catch (error) { return failure(error); }
 }
 
@@ -73,16 +114,36 @@ export async function POST(request: NextRequest) {
     const fields = validateFields(body);
     if (!fields.title) throw new InvalidInput('Submittal title is required.');
     const supabase = await createClient();
-    // A successful response always represents a durable database record, never a local fallback.
+
     const { data, error } = await supabase.from('submittals').insert({
       ...fields,
       project_id: body.project_id,
       spec_division: fields.spec_division || '23 - HVAC',
       submittal_number: fields.submittal_number || `SUB-${randomUUID()}`,
     }).select().single();
+
     if (error) throw error;
     if (!data) throw new Error('Storage did not return the created submittal.');
-    return NextResponse.json({ success: true, submittal: data }, { status: 201 });
+
+    const submittal = data as Submittal;
+
+    // Handle extension data (linked activities, review duration, etc.)
+    const ext = await getSubmittalExtension(submittal.id, submittal.project_id);
+    if (Array.isArray(body.linked_activity_ids)) {
+      ext.linked_activity_ids = body.linked_activity_ids as string[];
+    }
+    if (typeof body.lead_time_weeks === 'number') {
+      ext.lead_time_weeks = body.lead_time_weeks;
+    }
+    if (typeof body.review_duration_days === 'number') {
+      ext.review_duration_days = body.review_duration_days;
+    }
+    await saveSubmittalExtension(ext);
+
+    const tasks = await getProjectTasks(submittal.project_id);
+    const enriched = enrichSubmittalWithSchedule(submittal, tasks, ext);
+
+    return NextResponse.json({ success: true, submittal: enriched }, { status: 201 });
   } catch (error) { return failure(error); }
 }
 
@@ -91,13 +152,110 @@ export async function PATCH(request: NextRequest) {
     const body = await readBody(request);
     requireId(body.id, 'id');
     requireId(body.project_id, 'project_id');
+
     const updates = validateFields(body);
-    if (!Object.keys(updates).length) throw new InvalidInput('At least one editable field is required.');
     const supabase = await createClient();
-    const { data, error } = await supabase.from('submittals').update(updates).eq('id', body.id).eq('project_id', body.project_id).select().maybeSingle();
-    if (error) throw error;
-    if (!data) return NextResponse.json({ error: 'Submittal not found in this project.' }, { status: 404 });
-    return NextResponse.json({ success: true, submittal: data });
+
+    let updatedSubmittal: Submittal | null = null;
+    if (Object.keys(updates).length > 0) {
+      const { data, error } = await supabase
+        .from('submittals')
+        .update(updates)
+        .eq('id', body.id)
+        .eq('project_id', body.project_id)
+        .select()
+        .maybeSingle();
+
+      if (error) throw error;
+      updatedSubmittal = data as Submittal;
+    } else {
+      const { data } = await supabase
+        .from('submittals')
+        .select('*')
+        .eq('id', body.id)
+        .eq('project_id', body.project_id)
+        .maybeSingle();
+      updatedSubmittal = data as Submittal;
+    }
+
+    if (!updatedSubmittal) {
+      return NextResponse.json({ error: 'Submittal not found in this project.' }, { status: 404 });
+    }
+
+    // Update Extension fields
+    const ext = await getSubmittalExtension(body.id as string, body.project_id as string);
+    let extModified = false;
+
+    if (Array.isArray(body.linked_activity_ids)) {
+      const oldLinks = ext.linked_activity_ids || [];
+      const newLinks = body.linked_activity_ids as string[];
+      ext.linked_activity_ids = newLinks;
+      extModified = true;
+
+      // Add audit entry for link change
+      ext.audit_trail.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        event_type: newLinks.length > oldLinks.length ? 'activity_linked' : 'activity_unlinked',
+        summary: `Schedule activities updated (${newLinks.length} linked)`,
+        details: `Linked schedule activity IDs: ${newLinks.join(', ') || 'None'}. Submittal schedule dates recalculated.`,
+        actor: 'User',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (typeof body.lead_time_weeks === 'number' && body.lead_time_weeks !== ext.lead_time_weeks) {
+      const oldLt = ext.lead_time_weeks;
+      ext.lead_time_weeks = body.lead_time_weeks;
+      extModified = true;
+      ext.audit_trail.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        event_type: 'lead_time_updated',
+        summary: `Lead time updated to ${ext.lead_time_weeks} weeks`,
+        details: `Lead time adjusted from ${oldLt} weeks to ${ext.lead_time_weeks} weeks. Required submit-by date recalculated.`,
+        actor: 'User',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (typeof body.review_duration_days === 'number') {
+      ext.review_duration_days = body.review_duration_days;
+      extModified = true;
+    }
+
+    if (body.status && body.status !== updatedSubmittal.status) {
+      ext.audit_trail.unshift({
+        id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        event_type: 'status_changed',
+        summary: `Status changed to ${body.status}`,
+        details: `Submittal status transition from ${updatedSubmittal.status} to ${body.status}.`,
+        actor: 'User',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (Array.isArray(body.revisions)) {
+      ext.revisions = body.revisions as any;
+      extModified = true;
+    }
+
+    if (Array.isArray(body.comments)) {
+      ext.comments = body.comments as any;
+      extModified = true;
+    }
+
+    if (Array.isArray(body.attachments)) {
+      ext.attachments = body.attachments as any;
+      extModified = true;
+    }
+
+    if (extModified) {
+      await saveSubmittalExtension(ext);
+    }
+
+    const tasks = await getProjectTasks(updatedSubmittal.project_id);
+    const enriched = enrichSubmittalWithSchedule(updatedSubmittal, tasks, ext);
+
+    return NextResponse.json({ success: true, submittal: enriched });
   } catch (error) { return failure(error); }
 }
 
@@ -111,6 +269,10 @@ export async function DELETE(request: NextRequest) {
     const { data, error } = await supabase.from('submittals').delete().eq('id', id).eq('project_id', projectId).select('id').maybeSingle();
     if (error) throw error;
     if (!data) return NextResponse.json({ error: 'Submittal not found in this project.' }, { status: 404 });
+
+    // Clean up extension in workflow store
+    await deleteWorkflowRecord('submittal_extensions', id);
+
     return NextResponse.json({ success: true });
   } catch (error) { return failure(error); }
 }

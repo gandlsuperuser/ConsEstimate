@@ -6,8 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "test:submittals": "node --test tests/submittals.test.mjs"
+    "test:submittals": "node --test tests/submittals.test.mjs",
+    "test:schedule": "node --experimental-strip-types --test tests/submittal-schedule-engine.test.mjs",
+    "test": "npm run test:submittals && npm run test:schedule"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",

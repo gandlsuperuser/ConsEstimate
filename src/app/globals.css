@@ -3,24 +3,24 @@
 @theme inline {
   --font-sans: var(--font-inter);
 
-  /* Procore design tokens */
+  /* Zinc Dark #09090b & #f4f4f5 Contrast Tokens */
   --color-procore-orange: #F47E20;
   --color-procore-orange-hover: #E06D10;
-  --color-procore-orange-light: #FEF3E8;
-  --color-procore-dark: #1A1A1A;
-  --color-procore-dark-hover: #2A2A2A;
-  --color-procore-toolbar: #232323;
-  --color-procore-bg: #F0F0F0;
-  --color-procore-card: #FFFFFF;
-  --color-procore-border: #E0E0E0;
-  --color-procore-border-light: #EBEBEB;
-  --color-procore-text: #333333;
-  --color-procore-text-secondary: #757575;
-  --color-procore-text-muted: #999999;
-  --color-procore-success: #2E7D32;
-  --color-procore-warning: #F57C00;
-  --color-procore-danger: #D32F2F;
-  --color-procore-info: #1565C0;
+  --color-procore-orange-light: #1c150c;
+  --color-procore-dark: #09090b;
+  --color-procore-dark-hover: #18181b;
+  --color-procore-toolbar: #09090b;
+  --color-procore-bg: #09090b;
+  --color-procore-card: #121215;
+  --color-procore-border: #27272a;
+  --color-procore-border-light: #1f1f23;
+  --color-procore-text: #f4f4f5;
+  --color-procore-text-secondary: #d4d4d8;
+  --color-procore-text-muted: #a1a1aa;
+  --color-procore-success: #22c55e;
+  --color-procore-warning: #f59e0b;
+  --color-procore-danger: #ef4444;
+  --color-procore-info: #3b82f6;
 }
 
 * {
@@ -28,13 +28,18 @@
 }
 
 html {
+  font-size: 20px;
   scroll-behavior: smooth;
+  background-color: #09090b;
+  color: #f4f4f5;
 }
 
 body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-  background-color: var(--color-procore-bg);
-  color: var(--color-procore-text);
+  background-color: #09090b;
+  color: #f4f4f5;
+  font-size: 1.05rem;
+  line-height: 1.5;
 }
 
 /* Custom scrollbar */

@@ -42,7 +42,24 @@ function setup() {
   function load() {
     const exports = {};
     vm.runInNewContext(source, { exports, console: { error() {} }, require(name) {
-      return name === '@/lib/supabase-server' ? { createClient: async () => client } : loadDependency(name);
+      if (name === '@/lib/supabase-server') return { createClient: async () => client };
+      if (name === '@/lib/workflow-store') return { deleteWorkflowRecord: async () => true };
+      if (name === '@/lib/submittal-store') return {
+        getProjectTasks: async () => [],
+        getSubmittalExtension: async (id, projectId) => ({
+          id, submittal_id: id, project_id: projectId,
+          linked_activity_ids: [], lead_time_weeks: 3, review_duration_days: 14,
+          revisions: [], comments: [], attachments: [], audit_trail: [],
+        }),
+        saveSubmittalExtension: async (ext) => ext,
+        enrichSubmittalWithSchedule: (submittal) => ({
+          ...submittal,
+          linked_activity_ids: [],
+          linked_activities: [],
+          schedule_risk_status: 'gray',
+        }),
+      };
+      return loadDependency(name);
     } });
     return exports;
   }

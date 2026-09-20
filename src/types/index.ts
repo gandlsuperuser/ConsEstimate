@@ -166,7 +166,64 @@ export interface Contract {
   created_at?: string;
 }
 
-// 3. Submittals
+// 3. Submittals (Schedule-Integrated Submittal Management)
+export type SubmittalStatus = 'draft' | 'pending' | 'under_review' | 'approved' | 'approved_as_noted' | 'revise_resubmit' | 'rejected';
+export type SubmittalScheduleRisk = 'green' | 'yellow' | 'red' | 'gray';
+
+export interface SubmittalScheduleLinkItem {
+  id?: string;
+  activity_id: string;
+  activity_name: string;
+  activity_start_date: string;
+  activity_end_date: string;
+  material_delivery_date?: string | null;
+  phase_name?: string | null;
+  required_on_site_date: string;
+  is_controlling: boolean;
+  float_days: number;
+  impact_status: 'on_track' | 'attention_needed' | 'at_risk' | 'critical';
+  impact_message: string;
+}
+
+export interface SubmittalRevision {
+  id: string;
+  revision_number: number;
+  title: string;
+  submitted_date: string;
+  returned_date?: string | null;
+  status: SubmittalStatus;
+  reviewer_name?: string;
+  review_remarks?: string;
+  attachments_count?: number;
+}
+
+export interface SubmittalComment {
+  id: string;
+  author_name: string;
+  author_role: string;
+  comment: string;
+  created_at: string;
+}
+
+export interface SubmittalAttachment {
+  id: string;
+  name: string;
+  file_type: string;
+  file_size: string;
+  url: string;
+  uploaded_at: string;
+  uploaded_by: string;
+}
+
+export interface SubmittalAuditEntry {
+  id: string;
+  event_type: 'created' | 'status_changed' | 'activity_linked' | 'activity_unlinked' | 'schedule_recalculated' | 'lead_time_updated' | 'revision_added' | 'comment_added';
+  summary: string;
+  details: string;
+  actor: string;
+  timestamp: string;
+}
+
 export interface Submittal {
   id: string;
   project_id: string;
@@ -177,14 +234,37 @@ export interface Submittal {
   subcontractor_name?: string;
   approver_name?: string;
   received_date: string;
-  required_on_site_date?: string;
+  submitted_date?: string | null;
+  approved_date?: string | null;
+  required_on_site_date?: string | null;
   lead_time_weeks?: number;
-  status: 'draft' | 'pending' | 'under_review' | 'approved' | 'approved_as_noted' | 'revise_resubmit' | 'rejected';
+  review_duration_days?: number;
+  status: SubmittalStatus;
   is_substitution: boolean;
   substitution_cost_delta: number;
   schedule_risk_level: 'low' | 'medium' | 'high' | 'critical';
   notes?: string;
   created_at?: string;
+
+  // Schedule Integration Calculated Fields
+  linked_activity_ids?: string[];
+  linked_activities?: SubmittalScheduleLinkItem[];
+  submit_by_date?: string | null;
+  planned_approval_date?: string | null;
+  procurement_window_start?: string | null;
+  procurement_window_end?: string | null;
+  controlling_activity_id?: string | null;
+  controlling_activity_name?: string | null;
+  schedule_risk_status?: SubmittalScheduleRisk;
+  risk_reasons?: string[];
+  recommended_actions?: string[];
+  float_days?: number | null;
+
+  // Detail Drawer Extensions
+  revisions?: SubmittalRevision[];
+  comments?: SubmittalComment[];
+  attachments?: SubmittalAttachment[];
+  audit_trail?: SubmittalAuditEntry[];
 }
 
 // 4. RFIs (BTX Contractors RFI Transmittal Standard)
@@ -518,3 +598,48 @@ export interface InAppNotification {
   is_read: boolean;
   created_at: string;
 }
+
+// 18. BTX Contractors Proposal / Estimate Catalog & Documents
+export interface EstimateCatalogItem {
+  id: string;
+  description: string;
+  details: string;
+  default_amount: number;
+  category?: string;
+  created_at?: string;
+}
+
+export interface BTXEstimateItem {
+  id: string;
+  item_number: number;
+  description: string;
+  details: string;
+  amount: number;
+}
+
+export interface BTXEstimate {
+  id: string;
+  project_id: string;
+  title: string;
+  bid_number: string;
+  estimate_date: string;
+  client_name: string;
+  project_name: string;
+  location: string;
+  scope: string;
+  intro_text: string;
+  items: BTXEstimateItem[];
+  total_amount: number;
+  notes_and_clarifications: string[];
+  closing_text: string;
+  submitted_by_name: string;
+  submitted_by_title: string;
+  submitted_by_company: string;
+  submitted_by_date?: string;
+  accepted_by_name: string;
+  accepted_by_date?: string;
+  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at?: string;
+}
+

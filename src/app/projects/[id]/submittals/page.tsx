@@ -1,398 +1,807 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Submittal } from '@/types';
+import { Submittal, SubmittalStatus, SubmittalScheduleRisk } from '@/types';
+import SubmittalRiskView from '@/components/submittals/SubmittalRiskView';
+import SubmittalDetailModal from '@/components/submittals/SubmittalDetailModal';
+import SubmittalTimelineGantt from '@/components/submittals/SubmittalTimelineGantt';
+import { ScheduleActivityRef } from '@/lib/submittal-schedule-engine';
 
 export default function SubmittalsPage() {
   const params = useParams();
   const projectId = params.id as string;
 
   const [submittals, setSubmittals] = useState<Submittal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<ScheduleActivityRef[]>([]);
+  const [, setLoading] = useState(true);
+
+  // Active view tab
+  const [viewMode, setViewMode] = useState<'register' | 'risk' | 'timeline'>('register');
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filterTrade, setFilterTrade] = useState<string>('all');
+  const [filterParty, setFilterParty] = useState<string>('all');
+  const [filterActivity, setFilterActivity] = useState<string>('all');
+  const [filterRisk, setFilterRisk] = useState<string>('all');
+
+  // Modal / Drawer state
+  const [selectedSubmittal, setSelectedSubmittal] = useState<Submittal | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
-  const [updatingIds, setUpdatingIds] = useState<string[]>([]);
-  const savingRef = useRef(false);
-  const updatingRef = useRef(new Set<string>());
 
-  const [form, setForm] = useState({
-    spec_division: '23 - Mechanical / HVAC',
+  // Create Form State
+  const [createForm, setCreateForm] = useState({
+    spec_division: '23 - HVAC',
     submittal_number: '',
     title: '',
     description: '',
     subcontractor_name: '',
     approver_name: 'Architect / Engineer',
     lead_time_weeks: 3,
-    status: 'pending' as Submittal['status'],
+    review_duration_days: 14,
+    status: 'pending' as SubmittalStatus,
     is_substitution: false,
     substitution_cost_delta: 0,
     schedule_risk_level: 'low' as Submittal['schedule_risk_level'],
     notes: '',
+    linked_activity_ids: [] as string[],
   });
 
-  useEffect(() => {
-    const controller = new AbortController();
-    async function load() {
-      try {
-        const res = await fetch(`/api/submittals?projectId=${projectId}`, { signal: controller.signal, cache: 'no-store' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Unable to load submittals.');
-        setSubmittals(data.submittals);
-      } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Unable to load submittals.');
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [submittalsRes, timelineRes] = await Promise.all([
+        fetch(`/api/submittals?projectId=${projectId}`, { cache: 'no-store' }),
+        fetch(`/api/timeline/${projectId}`, { cache: 'no-store' }),
+      ]);
+
+      const submittalsData = await submittalsRes.json();
+      const timelineData = await timelineRes.json();
+
+      if (submittalsRes.ok) {
+        setSubmittals(submittalsData.submittals || []);
+      } else {
+        throw new Error(submittalsData.error || 'Failed to load submittals');
       }
+
+      if (timelineRes.ok && timelineData.tasks) {
+        const phasesMap = new Map((timelineData.phases || []).map((p: any) => [p.id, p.name]));
+        setActivities(
+          timelineData.tasks.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            start_date: t.start_date,
+            end_date: t.end_date,
+            material_delivery_date: t.material_delivery_date,
+            phase_name: phasesMap.get(t.phase_id) || null,
+          }))
+        );
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error loading submittal data');
+    } finally {
+      setLoading(false);
     }
-    void load();
-    return () => controller.abort();
+  };
+
+  useEffect(() => {
+    void loadData();
   }, [projectId]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (savingRef.current) return;
-    savingRef.current = true;
     setSaving(true);
     setFormError('');
     setNotice('');
+
     try {
       const res = await fetch('/api/submittals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, project_id: projectId }),
+        body: JSON.stringify({
+          ...createForm,
+          project_id: projectId,
+        }),
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Unable to create submittal.');
-      setSubmittals(current => [data.submittal, ...current.filter(item => item.id !== data.submittal.id)]);
-      setFilterStatus('all');
-      setError('');
-      setNotice(`Submittal ${data.submittal.submittal_number} created.`);
-      setIsModalOpen(false);
-      setForm({
-        spec_division: '23 - Mechanical / HVAC',
+      if (!res.ok) throw new Error(data.error || 'Failed to create submittal');
+
+      setSubmittals(prev => [data.submittal, ...prev.filter(s => s.id !== data.submittal.id)]);
+      setNotice(`Submittal ${data.submittal.submittal_number} created and linked to schedule.`);
+      setIsCreateOpen(false);
+
+      // Reset create form
+      setCreateForm({
+        spec_division: '23 - HVAC',
         submittal_number: '',
         title: '',
         description: '',
         subcontractor_name: '',
         approver_name: 'Architect / Engineer',
         lead_time_weeks: 3,
+        review_duration_days: 14,
         status: 'pending',
         is_substitution: false,
         substitution_cost_delta: 0,
         schedule_risk_level: 'low',
         notes: '',
+        linked_activity_ids: [],
       });
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Unable to create submittal.');
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Creation failed');
     } finally {
-      savingRef.current = false;
       setSaving(false);
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: Submittal['status']) => {
-    if (updatingRef.current.has(id)) return;
-    updatingRef.current.add(id);
-    setUpdatingIds(current => [...current, id]);
-    setError('');
-    setNotice('');
+  const handleStatusChange = async (id: string, newStatus: SubmittalStatus) => {
     try {
-      const res = await fetch('/api/submittals', {
+      const res = await fetch(`/api/submittals/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, project_id: projectId, status: newStatus }),
+        body: JSON.stringify({
+          project_id: projectId,
+          status: newStatus,
+        }),
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Unable to update submittal.');
-      setSubmittals(current => current.map(item => item.id === id ? data.submittal : item));
-      setNotice('Submittal status updated.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update submittal.');
-    } finally {
-      updatingRef.current.delete(id);
-      setUpdatingIds(current => current.filter(item => item !== id));
+      if (!res.ok) throw new Error(data.error || 'Failed to update status');
+
+      setSubmittals(prev => prev.map(s => (s.id === id ? data.submittal : s)));
+      setNotice('Status updated.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update status');
     }
   };
 
-  const filtered = submittals.filter(s => filterStatus === 'all' || s.status === filterStatus);
-  const totalSubstitutions = submittals.filter(s => s.is_substitution).length;
-  const highRiskCount = submittals.filter(s => s.schedule_risk_level === 'high' || s.schedule_risk_level === 'critical').length;
+  const handleSubmittalSaved = (updated: Submittal) => {
+    setSubmittals(prev => prev.map(s => (s.id === updated.id ? updated : s)));
+    setSelectedSubmittal(updated);
+  };
+
+  // KPIs
+  const totalSubmittals = submittals.length;
+  const pendingApprovals = submittals.filter(
+    s => s.status === 'pending' || s.status === 'under_review'
+  ).length;
+  const overdueCount = submittals.filter(
+    s => s.schedule_risk_status === 'red'
+  ).length;
+
+  const atRiskActivitiesCount = new Set(
+    submittals.flatMap(s => (s.linked_activities || []).filter(a => a.float_days < 0).map(a => a.activity_id))
+  ).size;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcomingDeadlines = submittals.filter(s => {
+    if (!s.submit_by_date) return false;
+    const diff = (new Date(s.submit_by_date).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 14 && s.status !== 'approved' && s.status !== 'approved_as_noted';
+  }).length;
+
+  // Filter Unique Lists
+  const uniqueTrades = Array.from(new Set(submittals.map(s => s.spec_division).filter(Boolean)));
+  const uniqueParties = Array.from(
+    new Set(
+      submittals
+        .flatMap(s => [s.subcontractor_name, s.approver_name])
+        .filter((n): n is string => Boolean(n))
+    )
+  );
+
+  // Filtered Submittals
+  const filteredSubmittals = submittals.filter(s => {
+    if (filterStatus !== 'all' && s.status !== filterStatus) return false;
+    if (filterTrade !== 'all' && s.spec_division !== filterTrade) return false;
+    if (filterParty !== 'all' && s.subcontractor_name !== filterParty && s.approver_name !== filterParty) return false;
+    if (filterActivity !== 'all' && !s.linked_activity_ids?.includes(filterActivity)) return false;
+    if (filterRisk !== 'all' && s.schedule_risk_status !== filterRisk) return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const match =
+        s.submittal_number.toLowerCase().includes(q) ||
+        s.title.toLowerCase().includes(q) ||
+        s.spec_division.toLowerCase().includes(q) ||
+        (s.subcontractor_name && s.subcontractor_name.toLowerCase().includes(q)) ||
+        (s.controlling_activity_name && s.controlling_activity_name.toLowerCase().includes(q)) ||
+        (s.linked_activities && s.linked_activities.some(a => a.activity_name.toLowerCase().includes(q)));
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  const getRiskBadge = (risk?: SubmittalScheduleRisk) => {
+    switch (risk) {
+      case 'red':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-950 text-red-200 border border-red-700 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+            Red: Overdue / Risk
+          </span>
+        );
+      case 'yellow':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-950 text-amber-200 border border-amber-700 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            Yellow: Attention
+          </span>
+        );
+      case 'green':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-950 text-emerald-200 border border-emerald-700 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Green: On Track
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-neutral-900 text-white border border-neutral-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>
+            Gray: Unlinked
+          </span>
+        );
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg border border-procore-border shadow-xs">
+    <div className="space-y-6 pb-12 bg-[#09090b] text-[#f4f4f5] min-h-screen">
+      {/* Top Banner & Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#121215] p-6 rounded-2xl border border-[#27272a] shadow-2xl">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-procore-text tracking-tight">Submittals & Specifications</h1>
-            <span className="bg-procore-orange-light text-procore-orange font-bold text-xs px-2 py-0.5 rounded">
-              Phase 4: Quality & Procurement
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black text-[#f4f4f5] tracking-tight">Submittal Management</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#18181b] text-[#f4f4f5] border border-[#27272a]">
+              Schedule-Integrated
             </span>
           </div>
-          <p className="text-xs text-procore-text-muted mt-0.5">
-            Track product cut-sheets, shop drawings, lead times, and substitution approval workflows.
+          <p className="text-xs text-zinc-400 mt-1">
+            Automated backward calculation from linked timeline tasks, controlling on-site dates, and active schedule risk mitigation.
           </p>
         </div>
 
-        <button
-          onClick={() => { setFormError(''); setIsModalOpen(true); }}
-          className="bg-procore-orange hover:bg-procore-orange-hover text-white text-xs font-bold px-3.5 py-2 rounded-md shadow-xs flex items-center gap-1.5 transition-colors"
-        >
-          <span>+</span> Create Submittal
-        </button>
-      </div>
-
-      {error && <p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {notice && <p role="status" className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p>}
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Total Submittals</p>
-          <p className="text-2xl font-bold text-procore-text mt-1">{submittals.length}</p>
-          <p className="text-[11px] text-procore-text-muted mt-0.5">{submittals.filter(s => s.status === 'approved' || s.status === 'approved_as_noted').length} Approved</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Under Review</p>
-          <p className="text-2xl font-bold text-amber-600 mt-1">
-            {submittals.filter(s => s.status === 'pending' || s.status === 'under_review').length}
-          </p>
-          <p className="text-[11px] text-procore-text-muted mt-0.5">Awaiting Architect/MEP</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Substitutions</p>
-          <p className="text-2xl font-bold text-indigo-600 mt-1">{totalSubstitutions}</p>
-          <p className="text-[11px] text-procore-text-muted mt-0.5">Alternate specifications</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Schedule Risk Alerts</p>
-          <p className={`text-2xl font-bold mt-1 ${highRiskCount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-            {highRiskCount}
-          </p>
-          <p className="text-[11px] text-procore-text-muted mt-0.5">Long lead times</p>
+        <div className="flex items-center gap-3 self-end md:self-auto">
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-[#f4f4f5] text-[#09090b] hover:bg-zinc-200 shadow-lg transition-all flex items-center gap-2"
+          >
+            <span>+</span> Create Submittal
+          </button>
         </div>
       </div>
 
-      {/* Filter Tabs & Table */}
-      <div className="bg-white rounded-lg border border-procore-border shadow-xs overflow-hidden">
-        <div className="p-3 border-b border-procore-border bg-gray-50/50 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {['all', 'draft', 'pending', 'under_review', 'approved', 'approved_as_noted', 'revise_resubmit', 'rejected'].map((st) => (
-              <button
-                key={st}
-                onClick={() => setFilterStatus(st)}
-                className={`text-xs font-semibold px-2.5 py-1 rounded capitalize transition-colors ${
-                  filterStatus === st
-                    ? 'bg-procore-orange text-white'
-                    : 'text-procore-text-secondary hover:bg-gray-200/70'
-                }`}
-              >
-                {st.replaceAll('_', ' ')}
-              </button>
-            ))}
+      {/* KPI Dashboard Banner */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="bg-[#121215] border border-[#27272a] p-4 rounded-xl">
+          <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">Total Submittals</span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-[#f4f4f5]">{totalSubmittals}</span>
+            <span className="text-xs text-zinc-500">records</span>
           </div>
-          <span className="text-xs text-procore-text-muted">
-            Showing {filtered.length} of {submittals.length} items
-          </span>
         </div>
 
-        {loading ? (
-          <div role="status" className="p-8 text-center text-sm text-procore-text-muted">Loading submittals…</div>
-        ) : filtered.length > 0 ? (
+        <div className="bg-[#121215] border border-[#27272a] p-4 rounded-xl">
+          <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider block">Pending Approvals</span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-[#f4f4f5]">{pendingApprovals}</span>
+            <span className="text-xs text-zinc-500">in review</span>
+          </div>
+        </div>
+
+        <div className="bg-[#121215] border border-red-900/60 p-4 rounded-xl bg-red-950/20">
+          <span className="text-[10px] uppercase font-bold text-red-400 tracking-wider block">Overdue / Delayed</span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-red-400">{overdueCount}</span>
+            <span className="text-xs text-red-300">critical</span>
+          </div>
+        </div>
+
+        <div className="bg-[#121215] border border-purple-900/60 p-4 rounded-xl bg-purple-950/20">
+          <span className="text-[10px] uppercase font-bold text-purple-300 tracking-wider block">At-Risk Activities</span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-purple-300">{atRiskActivitiesCount}</span>
+            <span className="text-xs text-purple-300/70">tasks impacted</span>
+          </div>
+        </div>
+
+        <div className="bg-[#121215] border border-[#27272a] p-4 rounded-xl col-span-2 sm:col-span-1">
+          <span className="text-[10px] uppercase font-bold text-zinc-300 tracking-wider block">Upcoming Deadlines</span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-[#f4f4f5]">{upcomingDeadlines}</span>
+            <span className="text-xs text-zinc-500">next 14 days</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Notices */}
+      {notice && (
+        <div className="bg-emerald-950/90 border border-emerald-700 text-emerald-200 text-xs px-4 py-2.5 rounded-xl flex items-center justify-between">
+          <span className="font-semibold">✓ {notice}</span>
+          <button onClick={() => setNotice('')} className="text-[#f4f4f5] hover:text-zinc-300">✕</button>
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-950/90 border border-red-700 text-red-200 text-xs px-4 py-2.5 rounded-xl flex items-center justify-between">
+          <span className="font-semibold">⚠️ {error}</span>
+          <button onClick={() => setError('')} className="text-[#f4f4f5] hover:text-zinc-300">✕</button>
+        </div>
+      )}
+
+      {/* Controls & Multi-dimensional Filters */}
+      <div className="bg-[#121215] border border-[#27272a] p-4 rounded-2xl space-y-3">
+        {/* Row 1: View Modes + Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          {/* View Mode Toggle */}
+          <div className="flex items-center p-1 bg-[#09090b] rounded-xl border border-[#27272a]">
+            <button
+              onClick={() => setViewMode('register')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'register'
+                  ? 'bg-[#f4f4f5] text-[#09090b] font-extrabold shadow-md'
+                  : 'text-zinc-400 hover:text-[#f4f4f5]'
+              }`}
+            >
+              📋 Master Register
+            </button>
+            <button
+              onClick={() => setViewMode('risk')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                viewMode === 'risk'
+                  ? 'bg-red-600 text-white font-extrabold shadow-md'
+                  : 'text-zinc-400 hover:text-[#f4f4f5]'
+              }`}
+            >
+              <span>⚠️</span> Submittal Risk View
+              {overdueCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-950 text-red-200 border border-red-700">
+                  {overdueCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'timeline'
+                  ? 'bg-[#f4f4f5] text-[#09090b] font-extrabold shadow-md'
+                  : 'text-zinc-400 hover:text-[#f4f4f5]'
+              }`}
+            >
+              📊 Procurement Timeline
+            </button>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative flex-1 max-w-sm">
+            <input
+              type="text"
+              placeholder="Search by #, title, vendor, spec, activity..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#09090b] text-[#f4f4f5] text-xs pl-8 pr-3 py-2 rounded-xl border border-[#27272a] focus:outline-none focus:border-[#f4f4f5] placeholder-zinc-500"
+            />
+            <span className="absolute left-2.5 top-2.5 text-zinc-500 text-xs">🔍</span>
+          </div>
+        </div>
+
+        {/* Row 2: Deep Filters */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-1 border-t border-[#27272a]">
+          <div>
+            <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg px-2.5 py-1.5 border border-[#27272a] focus:border-[#f4f4f5]"
+            >
+              <option value="all">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="pending">Pending</option>
+              <option value="under_review">Under Review</option>
+              <option value="approved">Approved</option>
+              <option value="approved_as_noted">Approved as Noted</option>
+              <option value="revise_resubmit">Revise & Resubmit</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Risk Level</label>
+            <select
+              value={filterRisk}
+              onChange={(e) => setFilterRisk(e.target.value)}
+              className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg px-2.5 py-1.5 border border-[#27272a] focus:border-[#f4f4f5]"
+            >
+              <option value="all">All Risk Levels</option>
+              <option value="green">Green (On Track)</option>
+              <option value="yellow">Yellow (Attention Needed)</option>
+              <option value="red">Red (Overdue / Risk)</option>
+              <option value="gray">Gray (Unlinked)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Trade / Spec</label>
+            <select
+              value={filterTrade}
+              onChange={(e) => setFilterTrade(e.target.value)}
+              className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg px-2.5 py-1.5 border border-[#27272a] focus:border-[#f4f4f5] truncate"
+            >
+              <option value="all">All Trades</option>
+              {uniqueTrades.map(trade => (
+                <option key={trade} value={trade}>{trade}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Responsible Party</label>
+            <select
+              value={filterParty}
+              onChange={(e) => setFilterParty(e.target.value)}
+              className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg px-2.5 py-1.5 border border-[#27272a] focus:border-[#f4f4f5] truncate"
+            >
+              <option value="all">All Parties</option>
+              {uniqueParties.map(party => (
+                <option key={party} value={party}>{party}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Schedule Activity</label>
+            <select
+              value={filterActivity}
+              onChange={(e) => setFilterActivity(e.target.value)}
+              className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg px-2.5 py-1.5 border border-[#27272a] focus:border-[#f4f4f5] truncate"
+            >
+              <option value="all">All Schedule Activities</option>
+              {activities.map(act => (
+                <option key={act.id} value={act.id}>{act.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* VIEW 1: MASTER REGISTER */}
+      {viewMode === 'register' && (
+        <div className="bg-[#121215] border border-[#27272a] rounded-2xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-100/80 border-b border-procore-border text-procore-text-muted">
-                  <th className="p-3 text-left font-bold">Submittal #</th>
-                  <th className="p-3 text-left font-bold">Spec Division / Title</th>
-                  <th className="p-3 text-left font-bold">Subcontractor</th>
-                  <th className="p-3 text-center font-bold">Lead Time</th>
-                  <th className="p-3 text-center font-bold">Substitution?</th>
-                  <th className="p-3 text-center font-bold">Schedule Risk</th>
-                  <th className="p-3 text-center font-bold">Status</th>
-                  <th className="p-3 text-center font-bold">Review Action</th>
+            <table className="w-full text-left text-xs text-[#f4f4f5]">
+              <thead className="bg-[#09090b] text-[#f4f4f5] uppercase font-bold text-[10px] border-b border-[#27272a]">
+                <tr>
+                  <th className="p-4">Submittal #</th>
+                  <th className="p-4">Title & Trade</th>
+                  <th className="p-4">Linked Schedule Activities</th>
+                  <th className="p-4">Lead Time</th>
+                  <th className="p-4">Submit-By</th>
+                  <th className="p-4">Planned Approval</th>
+                  <th className="p-4">Required On-Site</th>
+                  <th className="p-4">Schedule Risk</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-procore-border-light">
-                {filtered.map((s) => {
-                  const statusPills: Record<string, string> = {
-                    approved: 'bg-emerald-100 text-emerald-800',
-                    approved_as_noted: 'bg-teal-100 text-teal-800',
-                    under_review: 'bg-blue-100 text-blue-800',
-                    pending: 'bg-amber-100 text-amber-800',
-                    revise_resubmit: 'bg-red-100 text-red-800',
-                  };
-                  return (
-                    <tr key={s.id} className="hover:bg-gray-50/60">
-                      <td className="p-3 font-bold text-procore-orange">{s.submittal_number}</td>
-                      <td className="p-3 max-w-[280px]">
-                        <div className="text-[11px] font-bold text-procore-text-muted">{s.spec_division}</div>
-                        <div className="font-bold text-procore-text text-sm">{s.title}</div>
-                        {s.description && <div className="text-procore-text-secondary text-[11px] truncate mt-0.5">{s.description}</div>}
-                      </td>
-                      <td className="p-3 text-procore-text-secondary font-medium">{s.subcontractor_name || '—'}</td>
-                      <td className="p-3 text-center font-semibold text-procore-text">{s.lead_time_weeks || 0} wks</td>
-                      <td className="p-3 text-center">
-                        {s.is_substitution ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
-                            Yes {s.substitution_cost_delta < 0 ? `(${s.substitution_cost_delta})` : ''}
-                          </span>
-                        ) : (
-                          <span className="text-procore-text-muted">Standard</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                          s.schedule_risk_level === 'high' || s.schedule_risk_level === 'critical'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {s.schedule_risk_level || 'low'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusPills[s.status] || 'bg-gray-100'}`}>
-                          {s.status.replaceAll('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <select
-                          aria-label={`Review status for ${s.submittal_number}`}
-                          disabled={updatingIds.includes(s.id)}
-                          value={s.status}
-                          onChange={(e) => handleStatusChange(s.id, e.target.value as Submittal['status'])}
-                          className="text-[11px] border border-procore-border rounded p-1 font-semibold text-procore-text focus:border-procore-orange"
-                        >
-                          <option value="draft">Draft</option>
-                          <option value="rejected">Rejected</option>
-                          <option value="pending">Pending</option>
-                          <option value="under_review">Under Review</option>
-                          <option value="approved">Approved</option>
-                          <option value="approved_as_noted">Approved as Noted</option>
-                          <option value="revise_resubmit">Revise & Resubmit</option>
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })}
+              <tbody className="divide-y divide-[#27272a]">
+                {filteredSubmittals.length > 0 ? (
+                  filteredSubmittals.map(submittal => {
+                    const isRed = submittal.schedule_risk_status === 'red';
+                    return (
+                      <tr
+                        key={submittal.id}
+                        className="hover:bg-[#18181b] transition-colors cursor-pointer group"
+                        onClick={() => {
+                          setSelectedSubmittal(submittal);
+                          setIsDetailOpen(true);
+                        }}
+                      >
+                        <td className="p-4 font-mono font-bold text-[#f4f4f5]">
+                          {submittal.submittal_number}
+                        </td>
+                        <td className="p-4">
+                          <div className="font-bold text-[#f4f4f5] group-hover:text-white transition-colors">
+                            {submittal.title}
+                          </div>
+                          <div className="text-[11px] text-zinc-400">
+                            {submittal.spec_division} • {submittal.subcontractor_name || 'No Sub'}
+                          </div>
+                        </td>
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                          {submittal.linked_activities && submittal.linked_activities.length > 0 ? (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#09090b] text-[#f4f4f5] border border-[#27272a]">
+                                🎯 {submittal.controlling_activity_name || submittal.linked_activities[0].activity_name}
+                              </span>
+                              {submittal.linked_activities.length > 1 && (
+                                <span className="text-[10px] text-zinc-400 block font-medium">
+                                  +{submittal.linked_activities.length - 1} more linked
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSelectedSubmittal(submittal);
+                                setIsDetailOpen(true);
+                              }}
+                              className="text-xs text-zinc-400 hover:text-[#f4f4f5] font-bold flex items-center gap-1"
+                            >
+                              <span>+</span> Link Activity
+                            </button>
+                          )}
+                        </td>
+                        <td className="p-4 font-bold text-[#f4f4f5]">
+                          {submittal.lead_time_weeks ?? 3} wks
+                        </td>
+                        <td className={`p-4 font-mono font-bold ${isRed && !submittal.submitted_date ? 'text-red-400' : 'text-[#f4f4f5]'}`}>
+                          {submittal.submit_by_date || 'N/A'}
+                        </td>
+                        <td className="p-4 font-mono font-bold text-[#f4f4f5]">
+                          {submittal.planned_approval_date || 'N/A'}
+                        </td>
+                        <td className="p-4 font-mono font-bold text-emerald-400">
+                          {submittal.required_on_site_date || 'N/A'}
+                        </td>
+                        <td className="p-4">
+                          {getRiskBadge(submittal.schedule_risk_status)}
+                        </td>
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={submittal.status}
+                            onChange={(e) => handleStatusChange(submittal.id, e.target.value as SubmittalStatus)}
+                            className="bg-[#09090b] text-[#f4f4f5] text-[11px] font-bold rounded-lg px-2.5 py-1 border border-[#27272a] focus:border-[#f4f4f5]"
+                          >
+                            <option value="draft">Draft</option>
+                            <option value="pending">Pending</option>
+                            <option value="under_review">Under Review</option>
+                            <option value="approved">Approved</option>
+                            <option value="approved_as_noted">Approved as Noted</option>
+                            <option value="revise_resubmit">Revise & Resubmit</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        </td>
+                        <td className="p-4 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedSubmittal(submittal);
+                              setIsDetailOpen(true);
+                            }}
+                            className="text-xs text-[#f4f4f5] hover:text-zinc-300 font-bold underline"
+                          >
+                            Manage ➔
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={10} className="p-12 text-center text-zinc-400 font-medium">
+                      No submittals found matching the current filters.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        ) : (
-          <div className="p-8 text-center text-sm text-procore-text-muted">
-            {error ? 'Submittals could not be loaded. Reload the page to try again.' : 'No submittals found for this filter.'}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Modal: New Submittal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="submittal-dialog-title" className="bg-white rounded-lg shadow-xl max-w-md w-full p-5 border border-procore-border max-h-[90vh] overflow-y-auto">
-            <h3 id="submittal-dialog-title" className="font-bold text-base text-procore-text mb-4">Create New Submittal Item</h3>
-            <form onSubmit={handleCreate} className="space-y-3 text-xs">
-              {formError && <p role="alert" className="text-red-700 bg-red-50 p-2 rounded">{formError}</p>}
-              <fieldset disabled={saving} className="space-y-3">
+      {/* VIEW 2: RISK VIEW */}
+      {viewMode === 'risk' && (
+        <SubmittalRiskView
+          submittals={filteredSubmittals}
+          onOpenDetail={(s) => {
+            setSelectedSubmittal(s);
+            setIsDetailOpen(true);
+          }}
+          onLinkActivity={(s) => {
+            setSelectedSubmittal(s);
+            setIsDetailOpen(true);
+          }}
+        />
+      )}
+
+      {/* VIEW 3: TIMELINE / GANTT VIEW */}
+      {viewMode === 'timeline' && (
+        <SubmittalTimelineGantt
+          submittals={filteredSubmittals}
+          onOpenDetail={(s) => {
+            setSelectedSubmittal(s);
+            setIsDetailOpen(true);
+          }}
+        />
+      )}
+
+      {/* SUBMITTAL DETAIL & SCHEDULE INTEGRATION MODAL */}
+      <SubmittalDetailModal
+        submittal={selectedSubmittal}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onSave={handleSubmittalSaved}
+        availableActivities={activities}
+      />
+
+      {/* CREATE SUBMITTAL MODAL WITH INITIAL ACTIVITY LINKER */}
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-[#121215] border border-[#27272a] rounded-2xl w-full max-w-2xl shadow-2xl p-6 space-y-4 my-6 text-[#f4f4f5]">
+            <div className="flex items-center justify-between border-b border-[#27272a] pb-3">
+              <h3 className="text-lg font-bold text-[#f4f4f5]">Create New Submittal</h3>
+              <button onClick={() => setIsCreateOpen(false)} className="text-[#f4f4f5] hover:text-zinc-300 font-bold">✕</button>
+            </div>
+
+            {formError && (
+              <div className="p-2.5 bg-red-950/80 border border-red-700 text-red-200 text-xs rounded-lg">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-[#f4f4f5] block mb-1">Submittal Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. SUB-23-003"
+                    value={createForm.submittal_number}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, submittal_number: e.target.value }))}
+                    className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] focus:border-[#f4f4f5]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[#f4f4f5] block mb-1">Spec Division / Trade *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 23 05 00 - Common Work Results for HVAC"
+                    value={createForm.spec_division}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, spec_division: e.target.value }))}
+                    className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] focus:border-[#f4f4f5]"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label htmlFor="submittal-title" className="font-bold text-procore-text-muted block mb-1">Submittal Title</label>
-                <input id="submittal-title"
-                  required
+                <label className="text-xs font-bold text-[#f4f4f5] block mb-1">Submittal Title *</label>
+                <input
                   type="text"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g. Trane Voyager 25-Ton RTU Cut Sheets"
-                  className="w-full border border-procore-border p-2 rounded focus:border-procore-orange"
+                  required
+                  placeholder="e.g. Trane Voyager Rooftop Unit & Curbs"
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] focus:border-[#f4f4f5]"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="submittal-spec_division" className="font-bold text-procore-text-muted block mb-1">Spec Division</label>
-                  <input id="submittal-spec_division"
-                    type="text"
-                    value={form.spec_division}
-                    onChange={(e) => setForm({ ...form, spec_division: e.target.value })}
-                    className="w-full border border-procore-border p-2 rounded focus:border-procore-orange"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="submittal-submittal_number" className="font-bold text-procore-text-muted block mb-1">Submittal #</label>
-                  <input id="submittal-submittal_number"
-                    type="text"
-                    value={form.submittal_number}
-                    onChange={(e) => setForm({ ...form, submittal_number: e.target.value })}
-                    placeholder="Auto if blank"
-                    className="w-full border border-procore-border p-2 rounded focus:border-procore-orange"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="submittal-subcontractor_name" className="font-bold text-procore-text-muted block mb-1">Subcontractor</label>
-                  <input id="submittal-subcontractor_name"
-                    type="text"
-                    value={form.subcontractor_name}
-                    onChange={(e) => setForm({ ...form, subcontractor_name: e.target.value })}
-                    placeholder="e.g. Apex Mechanical"
-                    className="w-full border border-procore-border p-2 rounded focus:border-procore-orange"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="submittal-lead_time_weeks" className="font-bold text-procore-text-muted block mb-1">Lead Time (Weeks)</label>
-                  <input id="submittal-lead_time_weeks"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={form.lead_time_weeks}
-                    onChange={(e) => setForm({ ...form, lead_time_weeks: parseInt(e.target.value) || 0 })}
-                    className="w-full border border-procore-border p-2 rounded focus:border-procore-orange"
-                  />
-                </div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded border border-procore-border-light space-y-2">
-                <label className="flex items-center gap-2 font-bold text-procore-text cursor-pointer">
+                  <label className="text-xs font-bold text-[#f4f4f5] block mb-1">Subcontractor</label>
                   <input
-                    type="checkbox"
-                    checked={form.is_substitution}
-                    onChange={(e) => setForm({ ...form, is_substitution: e.target.checked })}
-                    className="rounded text-procore-orange focus:ring-procore-orange"
+                    type="text"
+                    placeholder="e.g. Apex Mechanical"
+                    value={createForm.subcontractor_name}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, subcontractor_name: e.target.value }))}
+                    className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] focus:border-[#f4f4f5]"
                   />
-                  Proposed Substitution / Alternate Product
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[#f4f4f5] block mb-1">Approver / Architect</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. MEP Lead Engineer"
+                    value={createForm.approver_name}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, approver_name: e.target.value }))}
+                    className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] focus:border-[#f4f4f5]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-[#f4f4f5] block mb-1">Lead Time (Weeks)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={createForm.lead_time_weeks}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, lead_time_weeks: parseInt(e.target.value) || 0 }))}
+                    className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] focus:border-[#f4f4f5]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[#f4f4f5] block mb-1">Initial Status</label>
+                  <select
+                    value={createForm.status}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, status: e.target.value as SubmittalStatus }))}
+                    className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] focus:border-[#f4f4f5]"
+                  >
+                    <option value="pending">Pending Review</option>
+                    <option value="draft">Draft</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="approved">Approved</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Activity Linker */}
+              <div>
+                <label className="text-xs font-bold text-[#f4f4f5] block mb-1">
+                  Connect to Schedule Activity (Optional)
                 </label>
-                {form.is_substitution && (
-                  <div>
-                    <label htmlFor="submittal-substitution_cost_delta" className="font-bold text-procore-text-muted block mb-1">Price Delta ($ savings = negative)</label>
-                    <input id="submittal-substitution_cost_delta"
-                      type="number"
-                      step="0.01"
-                      value={form.substitution_cost_delta}
-                      onChange={(e) => setForm({ ...form, substitution_cost_delta: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-procore-border p-1.5 rounded focus:border-procore-orange"
-                    />
+                <select
+                  onChange={(e) => {
+                    const actId = e.target.value;
+                    if (actId && !createForm.linked_activity_ids.includes(actId)) {
+                      setCreateForm(prev => ({
+                        ...prev,
+                        linked_activity_ids: [...prev.linked_activity_ids, actId],
+                      }));
+                    }
+                  }}
+                  className="w-full bg-[#09090b] text-[#f4f4f5] text-xs rounded-lg p-2.5 border border-[#27272a] mb-2 focus:border-[#f4f4f5]"
+                >
+                  <option value="">-- Select a timeline task to establish required dates --</option>
+                  {activities.map(act => (
+                    <option key={act.id} value={act.id}>
+                      {act.name} (Starts: {act.start_date})
+                    </option>
+                  ))}
+                </select>
+
+                {createForm.linked_activity_ids.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {createForm.linked_activity_ids.map(id => {
+                      const found = activities.find(a => a.id === id);
+                      return (
+                        <span key={id} className="px-2 py-0.5 rounded text-xs bg-[#09090b] text-[#f4f4f5] border border-[#27272a] flex items-center gap-1 font-mono">
+                          <span>🎯 {found?.name || id}</span>
+                          <button
+                            type="button"
+                            onClick={() => setCreateForm(prev => ({
+                              ...prev,
+                              linked_activity_ids: prev.linked_activity_ids.filter(i => i !== id),
+                            }))}
+                            className="text-[#f4f4f5] hover:text-red-400 font-bold ml-1"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-procore-border-light">
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#27272a]">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-3 py-1.5 border border-procore-border rounded hover:bg-gray-50"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:text-[#f4f4f5]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-procore-orange text-white font-bold rounded hover:bg-procore-orange-hover"
+                  disabled={saving}
+                  className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#f4f4f5] text-[#09090b] hover:bg-zinc-200 shadow-lg transition-all"
                 >
-                  {saving ? 'Creating…' : 'Create Submittal'}
+                  {saving ? 'Creating...' : 'Create & Calculate Schedule'}
                 </button>
               </div>
-              </fieldset>
             </form>
           </div>
         </div>

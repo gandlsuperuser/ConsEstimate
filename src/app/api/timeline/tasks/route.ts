@@ -73,6 +73,15 @@ export async function PUT(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     results.push(data);
+
+    if (data && (updates.start_date || updates.end_date || updates.material_delivery_date)) {
+      try {
+        const { syncSubmittalsOnTaskUpdate } = await import('@/lib/submittal-store');
+        await syncSubmittalsOnTaskUpdate(id, data.project_id, data);
+      } catch (err) {
+        // ignore sync failure
+      }
+    }
   }
 
   return NextResponse.json({ tasks: results });

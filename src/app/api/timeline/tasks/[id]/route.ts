@@ -63,6 +63,17 @@ export async function PUT(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Auto-sync any connected submittals with recalculated dates and audit trails
+  if (data && (body.start_date || body.end_date || body.material_delivery_date)) {
+    try {
+      const { syncSubmittalsOnTaskUpdate } = await import('@/lib/submittal-store');
+      await syncSubmittalsOnTaskUpdate(id, data.project_id, data);
+    } catch (syncErr) {
+      console.error('Submittal auto-sync warning:', syncErr);
+    }
+  }
+
   return NextResponse.json({ task: data });
 }
 

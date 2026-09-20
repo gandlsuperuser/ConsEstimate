@@ -3,8 +3,11 @@
 import { useEffect, useState, useMemo, useRef, Fragment } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { EstimateLine, Project } from '@/types';
+import { EstimateLine, Project, BTXEstimate, BTXEstimateItem, EstimateCatalogItem } from '@/types';
 import CurrencyInput from '@/components/CurrencyInput';
+import BTXEstimateSheet from '@/components/BTXEstimateSheet';
+import AddEstimateItemModal from '@/components/AddEstimateItemModal';
+import EditEstimateModal from '@/components/EditEstimateModal';
 
 // Standard CSI MasterFormat divisions used on the Humana General Proposal Form
 const STANDARD_DIVISIONS = [
@@ -42,7 +45,7 @@ export default function EstimatePage() {
   const projectId = params.id as string;
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  const [, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [lines, setLines] = useState<EstimateLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,16 +106,32 @@ export default function EstimatePage() {
     notes: '',
   });
 
-  // Fetch project and estimate lines
+  // BTX Proposal / Estimate States
+  const [estimateView, setEstimateView] = useState<'btx' | 'humana'>('btx');
+  const [btxEstimates, setBtxEstimates] = useState<BTXEstimate[]>([]);
+  const [activeBtxIndex, setActiveBtxIndex] = useState<number>(0);
+  const [catalogItems, setCatalogItems] = useState<EstimateCatalogItem[]>([]);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [editingBtxItem, setEditingBtxItem] = useState<BTXEstimateItem | null>(null);
+  const [showEditEstimateModal, setShowEditEstimateModal] = useState(false);
+  const [generatingBtxPdf, setGeneratingBtxPdf] = useState(false);
+
+  const currentBtxEstimate = btxEstimates[activeBtxIndex] || null;
+
+  // Fetch project, estimate lines, btx estimates, and standard catalog
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [projectRes, linesRes] = await Promise.all([
+        const [projectRes, linesRes, btxRes, catRes] = await Promise.all([
           fetch(`/api/projects/${projectId}`),
           fetch(`/api/estimate-lines?projectId=${projectId}`),
+          fetch(`/api/btx-estimates?projectId=${projectId}`),
+          fetch('/api/estimate-catalog'),
         ]);
         const projectData = await projectRes.json();
         const linesData = await linesRes.json();
+        const btxData = await btxRes.json();
+        const catData = await catRes.json();
 
         if (projectData.project) {
           setProject(projectData.project);
@@ -128,6 +147,21 @@ export default function EstimatePage() {
 
         if (linesData.lines && linesData.lines.length > 0) {
           setLines(linesData.lines);
+        }
+
+        if (btxData.estimates && btxData.estimates.length > 0) {
+          const syncedEstimates = btxData.estimates.map((est: BTXEstimate) => ({
+            ...est,
+            project_name:
+              est.project_name && est.project_name !== 'Jourdanton Medical Center'
+                ? est.project_name
+                : projectData.project?.name || est.project_name || 'CONVIVA JOURDANTON',
+          }));
+          setBtxEstimates(syncedEstimates);
+        }
+
+        if (catData.catalogItems && catData.catalogItems.length > 0) {
+          setCatalogItems(catData.catalogItems);
         }
       } catch (err) {
         console.error('Error fetching estimate lines:', err);
@@ -389,12 +423,210 @@ export default function EstimatePage() {
     });
   };
 
+  // Handlers for BTX Estimates
+  const handleAddBtxItem = async (newItemData: Omit<BTXEstimateItem, 'id' | 'item_number'>) => {
+    if (!currentBtxEstimate) return;
+
+    let updatedItems: BTXEstimateItem[];
+    if (editingBtxItem) {
+      updatedItems = currentBtxEstimate.items.map((it) =>
+        it.id === editingBtxItem.id ? { ...it, ...newItemData } : it
+      );
+      setEditingBtxItem(null);
+    } else {
+      const newItem: BTXEstimateItem = {
+        id: `item-${Date.now()}`,
+        item_number: currentBtxEstimate.items.length + 1,
+        description: newItemData.description,
+        details: newItemData.details,
+        amount: newItemData.amount,
+      };
+      updatedItems = [...currentBtxEstimate.items, newItem];
+    }
+
+    const calculatedTotal = updatedItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+    const updatedEstimate: BTXEstimate = {
+      ...currentBtxEstimate,
+      items: updatedItems,
+      total_amount: calculatedTotal,
+    };
+
+    const updatedList = [...btxEstimates];
+    updatedList[activeBtxIndex] = updatedEstimate;
+    setBtxEstimates(updatedList);
+    setSaveMessage('Estimate updated successfully!');
+    setTimeout(() => setSaveMessage(''), 3000);
+
+    try {
+      await fetch('/api/btx-estimates', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentBtxEstimate.id,
+          items: updatedItems,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to save updated items to database:', err);
+    }
+  };
+
+  const handleDeleteBtxItem = async (itemId: string) => {
+    if (!currentBtxEstimate) return;
+    const remainingItems = currentBtxEstimate.items
+      .filter((it) => it.id !== itemId)
+      .map((it, idx) => ({ ...it, item_number: idx + 1 }));
+
+    const calculatedTotal = remainingItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+    const updatedEstimate: BTXEstimate = {
+      ...currentBtxEstimate,
+      items: remainingItems,
+      total_amount: calculatedTotal,
+    };
+
+    const updatedList = [...btxEstimates];
+    updatedList[activeBtxIndex] = updatedEstimate;
+    setBtxEstimates(updatedList);
+    setSaveMessage('Line item removed.');
+    setTimeout(() => setSaveMessage(''), 3000);
+
+    try {
+      await fetch('/api/btx-estimates', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentBtxEstimate.id,
+          items: remainingItems,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to delete item in database:', err);
+    }
+  };
+
+  const handleEditBtxItem = (item: BTXEstimateItem) => {
+    setEditingBtxItem(item);
+    setShowAddItemModal(true);
+  };
+
+  const handleSaveEstimateMeta = async (metaUpdates: Partial<BTXEstimate>) => {
+    if (!currentBtxEstimate) return;
+    const updatedEstimate: BTXEstimate = {
+      ...currentBtxEstimate,
+      ...metaUpdates,
+    };
+
+    const updatedList = [...btxEstimates];
+    updatedList[activeBtxIndex] = updatedEstimate;
+    setBtxEstimates(updatedList);
+    setSaveMessage('Proposal details updated!');
+    setTimeout(() => setSaveMessage(''), 3000);
+
+    try {
+      await fetch('/api/btx-estimates', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentBtxEstimate.id,
+          ...metaUpdates,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to update estimate info:', err);
+    }
+  };
+
+  const handleCreateNewEstimate = async () => {
+    const defaultNewBid = `BTX-HC-${new Date().getMonth() + 1}${String(new Date().getDate()).padStart(2, '0')}-${Math.floor(10 + Math.random() * 90)}`;
+    try {
+      const res = await fetch('/api/btx-estimates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          title: 'New Proposal / Change Order',
+          bid_number: defaultNewBid,
+          client_name: project?.client_name || 'Humana – Conviva',
+          project_name: project?.name || 'CONVIVA JOURDANTON',
+          location: project?.address || 'Jourdanton, TX',
+          scope: 'Phase 1 – Additional Work / Change Order',
+          items: [],
+        }),
+      });
+      const data = await res.json();
+      if (data.estimate) {
+        setBtxEstimates((prev) => [...prev, data.estimate]);
+        setActiveBtxIndex(btxEstimates.length);
+        setSaveMessage('New estimate proposal created!');
+        setTimeout(() => setSaveMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to create new estimate:', err);
+    }
+  };
+
+  const handleExportBTXPDF = async () => {
+    setGeneratingBtxPdf(true);
+    try {
+      const { toJpeg } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      const el = document.getElementById('btx-estimate-sheet');
+      if (!el) return;
+
+      const imgData = await toJpeg(el, {
+        quality: 0.98,
+        pixelRatio: 2.2,
+        backgroundColor: '#ffffff',
+      });
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'letter',
+      });
+
+      const pageWidth = 215.9;
+      const pageHeight = 279.4;
+      const margin = 8;
+      const maxContentWidth = pageWidth - margin * 2;
+      const maxContentHeight = pageHeight - margin * 2;
+
+      const rect = el.getBoundingClientRect();
+      const imgWidth = maxContentWidth;
+      const imgHeight = (rect.height * imgWidth) / rect.width;
+
+      let heightLeft = imgHeight;
+      let position = margin;
+      let pageCount = 0;
+
+      while (heightLeft > 0) {
+        if (pageCount > 0) {
+          pdf.addPage('letter', 'portrait');
+        }
+        pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= maxContentHeight;
+        position -= maxContentHeight;
+        pageCount++;
+        if (pageCount > 10) break;
+      }
+
+      const bidClean = (currentBtxEstimate?.bid_number || 'Estimate').replace(/[^a-zA-Z0-9_-]/g, '_');
+      pdf.save(`BTX_Proposal_${bidClean}.pdf`);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+      window.print();
+    } finally {
+      setGeneratingBtxPdf(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-[#78be20] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm font-semibold text-gray-600">Loading Humana Proposal Form...</p>
+          <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-semibold text-gray-400">Loading Estimates &amp; Catalog Line Items...</p>
         </div>
       </div>
     );
@@ -402,6 +634,166 @@ export default function EstimatePage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
+      {/* ============================================================ */}
+      {/*  VIEW MODE SELECTOR & TABS (Estimate vs Humana Sheet)       */}
+      {/* ============================================================ */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl print:hidden">
+        <div className="flex items-center gap-2">
+          <div className="bg-slate-800 p-1.5 rounded-xl flex items-center border border-slate-700/80">
+            <button
+              onClick={() => setEstimateView('btx')}
+              className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                estimateView === 'btx'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>📑</span>
+              <span>BTX Proposal / Change Order (Estimate)</span>
+            </button>
+            <button
+              onClick={() => setEstimateView('humana')}
+              className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                estimateView === 'humana'
+                  ? 'bg-[#78be20] text-gray-950 shadow-md font-black'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>📊</span>
+              <span>Humana CSI 16-Division Master Sheet</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Status / Saved Message */}
+        <div className="flex items-center gap-3">
+          {saveMessage && (
+            <span className="text-sm font-bold text-emerald-400 animate-fade-in flex items-center gap-1.5">
+              <span>✓</span> {saveMessage}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/*  BTX PROPOSAL VIEW (Official Document from user picture)     */}
+      {/* ============================================================ */}
+      {estimateView === 'btx' && currentBtxEstimate && (
+        <div className="space-y-6">
+          {/* Action Toolbar for BTX Estimate */}
+          <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 border border-slate-800 print:hidden">
+            <div className="flex items-center gap-3.5">
+              <div className="flex items-center gap-2 bg-red-600/20 text-red-400 px-3.5 py-2 rounded-xl border border-red-500/30 font-black text-base">
+                <span>BTX</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <select
+                    value={activeBtxIndex}
+                    onChange={(e) => setActiveBtxIndex(Number(e.target.value))}
+                    className="bg-slate-800 border border-slate-700 text-white text-base font-bold rounded-lg px-3 py-1.5 focus:border-red-500 outline-hidden cursor-pointer"
+                  >
+                    {btxEstimates.map((est, idx) => (
+                      <option key={est.id || idx} value={idx}>
+                        {est.title} ({est.bid_number}) — ${fmt(est.total_amount)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-xs uppercase font-bold bg-blue-500/20 text-blue-300 px-2.5 py-1 rounded border border-blue-500/30">
+                    {currentBtxEstimate.items.length} Line Items
+                  </span>
+                </div>
+                <p className="text-sm text-slate-400 mt-1">
+                  Total Amount: <span className="text-red-400 font-black text-base">${fmt(currentBtxEstimate.total_amount)}</span> · Client: <span className="text-slate-200 font-semibold">{currentBtxEstimate.client_name}</span> · Scope: <span className="text-slate-300">{currentBtxEstimate.scope}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => {
+                  setEditingBtxItem(null);
+                  setShowAddItemModal(true);
+                }}
+                className="bg-red-600 hover:bg-red-500 text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+              >
+                <span>+ Add Line Item (Dropdown)</span>
+              </button>
+
+              <button
+                onClick={() => setShowEditEstimateModal(true)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-3.5 py-2.5 rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <span>✎ Edit Proposal Info</span>
+              </button>
+
+              <button
+                onClick={handleCreateNewEstimate}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-3.5 py-2.5 rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <span>+ New Estimate</span>
+              </button>
+
+              <button
+                onClick={handleExportBTXPDF}
+                disabled={generatingBtxPdf}
+                className="bg-[#0B2545] hover:bg-[#123868] text-white text-sm font-bold px-4 py-2.5 rounded-xl border border-blue-400/40 shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span>{generatingBtxPdf ? 'Generating...' : '📄 Download PDF'}</span>
+              </button>
+
+              <button
+                onClick={() => window.print()}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold px-3.5 py-2.5 rounded-xl border border-slate-700 transition-all cursor-pointer"
+                title="Print Document"
+              >
+                🖨️
+              </button>
+            </div>
+          </div>
+
+          {/* BTX Document Paper Sheet */}
+          <div className="overflow-x-auto pb-12">
+            <BTXEstimateSheet
+              estimate={currentBtxEstimate}
+              projectName={project?.name}
+              isEditable={true}
+              onEditItem={handleEditBtxItem}
+              onDeleteItem={handleDeleteBtxItem}
+              onOpenAddItemModal={() => {
+                setEditingBtxItem(null);
+                setShowAddItemModal(true);
+              }}
+            />
+          </div>
+
+          {/* Add Item Modal with catalog dropdown */}
+          <AddEstimateItemModal
+            isOpen={showAddItemModal}
+            onClose={() => {
+              setShowAddItemModal(false);
+              setEditingBtxItem(null);
+            }}
+            onAddItem={handleAddBtxItem}
+            catalogItems={catalogItems}
+            itemToEdit={editingBtxItem}
+          />
+
+          {/* Edit Estimate Info Modal */}
+          <EditEstimateModal
+            isOpen={showEditEstimateModal}
+            onClose={() => setShowEditEstimateModal(false)}
+            estimate={currentBtxEstimate}
+            onSave={handleSaveEstimateMeta}
+          />
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/*  HUMANA CSI SPREADSHEET VIEW                                 */}
+      {/* ============================================================ */}
+      {estimateView === 'humana' && (
+        <div className="space-y-6">
       {/* ============================================================ */}
       {/*  TOP CONTROL TOOLBAR (Hidden in Print/PDF)                    */}
       {/* ============================================================ */}
@@ -1373,6 +1765,8 @@ export default function EstimatePage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

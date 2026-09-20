@@ -37,7 +37,7 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
         {
             id: 'estimate',
             href: `/projects/${projectId}/estimate`,
-            label: 'Estimating',
+            label: 'Estimate',
             icon: EstimateIcon,
         },
         {
@@ -150,9 +150,32 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
         },
     ], [projectId]);
 
-    const [tabs, setTabs] = useState<NavTabItem[]>(baseTabs);
+    const [tabs, setTabs] = useState<NavTabItem[]>(() => {
+        if (typeof window === 'undefined') return baseTabs;
+        try {
+            const storageKey = `consestimate_tabs_order_${projectId}`;
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                const orderIds: string[] = JSON.parse(saved);
+                const map = new Map(baseTabs.map(t => [t.id, t]));
+                const ordered: NavTabItem[] = [];
+                orderIds.forEach(id => {
+                    const found = map.get(id);
+                    if (found) {
+                        ordered.push(found);
+                        map.delete(id);
+                    }
+                });
+                map.forEach(tab => ordered.push(tab));
+                return ordered;
+            }
+        } catch {
+            // ignore
+        }
+        return baseTabs;
+    });
 
-    // Load persisted tab order from localStorage
+    // Update tabs when baseTabs changes (e.g. projectId changes)
     useEffect(() => {
         try {
             const storageKey = `consestimate_tabs_order_${projectId}`;
@@ -168,15 +191,14 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
                         map.delete(id);
                     }
                 });
-                // Append any newly added tabs not present in stored order
                 map.forEach(tab => ordered.push(tab));
-                setTabs(ordered);
+                queueMicrotask(() => setTabs(ordered));
                 return;
             }
-        } catch (e) {
+        } catch {
             // ignore
         }
-        setTabs(baseTabs);
+        queueMicrotask(() => setTabs(baseTabs));
     }, [baseTabs, projectId]);
 
     const checkScroll = () => {
@@ -266,12 +288,12 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
     };
 
     return (
-        <div className="bg-[#dfe1e5] dark:bg-gray-900 border-b border-gray-300 dark:border-gray-800 relative pt-1.5 px-2 select-none">
+        <div className="bg-[#09090b] border-b border-[#27272a] relative pt-1.5 px-2 select-none">
             {/* Scroll indicator - Left */}
             {canScrollLeft && (
                 <button
                     onClick={() => scroll('left')}
-                    className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#dfe1e5] dark:from-gray-900 to-transparent z-30 flex items-center justify-start pl-1 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                    className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#09090b] to-transparent z-30 flex items-center justify-start pl-1 text-zinc-400 hover:text-[#f4f4f5] transition-colors cursor-pointer"
                     title="Scroll Left"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,7 +306,7 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
             {canScrollRight && (
                 <button
                     onClick={() => scroll('right')}
-                    className="absolute right-10 top-0 bottom-0 w-8 bg-gradient-to-l from-[#dfe1e5] dark:from-gray-900 to-transparent z-30 flex items-center justify-end pr-1 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                    className="absolute right-10 top-0 bottom-0 w-8 bg-gradient-to-l from-[#09090b] to-transparent z-30 flex items-center justify-end pr-1 text-zinc-400 hover:text-[#f4f4f5] transition-colors cursor-pointer"
                     title="Scroll Right"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,7 +319,7 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
             <div className="absolute right-2 top-2 bottom-0 z-30 flex items-center">
                 <button
                     onClick={handleResetOrder}
-                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs px-1.5 py-1 rounded hover:bg-gray-200/80 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                    className="text-zinc-500 hover:text-[#f4f4f5] text-xs px-1.5 py-1 rounded hover:bg-[#18181b] transition-colors cursor-pointer"
                     title="Reset tab positions to default"
                 >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,25 +360,25 @@ export default function ProjectSubNav({ projectId }: ProjectSubNavProps) {
                         >
                             <Link
                                 href={tab.href}
-                                className={`flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold rounded-t-xl transition-all duration-150 min-w-fit relative ${
+                                className={`flex items-center gap-2.5 px-4 py-2.5 text-[15px] font-semibold rounded-t-xl transition-all duration-150 min-w-fit relative ${
                                     isActive
-                                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-[0_-1px_4px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)] font-bold border-t-2 border-t-procore-orange border-x border-gray-300/80 dark:border-gray-700 -mb-px z-20 scale-[1.02] transform'
-                                        : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-gray-800/60 hover:-translate-y-0.5 hover:shadow-xs'
+                                        ? 'bg-[#18181b] text-[#f4f4f5] shadow-[0_-1px_4px_rgba(0,0,0,0.5)] font-bold border-t-2 border-t-procore-orange border-x border-[#27272a] -mb-px z-20 scale-[1.02] transform'
+                                        : 'bg-transparent text-zinc-400 hover:text-[#f4f4f5] hover:bg-[#18181b] hover:-translate-y-0.5'
                                 }`}
                             >
                                 {/* Grip dots indicator */}
-                                <span className="opacity-0 group-hover:opacity-40 transition-opacity text-[9px] -ml-1 text-gray-500 font-mono tracking-tighter">
+                                <span className="opacity-0 group-hover:opacity-40 transition-opacity text-xs -ml-1 text-zinc-500 font-mono tracking-tighter">
                                     ⋮⋮
                                 </span>
 
-                                <tab.icon className={`w-3.5 h-3.5 ${isActive ? 'text-procore-orange' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400'}`} />
+                                <tab.icon className={`w-4.5 h-4.5 ${isActive ? 'text-procore-orange' : 'text-zinc-400 group-hover:text-[#f4f4f5]'}`} />
                                 <span>{tab.label}</span>
                             </Link>
 
-                            {/* Divider line between inactive tabs (just like Chrome) */}
+                            {/* Divider line between inactive tabs */}
                             {!isActive && idx < tabs.length - 1 && tabs[idx + 1] && (
                                 !(tabs[idx + 1].exact ? pathname === tabs[idx + 1].href : pathname.startsWith(tabs[idx + 1].href)) && (
-                                    <div className="w-[1px] h-3.5 bg-gray-300 dark:bg-gray-700 mx-0.5 self-center" />
+                                    <div className="w-[1px] h-4 bg-[#27272a] mx-0.5 self-center" />
                                 )
                             )}
                         </div>

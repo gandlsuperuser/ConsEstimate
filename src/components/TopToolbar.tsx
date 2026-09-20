@@ -97,14 +97,14 @@ export default function TopToolbar() {
                         className="flex items-center gap-2.5 h-full px-4 hover:bg-procore-dark-hover transition-colors border-r border-white/10"
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
-                        <div className="w-7 h-7 rounded-lg bg-procore-orange flex items-center justify-center shadow-md">
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 rounded-lg bg-procore-orange flex items-center justify-center shadow-md">
+                            <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                             </svg>
                         </div>
                         <div className="hidden sm:block">
-                            <span className="text-white font-bold text-sm tracking-tight leading-none">ConsEstimate</span>
-                            <p className="text-gray-500 text-[9px] font-semibold tracking-widest uppercase leading-none mt-0.5">BTX Construction</p>
+                            <span className="text-white font-extrabold text-base tracking-tight leading-none">ConsEstimate</span>
+                            <p className="text-gray-400 text-[11px] font-bold tracking-widest uppercase leading-none mt-0.5">BTX Construction</p>
                         </div>
                     </Link>
                 </div>
@@ -115,13 +115,13 @@ export default function TopToolbar() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`flex items-center gap-2 h-full px-4 text-[13px] font-semibold transition-colors relative ${
+                            className={`flex items-center gap-2 h-full px-4 text-[15px] font-semibold transition-colors relative ${
                                 isActive(item.href)
                                     ? 'text-white'
                                     : 'text-gray-400 hover:text-white hover:bg-procore-dark-hover'
                             }`}
                         >
-                            <item.icon className="w-4 h-4" />
+                            <item.icon className="w-4.5 h-4.5" />
                             {item.label}
                             {isActive(item.href) && (
                                 <span className="absolute bottom-0 left-2 right-2 h-[3px] bg-procore-orange rounded-t-full" />
@@ -138,28 +138,28 @@ export default function TopToolbar() {
                             onClick={() => setIsQuickCreateOpen(!isQuickCreateOpen)}
                             className="h-full px-3 flex items-center gap-1.5 text-white hover:bg-procore-dark-hover transition-colors"
                         >
-                            <span className="w-6 h-6 rounded bg-procore-orange flex items-center justify-center">
+                            <span className="w-6.5 h-6.5 rounded bg-procore-orange flex items-center justify-center">
                                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.5v15m7.5-7.5h-15" />
                                 </svg>
                             </span>
-                            <span className="hidden lg:inline text-[12px] font-bold">Create</span>
-                            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <span className="hidden lg:inline text-[14px] font-bold">Create</span>
+                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                             </svg>
                         </button>
 
                         {isQuickCreateOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-procore-border py-1.5 z-50">
-                                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-procore-text-muted">Quick Create</p>
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-[#09090b] rounded-lg shadow-2xl border border-[#27272a] py-1.5 z-50">
+                                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Quick Create</p>
                                 <button
                                     onClick={() => {
                                         setIsQuickCreateOpen(false);
                                         setIsVoiceOpen(true);
                                     }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-procore-text hover:bg-procore-orange-light transition-colors text-left"
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#f4f4f5] hover:bg-[#18181b] transition-colors text-left"
                                 >
-                                    <span className="w-7 h-7 rounded-md bg-procore-orange-light flex items-center justify-center text-procore-orange">
+                                    <span className="w-7 h-7 rounded-md bg-[#1f150c] flex items-center justify-center text-procore-orange">
                                         🎙️
                                     </span>
                                     Voice Expense
@@ -167,9 +167,9 @@ export default function TopToolbar() {
                                 <Link
                                     href="/projects/new"
                                     onClick={() => setIsQuickCreateOpen(false)}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-procore-text hover:bg-procore-orange-light transition-colors text-left"
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#f4f4f5] hover:bg-[#18181b] transition-colors text-left"
                                 >
-                                    <span className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <span className="w-7 h-7 rounded-md bg-blue-950/60 flex items-center justify-center text-blue-400">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.5v15m7.5-7.5h-15" />
                                         </svg>
@@ -184,7 +184,7 @@ export default function TopToolbar() {
                     <div ref={notificationsRef} className="relative h-full">
                         <button
                             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                            className="h-full px-3 text-gray-400 hover:text-white hover:bg-procore-dark-hover transition-colors relative flex items-center"
+                            className="h-full px-3 text-zinc-400 hover:text-[#f4f4f5] hover:bg-procore-dark-hover transition-colors relative flex items-center"
                             title="Notifications"
                         >
                             <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,27 +198,27 @@ export default function TopToolbar() {
                         </button>
 
                         {isNotificationsOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-lg shadow-2xl border border-procore-border py-2 z-50">
-                                <div className="px-3.5 py-1.5 border-b border-procore-border-light flex justify-between items-center">
-                                    <span className="font-bold text-xs text-procore-text">Project Notifications</span>
+                            <div className="absolute right-0 top-full mt-1 w-80 bg-[#09090b] rounded-lg shadow-2xl border border-[#27272a] py-2 z-50">
+                                <div className="px-3.5 py-1.5 border-b border-[#27272a] flex justify-between items-center">
+                                    <span className="font-bold text-xs text-[#f4f4f5]">Project Notifications</span>
                                     <span className="text-[10px] text-procore-orange font-bold uppercase">{unreadCount} Unread</span>
                                 </div>
-                                <div className="max-h-72 overflow-y-auto divide-y divide-procore-border-light">
+                                <div className="max-h-72 overflow-y-auto divide-y divide-[#27272a]">
                                     {notifications.map((n) => (
                                         <div
                                             key={n.id}
                                             onClick={() => markAsRead(n.id)}
-                                            className={`p-3 text-left transition-colors cursor-pointer hover:bg-gray-50 ${
-                                                !n.is_read ? 'bg-procore-orange-light/30' : ''
+                                            className={`p-3 text-left transition-colors cursor-pointer hover:bg-[#18181b] ${
+                                                !n.is_read ? 'bg-[#1a140c]' : ''
                                             }`}
                                         >
                                             <div className="flex items-center justify-between">
-                                                <span className="font-bold text-[11px] text-procore-text">{n.title}</span>
-                                                <span className="text-[9px] font-bold uppercase bg-white border px-1.5 py-0.2 rounded text-procore-text-muted">
+                                                <span className="font-bold text-[11px] text-[#f4f4f5]">{n.title}</span>
+                                                <span className="text-[9px] font-bold uppercase bg-[#18181b] border border-[#27272a] px-1.5 py-0.2 rounded text-zinc-400">
                                                     {n.module}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-procore-text-secondary mt-0.5">{n.description}</p>
+                                            <p className="text-[11px] text-zinc-300 mt-0.5">{n.description}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -239,21 +239,21 @@ export default function TopToolbar() {
                                 M
                             </div>
                             <div className="hidden xl:block text-left">
-                                <p className="text-white text-[11px] font-semibold leading-none">Mo Li</p>
-                                <p className="text-gray-500 text-[10px] leading-none mt-0.5">Project Manager</p>
+                                <p className="text-[#f4f4f5] text-[11px] font-semibold leading-none">Mo Li</p>
+                                <p className="text-zinc-400 text-[10px] leading-none mt-0.5">Project Manager</p>
                             </div>
                         </button>
 
                         {isUserMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-procore-border py-1.5 z-50">
-                                <div className="px-3 py-2 border-b border-procore-border-light">
-                                    <p className="text-sm font-semibold text-procore-text">Mo Li</p>
-                                    <p className="text-xs text-procore-text-muted">Project Manager / Admin</p>
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-[#09090b] rounded-lg shadow-2xl border border-[#27272a] py-1.5 z-50">
+                                <div className="px-3 py-2 border-b border-[#27272a]">
+                                    <p className="text-sm font-semibold text-[#f4f4f5]">Mo Li</p>
+                                    <p className="text-xs text-zinc-400">Project Manager / Admin</p>
                                 </div>
-                                <button className="w-full text-left px-3 py-2 text-sm text-procore-text hover:bg-gray-50 transition-colors">
+                                <button className="w-full text-left px-3 py-2 text-sm text-[#f4f4f5] hover:bg-[#18181b] transition-colors">
                                     Account Settings
                                 </button>
-                                <button className="w-full text-left px-3 py-2 text-sm text-procore-text-muted hover:bg-gray-50 transition-colors">
+                                <button className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-[#f4f4f5] hover:bg-[#18181b] transition-colors">
                                     Sign Out
                                 </button>
                             </div>

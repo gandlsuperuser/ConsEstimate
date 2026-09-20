@@ -1,9 +1,132 @@
 {
-  "bid_packages": [],
-  "bids": [],
-  "contracts": [],
-  "submittals": [],
+  "bid_packages": [
+    {
+      "id": "d2e51a96-28ba-4f95-9877-7fe275054339",
+      "created_at": "2026-09-20T02:28:37.477Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "title": "Division 23 - Rooftop Air Handling Unit (RTU-1) & Piping",
+      "trade": "Mechanical / HVAC",
+      "division_code": "23",
+      "scope_description": "Furnish and install one 25-ton packaged rooftop air handling unit, roof curb, vibration isolators, condensate piping, and refrigerant charge.",
+      "estimated_budget": 45000,
+      "due_date": "2026-09-20",
+      "status": "awarded"
+    }
+  ],
+  "bids": [
+    {
+      "id": "6b0dfa4c-c234-4022-b6dd-6185a0ba5af7",
+      "created_at": "2026-09-20T02:28:37.801Z",
+      "bid_package_id": "d2e51a96-28ba-4f95-9877-7fe275054339",
+      "subcontractor_name": "LoneStar Climate Systems",
+      "contact_email": "projects@lonestarclimate.com",
+      "base_bid_amount": 46000,
+      "submitted_date": "2026-09-20",
+      "status": "submitted"
+    },
+    {
+      "id": "3b0bc54d-c36e-42d0-b393-2ddf8f1fb2c7",
+      "created_at": "2026-09-20T02:28:37.720Z",
+      "bid_package_id": "d2e51a96-28ba-4f95-9877-7fe275054339",
+      "subcontractor_name": "AirPro Commercial HVAC",
+      "contact_email": "estimating@airpro.com",
+      "base_bid_amount": 47200,
+      "submitted_date": "2026-09-20",
+      "status": "submitted"
+    },
+    {
+      "id": "bb0f03be-f6b8-4f86-b817-8680f5ca59cf",
+      "created_at": "2026-09-20T02:28:37.630Z",
+      "bid_package_id": "d2e51a96-28ba-4f95-9877-7fe275054339",
+      "subcontractor_name": "Apex Mechanical Contractors",
+      "contact_email": "bids@apexmech.com",
+      "contact_phone": "(210) 555-0144",
+      "base_bid_amount": 44500,
+      "alternate_amount": 1800,
+      "inclusions": "Includes 25-ton RTU, crane hoisting, and 1-yr maintenance warranty",
+      "exclusions": "Low-voltage controls wiring by electrical trade",
+      "submitted_date": "2026-09-20",
+      "status": "awarded",
+      "notes": "Lowest responsive bidder with excellent safety rating"
+    }
+  ],
+  "contracts": [
+    {
+      "id": "5be3a392-2319-4699-9d28-411ed2663835",
+      "created_at": "2026-09-20T02:28:37.888Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "contract_number": "SC-2301-APEX",
+      "title": "Subcontract - RTU Mechanical Installation",
+      "vendor_name": "Apex Mechanical Contractors",
+      "contract_type": "subcontract",
+      "original_amount": 44500,
+      "revised_amount": 47700,
+      "retainage_pct": 10,
+      "start_date": "2026-09-20",
+      "status": "executed",
+      "approval_step": "Fully Executed",
+      "e_signed_at": "2026-09-20T02:28:37.888Z",
+      "notes": "Executed contract linked to Division 23 package"
+    }
+  ],
+  "submittals": [
+    {
+      "id": "4af32b01-e416-49b6-b82c-a3346193a650",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "spec_division": "23 05 48 - Vibration and Seismic Controls for HVAC",
+      "submittal_number": "SUB-23-002",
+      "title": "Kinetics Spring Vibration Isolators & Curb Gaskets",
+      "description": null,
+      "subcontractor_name": "Apex Mechanical Contractors",
+      "approver_name": "Structural Engineer",
+      "received_date": "2026-09-20",
+      "required_on_site_date": null,
+      "lead_time_weeks": 2,
+      "status": "approved_as_noted",
+      "is_substitution": false,
+      "substitution_cost_delta": 0,
+      "schedule_risk_level": "low",
+      "notes": null,
+      "created_at": "2026-09-20T02:28:38.135+00:00"
+    },
+    {
+      "id": "760e5694-8d8b-492a-b7c2-82c3bbb5157c",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "spec_division": "23 74 13 - Packaged Outdoor Central-Station Air-Handling Units",
+      "submittal_number": "SUB-23-001",
+      "title": "Trane Voyager 25-Ton High Efficiency Rooftop Unit",
+      "description": "Cut sheets, performance ratings, electrical schematics, and sound data.",
+      "subcontractor_name": "Apex Mechanical Contractors",
+      "approver_name": "Lead Mechanical Engineer (MEP)",
+      "received_date": "2026-09-20",
+      "required_on_site_date": null,
+      "lead_time_weeks": 4,
+      "status": "approved",
+      "is_substitution": true,
+      "substitution_cost_delta": -1800,
+      "schedule_risk_level": "low",
+      "notes": "Substituted for York model due to 8-week supplier delay on original spec; approved with $1,800 cost credit.",
+      "created_at": "2026-09-20T02:28:37.973+00:00"
+    }
+  ],
   "rfis": [
+    {
+      "id": "0f39f473-c8e3-4536-945f-5a51012333b1",
+      "created_at": "2026-09-20T02:28:38.237Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "rfi_number": "RFI-042",
+      "subject": "Structural Curb Opening Dimensions vs. M-201 Ductwork Penetration",
+      "question": "Drawing S-102 shows a 48\"x60\" roof opening for the RTU, but Mechanical M-201 requires 54\"x72\" to accommodate supply/return plenum transitions. Please confirm revised structural header framing.",
+      "assigned_to": "Apex Engineering Group (Structural)",
+      "drawing_number": "S-102 / M-201",
+      "spec_section": "23 74 13",
+      "schedule_impact_days": 3,
+      "cost_impact_estimate": 3200,
+      "status": "responded",
+      "official_response": "Proceed with enlarged 54\"x72\" curb opening. Add two W8x15 structural cross-angles per revised detail S-102-R1 attached. Submit Change Event for added steel framing.",
+      "responded_at": "2026-09-20T02:28:38.237Z",
+      "has_change_event": true
+    },
     {
       "id": "6f5e1e3d-1d9b-4977-aed8-cef3af8828d2",
       "created_at": "2026-09-11T03:11:58.048Z",
@@ -51,6 +174,20 @@
   ],
   "change_events": [
     {
+      "id": "d10379c2-711b-40db-99f6-18a88bf2b614",
+      "created_at": "2026-09-20T02:28:38.318Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "event_number": "CE-018",
+      "title": "Structural Steel Header Enlargement for RTU-1 Curb",
+      "description": "Furnish and install two W8x15 steel header beams and welded angle clips per RFI-042 response.",
+      "origin_rfi_id": "0f39f473-c8e3-4536-945f-5a51012333b1",
+      "trade": "Structural Metals & Mechanical",
+      "estimated_cost": 3200,
+      "contingency_allocation": 3200,
+      "schedule_delay_days": 2,
+      "status": "approved"
+    },
+    {
       "id": "9b27788f-4db8-4181-a7de-70cd2c5394c3",
       "created_at": "2026-09-11T03:11:58.476Z",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
@@ -64,12 +201,148 @@
       "status": "pricing"
     }
   ],
-  "change_orders": [],
-  "field_observations": [],
-  "pay_applications": [],
-  "pay_app_items": [],
-  "payments": [],
-  "risk_items": [],
+  "change_orders": [
+    {
+      "id": "d5ff035f-b8b0-4072-a2f2-3f38979b8d69",
+      "created_at": "2026-09-20T02:28:38.393Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "co_number": "PCO-005",
+      "title": "Added Structural Framing at RTU-1 Roof Penetration",
+      "co_type": "subcontract",
+      "contract_id": "5be3a392-2319-4699-9d28-411ed2663835",
+      "amount": 3200,
+      "time_extension_days": 2,
+      "status": "executed",
+      "approval_date": "2026-09-20",
+      "description": "Formal Change Order created from Change Event CE-018 per RFI-042."
+    }
+  ],
+  "field_observations": [
+    {
+      "id": "44b0ac2d-98a2-4813-bece-b9c93ee9bc76",
+      "created_at": "2026-09-20T02:28:38.548Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "observation_number": "OBS-032",
+      "category": "safety",
+      "title": "Crane Hoist Rigging Inspection Tag Verified",
+      "description": "100-ton mobile crane certified rigging inspection complete. 50ft perimeter exclusion barricade active.",
+      "trade_partner": "Apex Mechanical & Crane Rental",
+      "assignee": "Safety Coordinator",
+      "location": "Ground Staging Area",
+      "urgency": "critical",
+      "status": "closed",
+      "due_date": "2026-09-20"
+    },
+    {
+      "id": "0d6db7b4-dbdf-4111-9812-9774eabc2046",
+      "created_at": "2026-09-20T02:28:38.469Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "observation_number": "OBS-031",
+      "category": "quality",
+      "title": "Verify Roof Curb Gasket Seal Before Crane Pick",
+      "description": "Continuous neoprene gasket must be fully inspected and dry before RTU-1 is lowered onto the curb.",
+      "trade_partner": "Apex Mechanical Contractors",
+      "assignee": "Robert Mason (Superintendent)",
+      "location": "Main Roof - Sector B",
+      "urgency": "high",
+      "status": "resolved",
+      "due_date": "2026-09-20"
+    }
+  ],
+  "pay_applications": [
+    {
+      "id": "5abea762-061a-4ece-bfcc-c53e55651e0b",
+      "created_at": "2026-09-20T02:28:38.640Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "contract_id": "5be3a392-2319-4699-9d28-411ed2663835",
+      "application_number": 1,
+      "period_to": "2026-09-20",
+      "contract_amount": 44500,
+      "change_order_amount": 3200,
+      "total_completed_to_date": 25000,
+      "retainage_amount": 2500,
+      "previous_payments": 0,
+      "current_payment_due": 22500,
+      "status": "approved",
+      "approved_at": "2026-09-20T02:28:38.640Z",
+      "notes": "Application #1 for 50% equipment delivery and curb rough-in."
+    }
+  ],
+  "pay_app_items": [
+    {
+      "id": "b50e8831-11d5-4cf6-8de0-a2f04d9d9688",
+      "created_at": "2026-09-20T02:28:38.812Z",
+      "pay_application_id": "5abea762-061a-4ece-bfcc-c53e55651e0b",
+      "item_code": "23-02",
+      "description": "Roof Curb Installation & Flashing",
+      "scheduled_value": 8000,
+      "work_completed_previous": 0,
+      "work_completed_this_period": 5000,
+      "stored_materials": 0,
+      "total_completed": 5000,
+      "pct_complete": 62.5,
+      "balance_to_finish": 3000
+    },
+    {
+      "id": "73fd5eec-ee22-4f9e-ba0e-9e5f7e12e411",
+      "created_at": "2026-09-20T02:28:38.726Z",
+      "pay_application_id": "5abea762-061a-4ece-bfcc-c53e55651e0b",
+      "item_code": "23-01",
+      "description": "RTU-1 Equipment Delivery on Site",
+      "scheduled_value": 30000,
+      "work_completed_previous": 0,
+      "work_completed_this_period": 20000,
+      "stored_materials": 0,
+      "total_completed": 20000,
+      "pct_complete": 66.7,
+      "balance_to_finish": 10000
+    }
+  ],
+  "payments": [
+    {
+      "id": "4c0023e4-7e0c-41d7-a433-e59216e0ece5",
+      "created_at": "2026-09-20T02:28:38.989Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "pay_application_id": "5abea762-061a-4ece-bfcc-c53e55651e0b",
+      "recipient_name": "Apex Mechanical Contractors",
+      "amount": 22500,
+      "payment_date": "2026-09-20",
+      "payment_method": "ACH",
+      "funding_account": "Construction Draw Account #4012",
+      "check_or_tx_number": "ACH-8892104",
+      "status": "completed",
+      "cleared_at": "2026-09-20T02:28:38.989Z",
+      "notes": "Disbursement for Pay App #1 approved by Project Manager."
+    }
+  ],
+  "risk_items": [
+    {
+      "id": "8572d314-eb62-4eff-a9b7-ed8cef531611",
+      "created_at": "2026-09-20T02:28:39.166Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "title": "Power Feed Re-routing for Higher Amp Draw",
+      "category": "Cost",
+      "probability": "low",
+      "impact": "medium",
+      "potential_cost_impact": 1800,
+      "potential_delay_days": 0,
+      "mitigation_strategy": "Electrical sub verified breaker panel capacity during submittal review.",
+      "status": "active"
+    },
+    {
+      "id": "03a3e704-1028-4925-b1d4-63c8f81fa971",
+      "created_at": "2026-09-20T02:28:39.079Z",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "title": "Crane Pick Wind Window Restrictions",
+      "category": "Schedule",
+      "probability": "medium",
+      "impact": "high",
+      "potential_cost_impact": 4500,
+      "potential_delay_days": 2,
+      "mitigation_strategy": "Reserved secondary Saturday crane window with municipal road closure permit active.",
+      "status": "mitigated"
+    }
+  ],
   "project_drawings": [],
   "drawing_markups": [],
   "action_plans": [],
@@ -959,6 +1232,16 @@
   "vendor_partners": [],
   "audit_activities": [
     {
+      "id": "rec-1789926414244",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_logged",
+      "module": "Expenses",
+      "description": "Logged $259.88 equipment rental contract #102346 from Rental Services of Texas (60lb Breaker, 14\" Saw, Diamond Blade) - Conviva Jourdanton",
+      "timestamp": "2026-09-20T17:46:54.244Z",
+      "created_at": "2026-09-20T17:46:54.245Z"
+    },
+    {
       "id": "rec-1789668510000",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "actor_name": "Admin",
@@ -1079,6 +1362,113 @@
       "created_at": "2026-09-11T15:51:01.323Z"
     }
   ],
+  "estimate_catalog_items": [
+    {
+      "id": "cat-1",
+      "description": "Concrete",
+      "details": "Additional concrete required for Phase 1 change order as requested by Humana engineer.",
+      "default_amount": 5800,
+      "category": "Concrete",
+      "created_at": "2026-09-20T02:19:49.303Z"
+    },
+    {
+      "id": "cat-2",
+      "description": "Electrical",
+      "details": "Change order as per engineer. New wiring to new patient room. Material and electrician included.",
+      "default_amount": 1960,
+      "category": "Electrical",
+      "created_at": "2026-09-20T02:19:49.304Z"
+    },
+    {
+      "id": "cat-3",
+      "description": "HVAC – Duct",
+      "details": "Change order per engineer. New duct requested by engineer. New duct fabricated.",
+      "default_amount": 1222,
+      "category": "HVAC",
+      "created_at": "2026-09-20T02:19:49.304Z"
+    },
+    {
+      "id": "cat-4",
+      "description": "HVAC – Labor",
+      "details": "Labor for installation of new HVAC ductwork.",
+      "default_amount": 1500,
+      "category": "HVAC",
+      "created_at": "2026-09-20T02:19:49.304Z"
+    },
+    {
+      "id": "cat-5",
+      "description": "Additional Wall",
+      "details": "Additional wall to be added as requested by engineer. Drywall material included.",
+      "default_amount": 6700,
+      "category": "Drywall / Framing",
+      "created_at": "2026-09-20T02:19:49.304Z"
+    },
+    {
+      "id": "cat-6",
+      "description": "Inspector & Permit Fees",
+      "details": "Inspector fee and City permit fee for additional change.",
+      "default_amount": 685,
+      "category": "Permits",
+      "created_at": "2026-09-20T02:19:49.304Z"
+    },
+    {
+      "id": "cat-7",
+      "description": "ADA Ramp",
+      "details": "Additional ADA ramp requested by Humana engineer to build. Includes concrete slab, aluminum rail, and landing ramp.",
+      "default_amount": 2952,
+      "category": "Concrete / ADA",
+      "created_at": "2026-09-20T02:19:49.304Z"
+    }
+  ],
+  "btx_estimates": [
+    {
+      "id": "est-btx-0926-02",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "title": "Phase 1 – Additional Work / Change Order",
+      "bid_number": "BTX-HC-0926-02",
+      "estimate_date": "September 12, 2026",
+      "client_name": "Humana – Conviva",
+      "project_name": "CONVIVA JOURDANTON",
+      "location": "Jourdanton, TX",
+      "scope": "Phase 1 – Additional Work / Change Order",
+      "intro_text": "BTX Contractors is pleased to provide the following proposal for the above referenced project. This change order includes labor, materials, and equipment as outlined below, per the Humana engineer's request.",
+      "items": [
+        {
+          "id": "item-5",
+          "item_number": 1,
+          "description": "Additional Wall",
+          "details": "Additional wall to be added as requested by engineer. Drywall material included.",
+          "amount": 6700
+        },
+        {
+          "id": "item-1789877652306",
+          "item_number": 2,
+          "description": "Concrete",
+          "details": "Additional concrete required for Phase 1 change order as requested by Humana engineer.",
+          "amount": 5800
+        }
+      ],
+      "total_amount": 12500,
+      "notes_and_clarifications": [
+        "This proposal includes only the scope of work listed above.",
+        "Any additional work, unforeseen conditions, or changes to the scope will be addressed via a written change order.",
+        "Permits, testing, or inspections (if required) are included only as specifically noted.",
+        "BTX Contractors is not responsible for concealed conditions such as existing electrical, plumbing, structural, or hazardous materials (including asbestos).",
+        "This proposal is valid for 30 days from the date above.",
+        "Payment terms: Net 30, unless otherwise agreed in writing."
+      ],
+      "closing_text": "We appreciate the opportunity to work with Humana–Conviva and look forward to a successful project.",
+      "submitted_by_name": "Raul Ayala",
+      "submitted_by_title": "Project Manager",
+      "submitted_by_company": "BTX Contractors",
+      "submitted_by_date": "",
+      "accepted_by_name": "Humana – Conviva",
+      "accepted_by_date": "",
+      "status": "submitted",
+      "created_at": "2026-09-20T02:19:49.304Z",
+      "updated_at": "2026-09-20T04:43:50.989Z"
+    }
+  ],
   "in_app_notifications": [
     {
       "id": "notif-1",
@@ -1106,6 +1496,306 @@
       "link": "/pay-apps",
       "is_read": true,
       "created_at": "2026-08-31T20:09:52.391Z"
+    }
+  ],
+  "submittal_extensions": [
+    {
+      "id": "bd3b0fbb-a3d0-4415-bf1c-67da64d2c599",
+      "submittal_id": "bd3b0fbb-a3d0-4415-bf1c-67da64d2c599",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "linked_activity_ids": [],
+      "lead_time_weeks": 5,
+      "review_duration_days": 14,
+      "revisions": [
+        {
+          "id": "rev-0-bd3b0f",
+          "revision_number": 0,
+          "title": "Initial Submittal Package",
+          "submitted_date": "2026-09-15",
+          "status": "draft",
+          "review_remarks": "Package submitted for engineering compliance review."
+        }
+      ],
+      "comments": [],
+      "attachments": [
+        {
+          "id": "att-1-bd3b0f",
+          "name": "Wilsonart Chem-Resistant Lamin - CutSheet.pdf",
+          "file_type": "application/pdf",
+          "file_size": "2.4 MB",
+          "url": "https://example.com/spec-cut.pdf",
+          "uploaded_at": "2026-09-20T17:55:34.461Z",
+          "uploaded_by": "Texas Millwork Craftsmen"
+        }
+      ],
+      "audit_trail": [
+        {
+          "id": "aud-0-bd3b0f",
+          "event_type": "created",
+          "summary": "Submittal created in system",
+          "details": "Submittal SUB-12-001 registered and initial lead-time established.",
+          "actor": "System Seed",
+          "timestamp": "2026-09-20T17:55:34.462Z"
+        }
+      ],
+      "updated_at": "2026-09-20T17:55:34.462Z"
+    },
+    {
+      "id": "87cf2250-cc32-4b18-9901-dac414d36bff",
+      "submittal_id": "87cf2250-cc32-4b18-9901-dac414d36bff",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "linked_activity_ids": [
+        "9df9c430-6901-4c7d-841c-397287d1b51c"
+      ],
+      "lead_time_weeks": 3,
+      "review_duration_days": 14,
+      "revisions": [
+        {
+          "id": "rev-0-87cf22",
+          "revision_number": 0,
+          "title": "Initial Submittal Package",
+          "submitted_date": "2026-09-18",
+          "status": "draft",
+          "review_remarks": "Package submitted for engineering compliance review."
+        }
+      ],
+      "comments": [],
+      "attachments": [
+        {
+          "id": "att-1-87cf22",
+          "name": "Armstrong Dune 2x2 Ceiling Til - CutSheet.pdf",
+          "file_type": "application/pdf",
+          "file_size": "2.4 MB",
+          "url": "https://example.com/spec-cut.pdf",
+          "uploaded_at": "2026-09-20T17:55:34.462Z",
+          "uploaded_by": "Action Gypsum Supply"
+        }
+      ],
+      "audit_trail": [
+        {
+          "id": "aud-0-87cf22",
+          "event_type": "created",
+          "summary": "Submittal created in system",
+          "details": "Submittal SUB-09-001 registered and initial lead-time established.",
+          "actor": "System Seed",
+          "timestamp": "2026-09-20T17:55:34.462Z"
+        }
+      ],
+      "updated_at": "2026-09-20T17:55:34.462Z"
+    },
+    {
+      "id": "90f25205-845f-4655-9f2b-1a83fd7b1fe4",
+      "submittal_id": "90f25205-845f-4655-9f2b-1a83fd7b1fe4",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "linked_activity_ids": [
+        "550a3319-68a1-4f9e-9240-f68c6583eb01"
+      ],
+      "lead_time_weeks": 3,
+      "review_duration_days": 14,
+      "revisions": [
+        {
+          "id": "rev-0-90f252",
+          "revision_number": 0,
+          "title": "Initial Submittal Package",
+          "submitted_date": "2026-09-12",
+          "status": "pending",
+          "review_remarks": "Package submitted for engineering compliance review."
+        }
+      ],
+      "comments": [],
+      "attachments": [
+        {
+          "id": "att-1-90f252",
+          "name": "Kawneer 1600 System 1 Curtain  - CutSheet.pdf",
+          "file_type": "application/pdf",
+          "file_size": "2.4 MB",
+          "url": "https://example.com/spec-cut.pdf",
+          "uploaded_at": "2026-09-20T17:55:34.462Z",
+          "uploaded_by": "Associated Glass, Ltd."
+        }
+      ],
+      "audit_trail": [
+        {
+          "id": "aud-0-90f252",
+          "event_type": "created",
+          "summary": "Submittal created in system",
+          "details": "Submittal SUB-08-001 registered and initial lead-time established.",
+          "actor": "System Seed",
+          "timestamp": "2026-09-20T17:55:34.462Z"
+        }
+      ],
+      "updated_at": "2026-09-20T17:55:34.462Z"
+    },
+    {
+      "id": "d2b55d08-ed17-448f-93dc-ec301fdbc75b",
+      "submittal_id": "d2b55d08-ed17-448f-93dc-ec301fdbc75b",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "linked_activity_ids": [
+        "4baed0a0-ba04-45e2-9ae5-a6c235735a55"
+      ],
+      "lead_time_weeks": 6,
+      "review_duration_days": 14,
+      "revisions": [
+        {
+          "id": "rev-0-d2b55d",
+          "revision_number": 0,
+          "title": "Initial Submittal Package",
+          "submitted_date": "2026-09-01",
+          "status": "under_review",
+          "review_remarks": "Package submitted for engineering compliance review."
+        }
+      ],
+      "comments": [],
+      "attachments": [
+        {
+          "id": "att-1-d2b55d",
+          "name": "Square D NQ 400A Main Distribu - CutSheet.pdf",
+          "file_type": "application/pdf",
+          "file_size": "2.4 MB",
+          "url": "https://example.com/spec-cut.pdf",
+          "uploaded_at": "2026-09-20T17:55:34.462Z",
+          "uploaded_by": "Triangle Electric Inc."
+        }
+      ],
+      "audit_trail": [
+        {
+          "id": "aud-0-d2b55d",
+          "event_type": "created",
+          "summary": "Submittal created in system",
+          "details": "Submittal SUB-26-001 registered and initial lead-time established.",
+          "actor": "System Seed",
+          "timestamp": "2026-09-20T17:55:34.462Z"
+        }
+      ],
+      "updated_at": "2026-09-20T17:55:34.462Z"
+    },
+    {
+      "id": "4af32b01-e416-49b6-b82c-a3346193a650",
+      "submittal_id": "4af32b01-e416-49b6-b82c-a3346193a650",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "linked_activity_ids": [
+        "e369970c-0452-4095-83eb-09fcc20b06fc",
+        "668e1c5d-6af7-443a-8e1f-5646da2450d8"
+      ],
+      "lead_time_weeks": 2,
+      "review_duration_days": 14,
+      "revisions": [
+        {
+          "id": "rev-0-4af32b",
+          "revision_number": 0,
+          "title": "Initial Submittal Package",
+          "submitted_date": "2026-09-20",
+          "status": "approved_as_noted",
+          "review_remarks": "Package submitted for engineering compliance review."
+        }
+      ],
+      "comments": [],
+      "attachments": [
+        {
+          "id": "att-1-4af32b",
+          "name": "Kinetics Spring Vibration Isol - CutSheet.pdf",
+          "file_type": "application/pdf",
+          "file_size": "2.4 MB",
+          "url": "https://example.com/spec-cut.pdf",
+          "uploaded_at": "2026-09-20T17:55:34.462Z",
+          "uploaded_by": "Apex Mechanical Contractors"
+        }
+      ],
+      "audit_trail": [
+        {
+          "id": "aud-0-4af32b",
+          "event_type": "created",
+          "summary": "Submittal created in system",
+          "details": "Submittal SUB-23-002 registered and initial lead-time established.",
+          "actor": "System Seed",
+          "timestamp": "2026-09-20T17:55:34.462Z"
+        }
+      ],
+      "updated_at": "2026-09-20T17:55:34.462Z"
+    },
+    {
+      "id": "760e5694-8d8b-492a-b7c2-82c3bbb5157c",
+      "submittal_id": "760e5694-8d8b-492a-b7c2-82c3bbb5157c",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "linked_activity_ids": [
+        "e369970c-0452-4095-83eb-09fcc20b06fc"
+      ],
+      "lead_time_weeks": 4,
+      "review_duration_days": 14,
+      "revisions": [
+        {
+          "id": "rev-0-760e56",
+          "revision_number": 0,
+          "title": "Initial Submittal Package",
+          "submitted_date": "2026-09-20",
+          "status": "approved",
+          "review_remarks": "Package submitted for engineering compliance review."
+        }
+      ],
+      "comments": [],
+      "attachments": [
+        {
+          "id": "att-1-760e56",
+          "name": "Trane Voyager 25-Ton High Effi - CutSheet.pdf",
+          "file_type": "application/pdf",
+          "file_size": "2.4 MB",
+          "url": "https://example.com/spec-cut.pdf",
+          "uploaded_at": "2026-09-20T17:55:34.462Z",
+          "uploaded_by": "Apex Mechanical Contractors"
+        }
+      ],
+      "audit_trail": [
+        {
+          "id": "aud-0-760e56",
+          "event_type": "created",
+          "summary": "Submittal created in system",
+          "details": "Submittal SUB-23-001 registered and initial lead-time established.",
+          "actor": "System Seed",
+          "timestamp": "2026-09-20T17:55:34.462Z"
+        }
+      ],
+      "updated_at": "2026-09-20T17:55:34.462Z"
+    },
+    {
+      "id": "a7f00d09-9e0d-4c75-835c-683c65f11bb0",
+      "submittal_id": "a7f00d09-9e0d-4c75-835c-683c65f11bb0",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "linked_activity_ids": [],
+      "lead_time_weeks": 3,
+      "review_duration_days": 14,
+      "revisions": [
+        {
+          "id": "rev-0-a7f00d",
+          "revision_number": 0,
+          "title": "Initial Submittal Package",
+          "submitted_date": "2026-09-11",
+          "status": "pending",
+          "review_remarks": "Package submitted for engineering compliance review."
+        }
+      ],
+      "comments": [],
+      "attachments": [
+        {
+          "id": "att-1-a7f00d",
+          "name": "testing123 - CutSheet.pdf",
+          "file_type": "application/pdf",
+          "file_size": "2.4 MB",
+          "url": "https://example.com/spec-cut.pdf",
+          "uploaded_at": "2026-09-20T17:55:34.462Z",
+          "uploaded_by": "Subcontractor"
+        }
+      ],
+      "audit_trail": [
+        {
+          "id": "aud-0-a7f00d",
+          "event_type": "created",
+          "summary": "Submittal created in system",
+          "details": "Submittal SUB-8ab3b141-fc07-44c8-bb4e-dc7d2c40bda0 registered and initial lead-time established.",
+          "actor": "System Seed",
+          "timestamp": "2026-09-20T17:55:34.462Z"
+        }
+      ],
+      "updated_at": "2026-09-20T17:55:34.462Z"
     }
   ]
 }
