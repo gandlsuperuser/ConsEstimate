@@ -6,7 +6,19 @@
     "role": "admin",
     "salt": "08834e3e9d612e28038275b9ac70758a",
     "passwordHash": "46ad71b3ef2eb148968e4463254a47a72880b1c10612025f045f1e3324f9e21b9be9b5104685532dcfcabbdeba2b549f432fbb5fcc9d4d9ff036dff5cb9d8bdf",
-    "created_at": "2026-09-21T21:26:08.844Z"
+    "created_at": "2026-09-21T21:26:08.844Z",
+    "is_active": true,
+    "permissions": {
+      "estimates": "admin",
+      "bidding": "admin",
+      "contracts": "admin",
+      "submittals": "admin",
+      "timeline": "admin",
+      "drawings": "admin",
+      "financials": "admin",
+      "field_logs": "admin",
+      "user_management": "admin"
+    }
   },
   {
     "id": "d09f3f84-ed82-4d43-a4b2-7e3c38ca54a7",
@@ -15,7 +27,19 @@
     "role": "admin",
     "salt": "04a33ba1d861af18c9da2d7a54830109",
     "passwordHash": "ef97d2ad1eb12447f14a1e8a842987999fe1cee9d73885d5c83778992d8e4e9f65151d709db1e1212326e85a243b5277ba42c4cda97120529a4ab6bf2e9008b3",
-    "created_at": "2026-09-21T21:26:08.848Z"
+    "created_at": "2026-09-21T21:26:08.848Z",
+    "is_active": true,
+    "permissions": {
+      "estimates": "admin",
+      "bidding": "admin",
+      "contracts": "admin",
+      "submittals": "admin",
+      "timeline": "admin",
+      "drawings": "admin",
+      "financials": "admin",
+      "field_logs": "admin",
+      "user_management": "admin"
+    }
   },
   {
     "id": "e9687bc9-8aca-4585-a599-bd0015d459b3",
@@ -24,7 +48,19 @@
     "role": "admin",
     "salt": "b6d9ca513b1bbde3d6036376d6ab3191",
     "passwordHash": "b193980c2f4b67dacaee2c1afbd7b6d9035fa56bad4a3b15f2800991c942f4e6ed25ef4421613f605229c65306f5e2231a39aafeec8a3705a386f949eda2aafc",
-    "created_at": "2026-09-21T21:26:08.852Z"
+    "created_at": "2026-09-21T21:26:08.852Z",
+    "is_active": true,
+    "permissions": {
+      "estimates": "admin",
+      "bidding": "admin",
+      "contracts": "admin",
+      "submittals": "admin",
+      "timeline": "admin",
+      "drawings": "admin",
+      "financials": "admin",
+      "field_logs": "admin",
+      "user_management": "admin"
+    }
   },
   {
     "id": "46c0f345-022a-4d0d-abc9-3ea64d11497d",
@@ -33,7 +69,19 @@
     "role": "admin",
     "salt": "f4dce54dd4912aa793efff5000b468c1",
     "passwordHash": "4c0d828e43a06582ef1ad6f72e243dad3a516df2f8cf14e4d80c35192bcd64f24aed16d889f8380750bc5803db9efd681d3ba13f70f4a6fafc7c66d8f81e1c52",
-    "created_at": "2026-09-21T21:26:08.855Z"
+    "created_at": "2026-09-21T21:26:08.855Z",
+    "is_active": true,
+    "permissions": {
+      "estimates": "admin",
+      "bidding": "admin",
+      "contracts": "admin",
+      "submittals": "admin",
+      "timeline": "admin",
+      "drawings": "admin",
+      "financials": "admin",
+      "field_logs": "admin",
+      "user_management": "admin"
+    }
   },
   {
     "id": "96e17c06-383b-418e-913c-491b5392dc68",
@@ -42,6 +90,18 @@
     "role": "admin",
     "salt": "89184b493a99a0ce605474614cb88d99",
     "passwordHash": "2af7f6d88990ba86802a08ca40bc567955e6e03413cdda9031a2e4f5891551b7e491a112928adaa830a4cbef7a66970e20e7451520c5a8eb223d4d9e36b72b65",
-    "created_at": "2026-09-21T21:26:08.858Z"
+    "created_at": "2026-09-21T21:26:08.858Z",
+    "is_active": true,
+    "permissions": {
+      "estimates": "admin",
+      "bidding": "admin",
+      "contracts": "admin",
+      "submittals": "admin",
+      "timeline": "admin",
+      "drawings": "admin",
+      "financials": "admin",
+      "field_logs": "admin",
+      "user_management": "admin"
+    }
   }
 ]

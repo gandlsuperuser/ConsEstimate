@@ -273,26 +273,59 @@ export default function TopToolbar() {
                             </div>
                             <div className="hidden xl:block text-left">
                                 <p className="text-[#f4f4f5] text-[13px] font-semibold leading-none">{currentUser?.name || 'Administrator'}</p>
-                                <p className="text-zinc-200 text-xs leading-none mt-0.5">Admin Clearance</p>
+                                <p className="text-zinc-200 text-xs leading-none mt-0.5">
+                                    {currentUser?.role === 'admin' ? 'Admin Clearance' : (currentUser?.role || 'Team Member').replace('_', ' ')}
+                                </p>
                             </div>
                         </button>
 
                         {isUserMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-56 bg-[#09090b] rounded-lg shadow-2xl border border-[#52525b] py-1.5 z-50">
-                                <div className="px-3 py-2 border-b border-[#52525b]">
+                            <div className="absolute right-0 top-full mt-1 w-64 bg-[#09090b] rounded-lg shadow-2xl border border-[#52525b] py-1 z-50 divide-y divide-[#27272a]">
+                                <div className="px-3.5 py-2.5">
                                     <p className="text-sm font-semibold text-[#f4f4f5]">{currentUser?.name || 'Administrator'}</p>
                                     <p className="text-[11px] text-zinc-400 truncate">{currentUser?.email || 'admin@consestimate.com'}</p>
-                                    <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-950/60 border border-orange-700/50 text-[10px] text-orange-300 font-bold uppercase tracking-wider">
-                                        Full Admin
+                                    <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-950/60 border border-orange-700/50 text-[10px] text-orange-300 font-bold uppercase tracking-wider">
+                                        {currentUser?.role === 'admin' ? '🛡️ Full Admin' : (currentUser?.role || 'Team Member').replace('_', ' ')}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={handleSignOut}
-                                    className="w-full text-left px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-950/30 transition-colors flex items-center gap-2"
-                                >
-                                    <span>🚪</span>
-                                    <span>Sign Out</span>
-                                </button>
+
+                                {/* Settings Section for Admins */}
+                                {currentUser?.role === 'admin' && (
+                                    <div className="py-1.5">
+                                        <div className="px-3.5 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center justify-between">
+                                            <span>⚙️ Settings</span>
+                                            <span className="text-[9px] bg-orange-950/80 text-orange-400 border border-orange-800/60 px-1 py-0.2 rounded font-mono font-bold">Admin Only</span>
+                                        </div>
+                                        <Link
+                                            href="/settings/users"
+                                            onClick={() => setIsUserMenuOpen(false)}
+                                            className="w-full text-left px-3.5 py-2 text-sm text-[#f4f4f5] hover:bg-[#18181b] transition-colors flex items-center gap-2.5 group"
+                                        >
+                                            <div className="w-7 h-7 rounded bg-[#27272a] flex items-center justify-center text-zinc-300 group-hover:bg-orange-500/20 group-hover:text-orange-400 transition-colors">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-semibold text-xs text-[#f4f4f5] group-hover:text-orange-400 flex items-center gap-1.5">
+                                                    User Management
+                                                </div>
+                                                <div className="text-[10px] text-zinc-400 truncate">Assign roles & team permissions</div>
+                                            </div>
+                                            <span className="text-zinc-600 group-hover:text-zinc-400 text-xs">→</span>
+                                        </Link>
+                                    </div>
+                                )}
+
+                                <div className="py-1">
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="w-full text-left px-3.5 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-950/30 transition-colors flex items-center gap-2"
+                                    >
+                                        <span>🚪</span>
+                                        <span>Sign Out</span>
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

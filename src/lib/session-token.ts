@@ -2,7 +2,8 @@ export interface UserSession {
   userId: string;
   email: string;
   name: string;
-  role: 'admin';
+  role: string;
+  permissions?: Record<string, any>;
   exp: number; // Unix timestamp in seconds
 }
 
@@ -38,13 +39,14 @@ function base64UrlDecode(str: string): Uint8Array {
  * Creates an HMAC-signed session token: base64(payload).signature
  * Edge Runtime and Node.js compatible.
  */
-export async function createSessionToken(user: { id: string; email: string; name: string; role: 'admin' }): Promise<string> {
+export async function createSessionToken(user: { id: string; email: string; name: string; role: string; permissions?: any }): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS;
   const sessionData: UserSession = {
     userId: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    permissions: user.permissions,
     exp,
   };
 
