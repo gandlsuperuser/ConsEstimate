@@ -181,7 +181,7 @@ export default function ProjectsPage() {
   });
 
   useGSAP(() => {
-    if (filteredProjects.length > 0) {
+    if (filteredProjects.length > 0 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       gsap.fromTo('.project-card',
         { opacity: 0, y: 20 },
         { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', stagger: 0.06 }
@@ -221,22 +221,22 @@ export default function ProjectsPage() {
   return (
     <div>
       {/* Portfolio Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-procore-text tracking-tight">PORTFOLIO</h1>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-white shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h1 className="text-3xl font-semibold text-procore-text tracking-tight">Project portfolio</h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-zinc-800 text-zinc-300 border border-zinc-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               Admin
             </span>
           </div>
-          <p className="text-[12px] text-procore-text-muted mt-0.5">
-            Showing {filteredProjects.length} of {projects.length} projects
+          <p className="text-sm text-procore-text-muted mt-2">
+            An overview of your projects, from planning to completion.
           </p>
         </div>
         <Link
           href="/projects/new"
-          className="bg-procore-orange text-white px-4 py-2 rounded-md hover:bg-procore-orange-hover transition-colors text-sm font-bold shadow-sm flex items-center gap-1.5"
+          className="bg-[#f4f4f5] text-[#09090b] px-4 py-2.5 rounded-lg hover:bg-white transition-colors text-sm font-bold shadow-sm flex items-center gap-1.5"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.5v15m7.5-7.5h-15" />
@@ -266,36 +266,50 @@ export default function ProjectsPage() {
         </div>
       )}
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        {[
+          { label: 'Total projects', value: statusCounts.all, detail: 'Across your portfolio' },
+          { label: 'Active', value: statusCounts.active, detail: 'Currently in progress' },
+          { label: 'Bidding', value: statusCounts.bidding, detail: 'Opportunities in review' },
+          { label: 'Complete', value: statusCounts.complete, detail: 'Delivered projects' },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-xl border border-zinc-600 bg-[#18181b] p-5">
+            <p className="text-sm text-zinc-200">{stat.label}</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight tabular-nums">{stat.value}</p>
+            <p className="mt-2 text-sm text-zinc-300">{stat.detail}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Filter Bar */}
-      <div className="bg-[#121215] rounded-xl border border-[#27272a] p-3 mb-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+      <div className="bg-[#18181b] rounded-xl border border-[#52525b] p-3 mb-5 flex flex-col xl:flex-row items-start xl:items-center gap-3">
         {/* Search */}
-        <div className="relative flex-1 w-full sm:w-auto">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="relative flex-1 w-full xl:w-auto">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#d4d4d8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input
             type="text"
-            placeholder="Search projects..."
+            aria-label="Search projects"
+            placeholder="Search by project, client, or location..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-[#27272a] rounded-lg focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5] transition-colors bg-[#09090b] text-[#f4f4f5] placeholder-[#71717a]"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-[#52525b] rounded-lg focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5] transition-colors bg-[#09090b] text-[#f4f4f5] placeholder-[#b4b4bd]"
           />
         </div>
 
         {/* Status filter chips */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {(['all', 'active', 'bidding', 'complete'] as const).map((status) => {
-            const chipStyles: Record<string, string> = {
-              all: statusFilter === 'all' ? 'bg-[#f4f4f5] text-[#09090b] font-extrabold' : 'bg-[#18181b] text-[#a1a1aa] hover:text-[#f4f4f5] border border-[#27272a]',
-              active: statusFilter === 'active' ? 'bg-emerald-600 text-white font-bold' : 'bg-[#0f1f14] text-emerald-400 hover:bg-[#14281a] border border-emerald-900/40',
-              bidding: statusFilter === 'bidding' ? 'bg-amber-600 text-white font-bold' : 'bg-[#1f1a0f] text-amber-400 hover:bg-[#282214] border border-amber-900/40',
-              complete: statusFilter === 'complete' ? 'bg-blue-600 text-white font-bold' : 'bg-[#0f172a] text-blue-400 hover:bg-[#15203b] border border-blue-900/40',
-            };
+            const chipStyle = statusFilter === status
+              ? 'bg-[#f4f4f5] text-[#09090b] border border-[#f4f4f5]'
+              : 'text-zinc-200 hover:bg-zinc-800 hover:text-zinc-100 border border-zinc-500';
             return (
               <button
                 key={status}
+                aria-pressed={statusFilter === status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors capitalize ${chipStyles[status]}`}
+                className={`px-3 py-1.5 rounded-full text-[13px] font-semibold transition-colors capitalize ${chipStyle}`}
               >
                 {status === 'all' ? 'All' : status} ({statusCounts[status]})
               </button>
@@ -305,9 +319,10 @@ export default function ProjectsPage() {
 
         {/* Type filter */}
         <select
+          aria-label="Project type"
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="text-[12px] border border-[#27272a] rounded-lg px-2.5 py-1.5 bg-[#09090b] text-[#f4f4f5] focus:border-[#f4f4f5]"
+          className="text-sm border border-[#52525b] rounded-lg px-2.5 py-1.5 bg-[#09090b] text-[#f4f4f5] focus:border-[#f4f4f5]"
         >
           <option value="all">All Types</option>
           <option value="commercial">Commercial</option>
@@ -315,11 +330,12 @@ export default function ProjectsPage() {
         </select>
 
         {/* View mode toggle */}
-        <div className="flex items-center border border-[#27272a] rounded-lg overflow-hidden ml-auto">
+        <div className="flex items-center border border-[#52525b] rounded-lg overflow-hidden ml-auto">
           <button
             onClick={() => setViewMode('thumbnail')}
-            className={`p-1.5 transition-colors ${viewMode === 'thumbnail' ? 'bg-[#f4f4f5] text-[#09090b]' : 'bg-[#09090b] text-[#a1a1aa] hover:text-[#f4f4f5]'}`}
+            className={`p-2.5 transition-colors ${viewMode === 'thumbnail' ? 'bg-[#f4f4f5] text-[#09090b]' : 'bg-[#09090b] text-[#d4d4d8] hover:text-[#f4f4f5]'}`}
             title="Thumbnail View"
+            aria-pressed={viewMode === 'thumbnail'}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -327,8 +343,9 @@ export default function ProjectsPage() {
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-1.5 transition-colors ${viewMode === 'list' ? 'bg-[#f4f4f5] text-[#09090b]' : 'bg-[#09090b] text-[#a1a1aa] hover:text-[#f4f4f5]'}`}
+            className={`p-2.5 transition-colors ${viewMode === 'list' ? 'bg-[#f4f4f5] text-[#09090b]' : 'bg-[#09090b] text-[#d4d4d8] hover:text-[#f4f4f5]'}`}
             title="List View"
+            aria-pressed={viewMode === 'list'}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 5.25h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5" />
@@ -337,6 +354,9 @@ export default function ProjectsPage() {
         </div>
       </div>
 
+      <p className="mb-4 text-sm text-zinc-200" role="status">
+        Showing {filteredProjects.length} of {projects.length} projects
+      </p>
       {/* Project Cards / List */}
       {filteredProjects.length > 0 ? (
         viewMode === 'thumbnail' ? (
@@ -354,17 +374,17 @@ export default function ProjectsPage() {
           </div>
         ) : (
           /* List View */
-          <div className="bg-[#121215] rounded-xl border border-[#27272a] overflow-hidden">
+          <div className="bg-[#18181b] rounded-xl border border-[#52525b] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-[#09090b] border-b border-[#27272a]">
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa]">Project</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden md:table-cell">Client</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden lg:table-cell">Location</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa]">Status</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden sm:table-cell">Type</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] hidden lg:table-cell">Start Date</th>
-                  <th className="px-4 py-3 w-20 text-right text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa]">Actions</th>
+                <tr className="bg-[#09090b] border-b border-[#52525b]">
+                  <th className="text-left px-4 py-3 text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8]">Project</th>
+                  <th className="text-left px-4 py-3 text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] hidden md:table-cell">Client</th>
+                  <th className="text-left px-4 py-3 text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] hidden lg:table-cell">Location</th>
+                  <th className="text-left px-4 py-3 text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8]">Status</th>
+                  <th className="text-left px-4 py-3 text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] hidden sm:table-cell">Type</th>
+                  <th className="text-left px-4 py-3 text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] hidden lg:table-cell">Start Date</th>
+                  <th className="px-4 py-3 w-20 text-right text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8]">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -377,7 +397,7 @@ export default function ProjectsPage() {
                   return (
                     <tr
                       key={project.id}
-                      className={`border-b border-[#27272a] hover:bg-[#18181b] transition-colors cursor-pointer project-card ${i % 2 === 0 ? 'bg-[#121215]' : 'bg-[#0e0e11]'}`}
+                      className={`border-b border-[#52525b] hover:bg-[#18181b] transition-colors cursor-pointer project-card ${i % 2 === 0 ? 'bg-[#18181b]' : 'bg-[#0e0e11]'}`}
                     >
                       <td className="px-4 py-3">
                         <Link href={`/projects/${project.id}`} className="font-bold text-[#f4f4f5] hover:text-procore-orange transition-colors">
@@ -385,14 +405,14 @@ export default function ProjectsPage() {
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-[#d4d4d8] hidden md:table-cell">{project.client_name}</td>
-                      <td className="px-4 py-3 text-[#a1a1aa] hidden lg:table-cell truncate max-w-[200px]">{project.address}</td>
+                      <td className="px-4 py-3 text-[#d4d4d8] hidden lg:table-cell truncate max-w-[200px]">{project.address}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${statusBadge[project.status] || 'bg-[#18181b] text-[#a1a1aa]'}`}>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold uppercase ${statusBadge[project.status] || 'bg-[#18181b] text-[#d4d4d8]'}`}>
                           {project.status}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[#d4d4d8] capitalize hidden sm:table-cell">{project.type}</td>
-                      <td className="px-4 py-3 text-[#a1a1aa] hidden lg:table-cell">
+                      <td className="px-4 py-3 text-[#d4d4d8] hidden lg:table-cell">
                         {project.start_date ? new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                       </td>
                       <td className="px-4 py-3">
@@ -403,7 +423,7 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               handleEdit(project);
                             }}
-                            className="p-1.5 rounded text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-[#27272a] transition-colors"
+                            className="p-1.5 rounded text-[#d4d4d8] hover:text-[#f4f4f5] hover:bg-[#27272a] transition-colors"
                             title="Edit Project"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -416,7 +436,7 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               openDeleteModal(project);
                             }}
-                            className="p-1.5 rounded text-[#a1a1aa] hover:text-red-400 hover:bg-[#27272a] transition-colors"
+                            className="p-1.5 rounded text-[#d4d4d8] hover:text-red-400 hover:bg-[#27272a] transition-colors"
                             title="Delete Project (Admin)"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -433,19 +453,19 @@ export default function ProjectsPage() {
           </div>
         )
       ) : (
-        <div className="text-center py-16 bg-[#121215] rounded-xl border border-[#27272a]">
-          <svg className="w-12 h-12 text-[#71717a] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-16 bg-[#18181b] rounded-xl border border-[#52525b]">
+          <svg className="w-12 h-12 text-[#d4d4d8] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
           </svg>
           {search || statusFilter !== 'all' || typeFilter !== 'all' ? (
             <>
               <p className="text-base font-semibold text-[#f4f4f5] mb-1">No matching projects</p>
-              <p className="text-sm text-[#a1a1aa]">Try adjusting your search or filters</p>
+              <p className="text-sm text-[#d4d4d8]">Try adjusting your search or filters</p>
             </>
           ) : (
             <>
               <p className="text-base font-semibold text-[#f4f4f5] mb-1">No projects yet</p>
-              <p className="text-sm text-[#a1a1aa] mb-4">Create your first project to get started</p>
+              <p className="text-sm text-[#d4d4d8] mb-4">Create your first project to get started</p>
               <Link
                 href="/projects/new"
                 className="inline-flex items-center gap-1.5 bg-procore-orange text-white px-4 py-2 rounded-md hover:bg-procore-orange-hover transition-colors text-sm font-bold"
@@ -463,62 +483,62 @@ export default function ProjectsPage() {
       {/* Edit Modal */}
       {editingProject && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#121215] rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-[#27272a]">
+          <div className="bg-[#18181b] rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-[#52525b]">
             <h2 className="text-lg font-bold mb-4 text-[#f4f4f5]">Edit Project</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Project Name</label>
+                <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Project Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
+                  className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Type</label>
+                <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Type</label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as 'commercial' | 'residential' })}
-                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
+                  className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                 >
                   <option value="residential">Residential</option>
                   <option value="commercial">Commercial</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Client Name</label>
+                <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Client Name</label>
                 <input
                   type="text"
                   value={formData.client_name}
                   onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
+                  className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Address</label>
+                <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Address</label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
+                  className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5] focus:ring-1 focus:ring-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Start Date</label>
+                <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Start Date</label>
                 <input
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
+                  className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Status</label>
+                <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Status</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'bidding' | 'complete' })}
-                  className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
+                  className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                 >
                   <option value="active">Active</option>
                   <option value="bidding">Bidding</option>
@@ -527,22 +547,22 @@ export default function ProjectsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Overhead %</label>
+                  <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Overhead %</label>
                   <input
                     type="number"
                     value={formData.overhead_pct}
                     onChange={(e) => setFormData({ ...formData, overhead_pct: parseFloat(e.target.value) || 0 })}
-                    className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
+                    className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                     step="0.1"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] mb-1">Profit %</label>
+                  <label className="block text-[13px] font-bold uppercase tracking-wider text-[#d4d4d8] mb-1">Profit %</label>
                   <input
                     type="number"
                     value={formData.profit_pct}
                     onChange={(e) => setFormData({ ...formData, profit_pct: parseFloat(e.target.value) || 0 })}
-                    className="w-full border border-[#27272a] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
+                    className="w-full border border-[#52525b] bg-[#09090b] text-[#f4f4f5] rounded-lg px-3 py-2 text-sm focus:border-[#f4f4f5]"
                     step="0.1"
                   />
                 </div>
@@ -551,7 +571,7 @@ export default function ProjectsPage() {
             <div className="flex gap-2 mt-6 justify-end">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 text-sm border border-[#27272a] rounded-lg hover:bg-[#18181b] text-[#d4d4d8] hover:text-[#f4f4f5] font-medium transition-colors"
+                className="px-4 py-2 text-sm border border-[#52525b] rounded-lg hover:bg-[#18181b] text-[#d4d4d8] hover:text-[#f4f4f5] font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -570,7 +590,7 @@ export default function ProjectsPage() {
       {/* Delete Confirmation Modal (Admin) */}
       {projectToDelete && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121215] rounded-xl shadow-2xl max-w-md w-full border border-[#27272a] overflow-hidden">
+          <div className="bg-[#18181b] rounded-xl shadow-2xl max-w-md w-full border border-[#52525b] overflow-hidden">
             {/* Header */}
             <div className="p-6 pb-4">
               <div className="flex items-start gap-3.5">
@@ -581,7 +601,7 @@ export default function ProjectsPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[#f4f4f5]">Delete Project</h3>
-                  <p className="text-xs text-[#a1a1aa] mt-0.5">Admin privilege required</p>
+                  <p className="text-xs text-[#d4d4d8] mt-0.5">Admin privilege required</p>
                 </div>
               </div>
 
@@ -611,12 +631,12 @@ export default function ProjectsPage() {
             </div>
 
             {/* Footer buttons */}
-            <div className="bg-[#09090b] px-6 py-3.5 border-t border-[#27272a] flex justify-end gap-2.5">
+            <div className="bg-[#09090b] px-6 py-3.5 border-t border-[#52525b] flex justify-end gap-2.5">
               <button
                 type="button"
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
-                className="px-3.5 py-1.5 text-xs font-semibold text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-[#18181b] rounded-lg transition-colors disabled:opacity-50"
+                className="px-3.5 py-1.5 text-xs font-semibold text-[#d4d4d8] hover:text-[#f4f4f5] hover:bg-[#18181b] rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

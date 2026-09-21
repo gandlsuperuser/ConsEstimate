@@ -354,7 +354,7 @@ export default function EstimatePage() {
   const handleExportPDF = async () => {
     setGeneratingPdf(true);
     try {
-      const { toJpeg } = await import('html-to-image');
+      const { toPaperJpeg: toJpeg } = await import('@/lib/paper-export');
       const { jsPDF } = await import('jspdf');
 
       const el = document.getElementById('humana-proposal-sheet');
@@ -568,7 +568,7 @@ export default function EstimatePage() {
   const handleExportBTXPDF = async () => {
     setGeneratingBtxPdf(true);
     try {
-      const { toJpeg } = await import('html-to-image');
+      const { toPaperJpeg: toJpeg } = await import('@/lib/paper-export');
       const { jsPDF } = await import('jspdf');
 
       const el = document.getElementById('btx-estimate-sheet');

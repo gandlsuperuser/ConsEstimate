@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import '../project-theme.css';
 import ProjectSubNav from '@/components/ProjectSubNav';
 
 interface ProjectLayoutProps {
@@ -29,7 +30,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
     };
 
     return (
-        <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 print:m-0 print:p-0">
+        <div className="project-workspace -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 print:m-0 print:p-0">
             {/* Procore-style project header bar */}
             <div className="bg-[#09090b] border-b border-[#27272a] px-4 sm:px-6 lg:px-8 py-3 print:hidden">
                 <div className="max-w-[1400px] mx-auto">
@@ -77,7 +78,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
             </div>
 
             {/* Procore-style tool tab bar */}
-            <div className="print:hidden sticky top-12 z-30">
+            <div className="print:hidden sticky top-16 z-30">
                 <ProjectSubNav projectId={id} />
             </div>
 

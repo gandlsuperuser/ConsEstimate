@@ -44,7 +44,6 @@ export default function ProjectOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -121,25 +120,6 @@ export default function ProjectOverviewPage() {
     setEditing(false);
   };
 
-  const handleSeedLifecycle = async () => {
-    setIsSeeding(true);
-    try {
-      const res = await fetch('/api/workflow-seed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: id }),
-      });
-      if (res.ok) {
-        alert('Seeded complete Procore lifecycle workflow across all 11 modules!');
-        await fetchData();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -186,68 +166,20 @@ export default function ProjectOverviewPage() {
     value: expenses.filter(e => e.category === cat).reduce((sum, e) => sum + e.amount, 0),
   })).filter(d => d.value > 0);
 
-  const CHART_COLORS = ['#F47E20', '#2E7D32', '#1565C0', '#D32F2F', '#F57C00', '#7B1FA2', '#00838F', '#C62828', '#558B2F', '#4527A0'];
+  const CHART_COLORS = ['#fb923c', '#4ade80', '#60a5fa', '#f87171', '#facc15', '#c084fc', '#22d3ee', '#fda4af', '#a3e635', '#a5b4fc'];
 
   const recentExpenses = [...expenses].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
 
-  const workflowSteps = [
-    { label: 'Estimate', href: `/projects/${id}/estimate`, step: '1' },
-    { label: 'Bid', href: `/projects/${id}/bidding`, step: '2' },
-    { label: 'Contract', href: `/projects/${id}/contracts`, step: '3' },
-    { label: 'Submittal', href: `/projects/${id}/submittals`, step: '4' },
-    { label: 'RFI', href: `/projects/${id}/rfis`, step: '5' },
-    { label: 'Change Event', href: `/projects/${id}/change-events`, step: '6' },
-    { label: 'Change Order', href: `/projects/${id}/change-orders`, step: '7' },
-    { label: 'Field Work', href: `/projects/${id}/observations`, step: '8' },
-    { label: 'Pay App', href: `/projects/${id}/pay-apps`, step: '9' },
-    { label: 'Payment', href: `/projects/${id}/receipts`, step: '10' },
-    { label: 'Analytics', href: `/projects/${id}/analytics`, step: '11' },
-  ];
-
   return (
     <div className="space-y-6">
-      {/* Procore Construction Lifecycle Flow Banner */}
-      <div className="bg-white p-4 rounded-lg border border-procore-border shadow-xs">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-3 pb-3 border-b border-procore-border-light">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-procore-orange">Procore Lifecycle Navigation</span>
-            <h2 className="text-sm font-bold text-procore-text">Construction Project Workflow Sequence</h2>
-          </div>
-          <button
-            onClick={handleSeedLifecycle}
-            disabled={isSeeding}
-            className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3 py-1.5 rounded shadow-2xs transition-colors flex items-center gap-1"
-          >
-            <span>⚡</span> {isSeeding ? 'Seeding...' : 'Seed Rooftop HVAC Lifecycle Demo'}
-          </button>
-        </div>
-
-        {/* Horizontal Workflow Stepper */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-1.5 text-center">
-          {workflowSteps.map((s, idx) => (
-            <Link
-              key={s.label}
-              href={s.href}
-              className="p-2 rounded border border-procore-border-light bg-gray-50/60 hover:bg-procore-orange-light hover:border-procore-orange transition-all group"
-            >
-              <span className="w-5 h-5 rounded-full bg-white border border-procore-border text-[10px] font-bold text-procore-text-muted mx-auto flex items-center justify-center group-hover:border-procore-orange group-hover:text-procore-orange">
-                {s.step}
-              </span>
-              <span className="block text-[11px] font-bold text-procore-text group-hover:text-procore-orange mt-1 truncate">
-                {s.label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
 
       {/* Header Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap gap-3 items-center justify-between">
         <h2 className="text-base font-bold text-procore-text">Project Overview & Control Center</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsPhotoModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-procore-text-secondary bg-white hover:bg-gray-50 border border-procore-border rounded-md transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-procore-text-secondary bg-[#18181b] hover:bg-zinc-800 border border-zinc-600 rounded-md transition-colors"
           >
             <span>📸</span>
             Photos
@@ -257,15 +189,15 @@ export default function ProjectOverviewPage() {
           </button>
           {editing ? (
             <>
-              <button onClick={handleCancel} className="px-3 py-1.5 text-[12px] font-medium text-procore-text-secondary border border-procore-border rounded-md hover:bg-gray-50">Cancel</button>
-              <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 text-[12px] font-bold bg-procore-orange text-white rounded-md hover:bg-procore-orange-hover disabled:opacity-50">
+              <button onClick={handleCancel} className="px-3 py-1.5 text-sm font-medium text-procore-text-secondary border border-zinc-600 rounded-md hover:bg-zinc-800">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 text-sm font-bold bg-procore-orange text-white rounded-md hover:bg-procore-orange-hover disabled:opacity-50">
                 {saving ? 'Saving...' : 'Save'}
               </button>
             </>
           ) : (
             <button
               onClick={() => setEditing(true)}
-              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-procore-text-secondary bg-white hover:bg-gray-50 border border-procore-border rounded-md transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-procore-text-secondary bg-[#18181b] hover:bg-zinc-800 border border-zinc-600 rounded-md transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -280,25 +212,25 @@ export default function ProjectOverviewPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           label="Estimated Cost"
-          value={`$${totalEstimated.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          value={`$${totalEstimated.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtitle="From estimate lines"
           color="text-procore-text"
         />
         <KPICard
           label="Actual Spend"
-          value={`$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          value={`$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtitle={`${budgetUsedPct.toFixed(1)}% of budget`}
           color="text-procore-orange"
         />
         <KPICard
           label="Total Revenue"
-          value={`$${revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          value={`$${revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtitle={`${project.overhead_pct}% OH + ${project.profit_pct}% Profit`}
           color="text-procore-text"
         />
         <KPICard
           label="Gross Profit"
-          value={`$${profit.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          value={`$${profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtitle={`${margin.toFixed(1)}% margin`}
           color={profit >= 0 ? 'text-procore-success' : 'text-procore-danger'}
         />
@@ -336,79 +268,79 @@ export default function ProjectOverviewPage() {
           <div className="grid grid-cols-2 gap-2">
             <Link
               href={`/projects/${id}/bidding`}
-              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-zinc-600 hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
             >
-              <span className="w-7 h-7 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-bold">
+              <span className="w-7 h-7 rounded bg-amber-950 text-amber-300 flex items-center justify-center text-xs font-bold">
                 📋
               </span>
               <div>
-                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Bidding</p>
-                <p className="text-[10px] text-procore-text-muted">Bid Leveling</p>
+                <p className="text-[13px] font-bold text-procore-text group-hover:text-procore-orange">Bidding</p>
+                <p className="text-xs text-procore-text-muted">Bid Leveling</p>
               </div>
             </Link>
 
             <Link
               href={`/projects/${id}/contracts`}
-              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-zinc-600 hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
             >
-              <span className="w-7 h-7 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold">
+              <span className="w-7 h-7 rounded bg-blue-950 text-blue-300 flex items-center justify-center text-xs font-bold">
                 📝
               </span>
               <div>
-                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Contracts</p>
-                <p className="text-[10px] text-procore-text-muted">Commitments</p>
+                <p className="text-[13px] font-bold text-procore-text group-hover:text-procore-orange">Contracts</p>
+                <p className="text-xs text-procore-text-muted">Commitments</p>
               </div>
             </Link>
 
             <Link
               href={`/projects/${id}/rfis`}
-              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-zinc-600 hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
             >
-              <span className="w-7 h-7 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">
+              <span className="w-7 h-7 rounded bg-indigo-950 text-indigo-300 flex items-center justify-center text-xs font-bold">
                 ❓
               </span>
               <div>
-                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">RFIs</p>
-                <p className="text-[10px] text-procore-text-muted">→ Change Events</p>
+                <p className="text-[13px] font-bold text-procore-text group-hover:text-procore-orange">RFIs</p>
+                <p className="text-xs text-procore-text-muted">→ Change Events</p>
               </div>
             </Link>
 
             <Link
               href={`/projects/${id}/change-orders`}
-              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-zinc-600 hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
             >
-              <span className="w-7 h-7 rounded bg-orange-50 text-procore-orange flex items-center justify-center text-xs font-bold">
+              <span className="w-7 h-7 rounded bg-orange-950 text-procore-orange flex items-center justify-center text-xs font-bold">
                 🔄
               </span>
               <div>
-                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Change Orders</p>
-                <p className="text-[10px] text-procore-text-muted">PCOs / CCOs</p>
+                <p className="text-[13px] font-bold text-procore-text group-hover:text-procore-orange">Change Orders</p>
+                <p className="text-xs text-procore-text-muted">PCOs / CCOs</p>
               </div>
             </Link>
 
             <Link
               href={`/projects/${id}/observations`}
-              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-zinc-600 hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
             >
-              <span className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold">
+              <span className="w-7 h-7 rounded bg-emerald-950 text-emerald-300 flex items-center justify-center text-xs font-bold">
                 🔍
               </span>
               <div>
-                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Observations</p>
-                <p className="text-[10px] text-procore-text-muted">Quality & Safety</p>
+                <p className="text-[13px] font-bold text-procore-text group-hover:text-procore-orange">Observations</p>
+                <p className="text-xs text-procore-text-muted">Quality & Safety</p>
               </div>
             </Link>
 
             <Link
               href={`/projects/${id}/pay-apps`}
-              className="flex items-center gap-2 p-2.5 rounded-lg border border-procore-border hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-zinc-600 hover:border-procore-orange hover:bg-procore-orange-light transition-all group text-left"
             >
-              <span className="w-7 h-7 rounded bg-teal-50 text-teal-600 flex items-center justify-center text-xs font-bold">
+              <span className="w-7 h-7 rounded bg-teal-950 text-teal-300 flex items-center justify-center text-xs font-bold">
                 💵
               </span>
               <div>
-                <p className="text-[11px] font-bold text-procore-text group-hover:text-procore-orange">Pay Apps</p>
-                <p className="text-[10px] text-procore-text-muted">SOV Billing</p>
+                <p className="text-[13px] font-bold text-procore-text group-hover:text-procore-orange">Pay Apps</p>
+                <p className="text-xs text-procore-text-muted">SOV Billing</p>
               </div>
             </Link>
           </div>
@@ -419,19 +351,19 @@ export default function ProjectOverviewPage() {
           {recentExpenses.length > 0 ? (
             <div className="space-y-2">
               {recentExpenses.map((exp) => (
-                <div key={exp.id} className="flex items-center justify-between py-1.5 border-b border-procore-border-light last:border-0">
+                <div key={exp.id} className="flex items-center justify-between py-1.5 border-b border-zinc-700 last:border-0">
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-procore-text truncate">{exp.vendor}</p>
-                    <p className="text-[11px] text-procore-text-muted truncate">{exp.category} · {exp.expense_date}</p>
+                    <p className="text-sm font-semibold text-procore-text truncate">{exp.vendor}</p>
+                    <p className="text-[13px] text-procore-text-muted truncate">{exp.category} · {exp.expense_date}</p>
                   </div>
-                  <span className="text-[12px] font-bold text-procore-text ml-2 flex-shrink-0">
-                    ${exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  <span className="text-sm font-bold text-procore-text ml-2 flex-shrink-0">
+                    ${exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               ))}
               <Link
                 href={`/projects/${id}/receipts`}
-                className="block text-center text-[11px] font-semibold text-procore-orange hover:text-procore-orange-hover mt-1"
+                className="block text-center text-[13px] font-semibold text-procore-orange hover:text-procore-orange-hover mt-1"
               >
                 View Full Budget & Receipts →
               </Link>
@@ -449,13 +381,13 @@ export default function ProjectOverviewPage() {
           {categoryBreakdown.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={categoryBreakdown}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-                <XAxis dataKey="category" tick={{ fontSize: 10, fill: '#757575' }} angle={-45} textAnchor="end" height={80} />
-                <YAxis tick={{ fontSize: 10, fill: '#757575' }} />
-                <Tooltip formatter={(val: any) => `$${Number(val).toLocaleString()}`} />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
+                <XAxis dataKey="category" tick={{ fontSize: 12, fill: '#d4d4d8' }} angle={-45} textAnchor="end" height={80} />
+                <YAxis tick={{ fontSize: 12, fill: '#d4d4d8' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #71717a', borderRadius: 8, color: '#f4f4f5' }} labelStyle={{ color: '#f4f4f5' }} itemStyle={{ color: '#f4f4f5' }} cursor={{ fill: '#ffffff0a' }} formatter={(val: any) => `$${Number(val).toLocaleString()}`} />
+                <Legend formatter={(value) => <span style={{ color: '#f4f4f5' }}>{value}</span>} />
                 <Bar dataKey="estimated" name="Estimated" fill="#F47E20" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="actual" name="Actual" fill="#1565C0" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="actual" name="Actual" fill="#60a5fa" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -477,6 +409,7 @@ export default function ProjectOverviewPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={95}
+                  stroke="#18181b"
                   label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
                   labelLine={false}
                 >
@@ -484,7 +417,7 @@ export default function ProjectOverviewPage() {
                     <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(val: any) => `$${Number(val).toLocaleString()}`} />
+                <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #71717a', borderRadius: 8, color: '#f4f4f5' }} labelStyle={{ color: '#f4f4f5' }} itemStyle={{ color: '#f4f4f5' }} cursor={{ fill: '#ffffff0a' }} formatter={(val: any) => `$${Number(val).toLocaleString()}`} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -516,8 +449,8 @@ export default function ProjectOverviewPage() {
 // Subcomponents
 function DashboardCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white rounded-lg border border-procore-border shadow-xs ${className}`}>
-      <div className="px-4 py-3 border-b border-procore-border-light">
+    <div className={`bg-[#18181b] rounded-lg border border-zinc-600 shadow-xs ${className}`}>
+      <div className="px-4 py-3 border-b border-zinc-700">
         <h3 className="text-[13px] font-bold text-procore-text">{title}</h3>
       </div>
       <div className="p-4">
@@ -529,17 +462,17 @@ function DashboardCard({ title, children, className = '' }: { title: string; chi
 
 function KPICard({ label, value, subtitle, color }: { label: string; value: string; subtitle: string; color: string }) {
   return (
-    <div className="bg-white rounded-lg border border-procore-border shadow-xs p-4">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">{label}</p>
+    <div className="bg-[#18181b] rounded-lg border border-zinc-600 shadow-xs p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-procore-text-muted mb-1">{label}</p>
       <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-[11px] text-procore-text-muted mt-0.5">{subtitle}</p>
+      <p className="text-[13px] text-procore-text-muted mt-0.5">{subtitle}</p>
     </div>
   );
 }
 
 function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-2 text-[12px]">
+    <div className="flex items-start gap-2 text-sm">
       <span className="flex-shrink-0 mt-0.5">{icon}</span>
       <div>
         <span className="font-semibold text-procore-text-muted">{label}</span>
@@ -560,12 +493,12 @@ function EditField({
 }) {
   return (
     <div>
-      <label className="block text-[10px] font-bold uppercase tracking-wider text-procore-text-muted mb-1">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-wider text-procore-text-muted mb-1">{label}</label>
       {type === 'select' && options ? (
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full text-sm border border-procore-border rounded-md p-2 focus:border-procore-orange"
+          className="w-full bg-[#09090b] text-[#f4f4f5] text-sm border border-zinc-600 rounded-md p-2 focus:border-procore-orange"
         >
           {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -574,7 +507,7 @@ function EditField({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full text-sm border border-procore-border rounded-md p-2 focus:border-procore-orange"
+          className="w-full bg-[#09090b] text-[#f4f4f5] text-sm border border-zinc-600 rounded-md p-2 focus:border-procore-orange"
           step={type === 'number' ? '0.1' : undefined}
         />
       )}

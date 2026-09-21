@@ -821,7 +821,7 @@ export default function OwnerBillingPage() {
   const handleSaveAsPDF = async (mode: 'all' | 'g702_only' | 'g703_only') => {
     setGeneratingPdf(true);
     try {
-      const { toJpeg } = await import('html-to-image');
+      const { toPaperJpeg: toJpeg } = await import('@/lib/paper-export');
       const { jsPDF } = await import('jspdf');
 
       const cleanProjectName = (header.project_name || project?.name || 'Project')

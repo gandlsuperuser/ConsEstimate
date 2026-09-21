@@ -8,6 +8,7 @@ import { InAppNotification } from '@/types';
 
 export default function TopToolbar() {
     const pathname = usePathname();
+    const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string } | null>(null);
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
     const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -22,6 +23,18 @@ export default function TopToolbar() {
     const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
     useEffect(() => {
+        const fetchSession = async () => {
+            try {
+                const res = await fetch('/api/auth/session');
+                const data = await res.json();
+                if (data.user) {
+                    setCurrentUser(data.user);
+                }
+            } catch (err) {
+                // ignore
+            }
+        };
+
         const fetchNotifs = async () => {
             try {
                 const res = await fetch('/api/notifications');
@@ -31,8 +44,10 @@ export default function TopToolbar() {
                 // ignore
             }
         };
+
+        fetchSession();
         fetchNotifs();
-    }, []);
+    }, [pathname]);
 
     // Close dropdowns on outside click
     useEffect(() => {
@@ -50,6 +65,19 @@ export default function TopToolbar() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const handleSignOut = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+        } catch (e) {
+            // ignore
+        }
+        window.location.href = '/login';
+    };
+
+    if (pathname === '/login') {
+        return null;
+    }
 
     const markAsRead = async (id: string) => {
         try {
@@ -73,14 +101,15 @@ export default function TopToolbar() {
     return (
         <>
             {/* Top Toolbar */}
-            <header className="fixed top-0 left-0 right-0 h-12 bg-procore-dark z-50 flex items-center print:hidden">
+            <header className="fixed top-0 left-0 right-0 h-16 bg-procore-dark border-b border-zinc-800 px-2 sm:px-5 z-50 flex items-center print:hidden">
                 {/* Left: Logo & Brand */}
                 <div className="flex items-center h-full">
                     {/* Mobile hamburger */}
                     <button
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        className="md:hidden h-full px-3 text-gray-400 hover:text-white hover:bg-procore-dark-hover transition-colors"
+                        className="md:hidden h-full px-3 text-zinc-200 hover:text-white hover:bg-procore-dark-hover transition-colors"
                         aria-label="Toggle menu"
+                        aria-expanded={isMobileMenuOpen}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             {isMobileMenuOpen ? (
@@ -104,7 +133,7 @@ export default function TopToolbar() {
                         </div>
                         <div className="hidden sm:block">
                             <span className="text-white font-extrabold text-base tracking-tight leading-none">ConsEstimate</span>
-                            <p className="text-gray-400 text-[11px] font-bold tracking-widest uppercase leading-none mt-0.5">BTX Construction</p>
+                            <p className="text-zinc-200 text-[13px] font-bold tracking-widest uppercase leading-none mt-0.5">BTX Construction</p>
                         </div>
                     </Link>
                 </div>
@@ -118,13 +147,13 @@ export default function TopToolbar() {
                             className={`flex items-center gap-2 h-full px-4 text-[15px] font-semibold transition-colors relative ${
                                 isActive(item.href)
                                     ? 'text-white'
-                                    : 'text-gray-400 hover:text-white hover:bg-procore-dark-hover'
+                                    : 'text-zinc-200 hover:text-white hover:bg-procore-dark-hover'
                             }`}
                         >
                             <item.icon className="w-4.5 h-4.5" />
                             {item.label}
                             {isActive(item.href) && (
-                                <span className="absolute bottom-0 left-2 right-2 h-[3px] bg-procore-orange rounded-t-full" />
+                                <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-zinc-100 rounded-t-full" />
                             )}
                         </Link>
                     ))}
@@ -135,23 +164,25 @@ export default function TopToolbar() {
                     {/* Quick Create Button */}
                     <div ref={quickCreateRef} className="relative h-full">
                         <button
+                            aria-label="Quick create"
+                            aria-expanded={isQuickCreateOpen}
                             onClick={() => setIsQuickCreateOpen(!isQuickCreateOpen)}
                             className="h-full px-3 flex items-center gap-1.5 text-white hover:bg-procore-dark-hover transition-colors"
                         >
-                            <span className="w-6.5 h-6.5 rounded bg-procore-orange flex items-center justify-center">
+                            <span className="w-6.5 h-6.5 rounded bg-zinc-700 flex items-center justify-center">
                                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.5v15m7.5-7.5h-15" />
                                 </svg>
                             </span>
                             <span className="hidden lg:inline text-[14px] font-bold">Create</span>
-                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5 text-zinc-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                             </svg>
                         </button>
 
                         {isQuickCreateOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-56 bg-[#09090b] rounded-lg shadow-2xl border border-[#27272a] py-1.5 z-50">
-                                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Quick Create</p>
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-[#09090b] rounded-lg shadow-2xl border border-[#52525b] py-1.5 z-50">
+                                <p className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-zinc-200">Quick Create</p>
                                 <button
                                     onClick={() => {
                                         setIsQuickCreateOpen(false);
@@ -184,7 +215,7 @@ export default function TopToolbar() {
                     <div ref={notificationsRef} className="relative h-full">
                         <button
                             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                            className="h-full px-3 text-zinc-400 hover:text-[#f4f4f5] hover:bg-procore-dark-hover transition-colors relative flex items-center"
+                            className="h-full px-3 text-zinc-200 hover:text-[#f4f4f5] hover:bg-procore-dark-hover transition-colors relative flex items-center"
                             title="Notifications"
                         >
                             <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,10 +229,10 @@ export default function TopToolbar() {
                         </button>
 
                         {isNotificationsOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-80 bg-[#09090b] rounded-lg shadow-2xl border border-[#27272a] py-2 z-50">
-                                <div className="px-3.5 py-1.5 border-b border-[#27272a] flex justify-between items-center">
+                            <div className="absolute right-0 top-full mt-1 w-80 bg-[#09090b] rounded-lg shadow-2xl border border-[#52525b] py-2 z-50">
+                                <div className="px-3.5 py-1.5 border-b border-[#52525b] flex justify-between items-center">
                                     <span className="font-bold text-xs text-[#f4f4f5]">Project Notifications</span>
-                                    <span className="text-[10px] text-procore-orange font-bold uppercase">{unreadCount} Unread</span>
+                                    <span className="text-xs text-procore-orange font-bold uppercase">{unreadCount} Unread</span>
                                 </div>
                                 <div className="max-h-72 overflow-y-auto divide-y divide-[#27272a]">
                                     {notifications.map((n) => (
@@ -213,12 +244,12 @@ export default function TopToolbar() {
                                             }`}
                                         >
                                             <div className="flex items-center justify-between">
-                                                <span className="font-bold text-[11px] text-[#f4f4f5]">{n.title}</span>
-                                                <span className="text-[9px] font-bold uppercase bg-[#18181b] border border-[#27272a] px-1.5 py-0.2 rounded text-zinc-400">
+                                                <span className="font-bold text-[13px] text-[#f4f4f5]">{n.title}</span>
+                                                <span className="text-[9px] font-bold uppercase bg-[#18181b] border border-[#52525b] px-1.5 py-0.2 rounded text-zinc-200">
                                                     {n.module}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-zinc-300 mt-0.5">{n.description}</p>
+                                            <p className="text-[13px] text-zinc-300 mt-0.5">{n.description}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -232,29 +263,35 @@ export default function TopToolbar() {
                     {/* User Avatar */}
                     <div ref={userMenuRef} className="relative h-full">
                         <button
+                            aria-label="Account menu"
+                            aria-expanded={isUserMenuOpen}
                             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                             className="h-full px-3 flex items-center gap-2 hover:bg-procore-dark-hover transition-colors"
                         >
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-procore-orange to-amber-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                M
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 border border-orange-400/40 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                                {(currentUser?.name || 'A').charAt(0).toUpperCase()}
                             </div>
                             <div className="hidden xl:block text-left">
-                                <p className="text-[#f4f4f5] text-[11px] font-semibold leading-none">Mo Li</p>
-                                <p className="text-zinc-400 text-[10px] leading-none mt-0.5">Project Manager</p>
+                                <p className="text-[#f4f4f5] text-[13px] font-semibold leading-none">{currentUser?.name || 'Administrator'}</p>
+                                <p className="text-zinc-200 text-xs leading-none mt-0.5">Admin Clearance</p>
                             </div>
                         </button>
 
                         {isUserMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-[#09090b] rounded-lg shadow-2xl border border-[#27272a] py-1.5 z-50">
-                                <div className="px-3 py-2 border-b border-[#27272a]">
-                                    <p className="text-sm font-semibold text-[#f4f4f5]">Mo Li</p>
-                                    <p className="text-xs text-zinc-400">Project Manager / Admin</p>
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-[#09090b] rounded-lg shadow-2xl border border-[#52525b] py-1.5 z-50">
+                                <div className="px-3 py-2 border-b border-[#52525b]">
+                                    <p className="text-sm font-semibold text-[#f4f4f5]">{currentUser?.name || 'Administrator'}</p>
+                                    <p className="text-[11px] text-zinc-400 truncate">{currentUser?.email || 'admin@consestimate.com'}</p>
+                                    <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-950/60 border border-orange-700/50 text-[10px] text-orange-300 font-bold uppercase tracking-wider">
+                                        Full Admin
+                                    </div>
                                 </div>
-                                <button className="w-full text-left px-3 py-2 text-sm text-[#f4f4f5] hover:bg-[#18181b] transition-colors">
-                                    Account Settings
-                                </button>
-                                <button className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-[#f4f4f5] hover:bg-[#18181b] transition-colors">
-                                    Sign Out
+                                <button
+                                    onClick={handleSignOut}
+                                    className="w-full text-left px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-950/30 transition-colors flex items-center gap-2"
+                                >
+                                    <span>🚪</span>
+                                    <span>Sign Out</span>
                                 </button>
                             </div>
                         )}
@@ -269,7 +306,7 @@ export default function TopToolbar() {
                         className="fixed inset-0 bg-black/50 z-40 md:hidden"
                         onClick={() => setIsMobileMenuOpen(false)}
                     />
-                    <div className="fixed top-12 left-0 right-0 bg-procore-dark border-t border-white/10 z-45 md:hidden shadow-2xl">
+                    <div className="fixed top-16 left-0 right-0 bg-procore-dark border-t border-white/10 z-45 md:hidden shadow-2xl">
                         <nav className="py-2">
                             {primaryNavItems.map((item) => (
                                 <Link
@@ -279,7 +316,7 @@ export default function TopToolbar() {
                                     className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
                                         isActive(item.href)
                                             ? 'text-procore-orange bg-white/5'
-                                            : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                            : 'text-zinc-200 hover:text-white hover:bg-white/5'
                                     }`}
                                 >
                                     <item.icon className="w-5 h-5" />

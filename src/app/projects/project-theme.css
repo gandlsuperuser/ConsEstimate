@@ -1,0 +1,141 @@
+/* Compatibility layer for project tabs that still use light-theme utilities.
+   Scoped to this workspace and screen media: print keeps the original document
+   styles. PDF capture opts out temporarily with data-export-paper. */
+@media screen {
+  .project-workspace {
+    color: #f4f4f5;
+    background: #09090b;
+  }
+  .project-workspace :is([class~="bg-amber-100"], [class~="bg-amber-50"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-amber-950);
+  }
+  .project-workspace :is([class~="bg-blue-100"], [class~="bg-blue-100/90"], [class~="bg-blue-200/80"], [class~="bg-blue-50"], [class~="bg-blue-50/60"], [class~="bg-blue-50/70"], [class~="bg-blue-50/90"], [class~="hover:bg-blue-100"]:hover, [class~="hover:bg-blue-50"]:hover, [class~="hover:bg-blue-50/30"]:hover, [class~="hover:bg-blue-50/40"]:hover, [class~="hover:bg-blue-50/50"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-blue-950);
+  }
+  .project-workspace :is([class~="bg-emerald-100"], [class~="bg-emerald-50"], [class~="bg-emerald-50/30"], [class~="bg-emerald-50/40"], [class~="bg-emerald-50/80"], [class~="hover:bg-emerald-100/80"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-emerald-950);
+  }
+  .project-workspace :is([class~="bg-gray-100"], [class~="bg-gray-100/80"], [class~="bg-gray-100/90"], [class~="bg-gray-200"], [class~="bg-slate-100"], [class~="bg-slate-100/80"], [class~="bg-slate-200"], [class~="bg-slate-200/70"], [class~="bg-zinc-100"], [class~="hover:bg-gray-100"]:hover, [class~="hover:bg-gray-100/80"]:hover, [class~="hover:bg-gray-200"]:hover, [class~="hover:bg-gray-200/60"]:hover, [class~="hover:bg-gray-200/70"]:hover, [class~="hover:bg-slate-100"]:hover, [class~="hover:bg-slate-200"]:hover, [class~="hover:bg-slate-200/60"]:hover, [class~="hover:bg-zinc-200"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: #27272a;
+  }
+  .project-workspace :is([class~="bg-gray-50"], [class~="bg-gray-50/20"], [class~="bg-gray-50/30"], [class~="bg-gray-50/40"], [class~="bg-gray-50/50"], [class~="bg-gray-50/60"], [class~="bg-gray-50/70"], [class~="bg-gray-50/90"], [class~="bg-slate-50"], [class~="bg-slate-50/30"], [class~="bg-slate-50/40"], [class~="bg-slate-50/50"], [class~="bg-slate-50/60"], [class~="bg-slate-50/80"], [class~="bg-white"], [class~="bg-white/70"], [class~="bg-white/80"], [class~="bg-white/90"], [class~="bg-white/95"], [class~="focus:bg-white"]:focus, [class~="hover:bg-gray-50"]:hover, [class~="hover:bg-gray-50/60"]:hover, [class~="hover:bg-gray-50/70"]:hover, [class~="hover:bg-slate-50"]:hover, [class~="hover:bg-slate-50/50"]:hover, [class~="hover:bg-slate-50/70"]:hover, [class~="hover:bg-white"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: #18181b;
+  }
+  .project-workspace :is([class~="bg-green-100"], [class~="bg-green-50"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-green-950);
+  }
+  .project-workspace :is([class~="bg-indigo-50"], [class~="bg-indigo-50/50"], [class~="bg-indigo-50/60"], [class~="bg-indigo-50/70"], [class~="bg-indigo-50/80"], [class~="hover:bg-indigo-100"]:hover, [class~="hover:bg-indigo-50/30"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-indigo-950);
+  }
+  .project-workspace :is([class~="bg-orange-100"], [class~="bg-orange-200"], [class~="bg-orange-50/90"], [class~="hover:bg-orange-50"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-orange-950);
+  }
+  .project-workspace :is([class~="bg-purple-50"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-purple-950);
+  }
+  .project-workspace :is([class~="bg-red-100"], [class~="bg-red-200"], [class~="bg-red-50"], [class~="hover:bg-red-100/80"]:hover, [class~="hover:bg-red-50"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-red-950);
+  }
+  .project-workspace :is([class~="bg-rose-100"], [class~="bg-rose-50"], [class~="hover:bg-rose-50"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-rose-950);
+  }
+  .project-workspace :is([class~="bg-violet-50"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-violet-950);
+  }
+  .project-workspace :is([class~="border-amber-200"], [class~="border-amber-200/60"], [class~="border-amber-300"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-amber-800);
+  }
+  .project-workspace :is([class~="border-blue-100"], [class~="border-blue-200"], [class~="border-blue-300"], [class~="hover:border-blue-200"]:hover, [class~="hover:border-blue-300"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-blue-800);
+  }
+  .project-workspace :is([class~="border-emerald-200"], [class~="border-emerald-300"], [class~="hover:border-emerald-300"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-emerald-800);
+  }
+  .project-workspace :is([class~="border-gray-100"], [class~="border-gray-200"], [class~="border-gray-300"], [class~="border-gray-400"], [class~="border-slate-100"], [class~="border-slate-100/60"], [class~="border-slate-100/80"], [class~="border-slate-200"], [class~="border-slate-200/80"], [class~="border-slate-300"], [class~="border-slate-400"], [class~="divide-gray-100"] > :not(:last-child), [class~="divide-gray-200"] > :not(:last-child), [class~="divide-slate-100"] > :not(:last-child), [class~="hover:border-gray-300"]:hover, [class~="hover:border-slate-200"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: #52525b;
+  }
+  .project-workspace :is([class~="border-green-200"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-green-800);
+  }
+  .project-workspace :is([class~="border-indigo-100"], [class~="border-indigo-200"], [class~="border-indigo-200/80"], [class~="hover:border-indigo-200"]:hover, [class~="hover:border-indigo-300"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-indigo-800);
+  }
+  .project-workspace :is([class~="border-orange-200"], [class~="border-orange-300"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-orange-800);
+  }
+  .project-workspace :is([class~="border-purple-200"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-purple-800);
+  }
+  .project-workspace :is([class~="border-red-200"], [class~="border-red-300"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-red-800);
+  }
+  .project-workspace :is([class~="border-rose-200"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-rose-800);
+  }
+  .project-workspace :is([class~="border-violet-200"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas) {
+    border-color: var(--color-violet-800);
+  }
+  .project-workspace :is(.group:hover [class~="group-hover:text-indigo-700"], [class~="hover:text-indigo-800"]:hover, [class~="text-indigo-600"], [class~="text-indigo-700"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-indigo-300);
+  }
+  .project-workspace :is([class~="hover:bg-yellow-50/50"]:hover):not([data-export-paper], [data-export-paper] *, img, iframe, canvas, [class~="bg-[#f4f4f5]"]) {
+    background-color: var(--color-yellow-950);
+  }
+  .project-workspace :is([class~="hover:text-black"]:hover, [class~="hover:text-gray-800"]:hover, [class~="hover:text-gray-900"]:hover, [class~="hover:text-slate-700"]:hover, [class~="hover:text-slate-800"]:hover, [class~="hover:text-slate-900"]:hover, [class~="text-black"], [class~="text-gray-700"], [class~="text-gray-800"], [class~="text-gray-900"], [class~="text-gray-950"], [class~="text-slate-700"], [class~="text-slate-800"], [class~="text-slate-900"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: #f4f4f5;
+  }
+  .project-workspace :is([class~="hover:text-blue-600"]:hover, [class~="hover:text-blue-800"]:hover, [class~="hover:text-blue-900"]:hover, [class~="text-blue-600"], [class~="text-blue-700"], [class~="text-blue-800"], [class~="text-blue-900"], [class~="text-blue-950"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-blue-300);
+  }
+  .project-workspace :is([class~="hover:text-emerald-900"]:hover, [class~="text-emerald-600"], [class~="text-emerald-700"], [class~="text-emerald-800"], [class~="text-emerald-900"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-emerald-300);
+  }
+  .project-workspace :is([class~="hover:text-gray-600"]:hover, [class~="hover:text-slate-600"]:hover, [class~="text-gray-400"], [class~="text-gray-500"], [class~="text-gray-600"], [class~="text-neutral-400"], [class~="text-neutral-500"], [class~="text-slate-400"], [class~="text-slate-500"], [class~="text-slate-600"], [class~="text-zinc-400"], [class~="text-zinc-500"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: #d4d4d8;
+  }
+  .project-workspace :is([class~="hover:text-red-600"]:hover, [class~="hover:text-red-700"]:hover, [class~="hover:text-red-800"]:hover, [class~="text-red-600"], [class~="text-red-700"], [class~="text-red-800"], [class~="text-red-900"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-red-300);
+  }
+  .project-workspace :is([class~="hover:text-rose-600"]:hover, [class~="hover:text-rose-700"]:hover, [class~="text-rose-600"], [class~="text-rose-700"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-rose-300);
+  }
+  .project-workspace :is([class~="placeholder-zinc-500"]::placeholder):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: #a1a1aa;
+  }
+  .project-workspace :is([class~="text-amber-600"], [class~="text-amber-700"], [class~="text-amber-800"], [class~="text-amber-900"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-amber-300);
+  }
+  .project-workspace :is([class~="text-green-800"], [class~="text-green-900"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-green-300);
+  }
+  .project-workspace :is([class~="text-orange-800"], [class~="text-orange-900"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-orange-300);
+  }
+  .project-workspace :is([class~="text-purple-700"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-purple-300);
+  }
+  .project-workspace :is([class~="text-violet-700"]):not([data-export-paper], [data-export-paper] *, img, iframe, canvas):not([class~="bg-[#f4f4f5]"], [class~="bg-[#78be20]"]) {
+    color: var(--color-violet-300);
+  }
+
+  .project-workspace :is([class~="bg-[#F3F4F6]"], [class~="bg-[#d9e1f2]"], [class~="bg-[#b4c6e7]"]):not([data-export-paper], [data-export-paper] *) {
+    background-color: #27272a;
+  }
+  .project-workspace :is([class~="text-[#0B2545]"], [class~="text-[#203764]"], [class~="text-[#111827]"]):not([data-export-paper], [data-export-paper] *) {
+    color: #f4f4f5;
+  }
+  .project-workspace :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea):not([data-export-paper], [data-export-paper] *) {
+    color: #f4f4f5;
+    background-color: #09090b;
+    border-color: #52525b;
+    color-scheme: dark;
+  }
+  .project-workspace :is(input, textarea):not([data-export-paper], [data-export-paper] *)::placeholder {
+    color: #a1a1aa;
+    opacity: 1;
+  }
+  .project-workspace [data-export-paper] {
+    color: #111827;
+    color-scheme: light;
+  }
+}

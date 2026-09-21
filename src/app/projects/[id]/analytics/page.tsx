@@ -166,10 +166,10 @@ export default function AnalyticsPage() {
           <h3 className="font-bold text-sm text-procore-text mb-4">Construction Financial Lifecycle</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={lifecycleData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis dataKey="stage" tick={{ fontSize: 10, fill: '#757575' }} />
-              <YAxis tick={{ fontSize: 10, fill: '#757575' }} />
-              <Tooltip formatter={(val: any) => `$${Number(val).toLocaleString()}`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
+              <XAxis dataKey="stage" tick={{ fontSize: 12, fill: '#d4d4d8' }} />
+              <YAxis tick={{ fontSize: 12, fill: '#d4d4d8' }} />
+              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #71717a', color: '#f4f4f5' }} labelStyle={{ color: '#f4f4f5' }} itemStyle={{ color: '#f4f4f5' }} formatter={(val: any) => `$${Number(val).toLocaleString()}`} />
               <Bar dataKey="amount" fill="#F47E20" radius={[4, 4, 0, 0]} name="Value ($)" />
             </BarChart>
           </ResponsiveContainer>
@@ -180,13 +180,13 @@ export default function AnalyticsPage() {
           <h3 className="font-bold text-sm text-procore-text mb-4">Cumulative S-Curve (Planned vs. Actual Spend)</h3>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={sCurveData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#757575' }} />
-              <YAxis tick={{ fontSize: 10, fill: '#757575' }} />
-              <Tooltip formatter={(val: any) => val ? `$${Number(val).toLocaleString()}` : '—'} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
+              <XAxis dataKey="period" tick={{ fontSize: 12, fill: '#d4d4d8' }} />
+              <YAxis tick={{ fontSize: 12, fill: '#d4d4d8' }} />
+              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #71717a', color: '#f4f4f5' }} labelStyle={{ color: '#f4f4f5' }} itemStyle={{ color: '#f4f4f5' }} formatter={(val: any) => val ? `$${Number(val).toLocaleString()}` : '—'} />
               <Legend />
-              <Line type="monotone" dataKey="planned" stroke="#757575" strokeDasharray="5 5" name="Planned Baseline" />
-              <Line type="monotone" dataKey="actual" stroke="#2E7D32" strokeWidth={2.5} name="Actual Spend" />
+              <Line type="monotone" dataKey="planned" stroke="#a1a1aa" strokeDasharray="5 5" name="Planned Baseline" />
+              <Line type="monotone" dataKey="actual" stroke="#4ade80" strokeWidth={2.5} name="Actual Spend" />
             </LineChart>
           </ResponsiveContainer>
         </div>
