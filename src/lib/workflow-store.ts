@@ -86,21 +86,28 @@ function syncToDisk() {
   }
 }
 
+const missingSupabaseTables = new Set<string>();
+
 export async function getWorkflowData<T>(table: string, projectId?: string, filterKey = 'project_id'): Promise<T[]> {
   initPersistedStore();
-  try {
-    const supabase = await createClient();
-    let query = supabase.from(table).select('*');
-    if (projectId) {
-      query = query.eq(filterKey, projectId);
-    }
-    const { data, error } = await query.order('created_at', { ascending: false });
+  if (!missingSupabaseTables.has(table)) {
+    try {
+      const supabase = await createClient();
+      let query = supabase.from(table).select('*');
+      if (projectId) {
+        query = query.eq(filterKey, projectId);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      return data as T[];
+      if (!error && data && data.length > 0) {
+        return data as T[];
+      }
+      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
+        missingSupabaseTables.add(table);
+      }
+    } catch (err) {
+      // Supabase table may not be migrated yet, fallback to memory
     }
-  } catch (err) {
-    // Supabase table may not be migrated yet, fallback to memory
   }
 
   if (!projectId) {
@@ -111,56 +118,103 @@ export async function getWorkflowData<T>(table: string, projectId?: string, filt
 }
 
 export async function insertWorkflowRecord<T extends { id?: string }>(table: string, record: any): Promise<T> {
+  initPersistedStore();
   const itemWithId = {
     id: record.id || (typeof crypto !== 'undefined' ? crypto.randomUUID() : 'rec-' + Date.now()),
     created_at: record.created_at || new Date().toISOString(),
     ...record,
   };
 
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from(table)
-      .insert(itemWithId)
-      .select()
-      .single();
+  if (!missingSupabaseTables.has(table)) {
+    try {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from(table)
+        .insert(itemWithId)
+        .select()
+        .single();
 
-    if (!error && data) {
-      if (!memStore[table]) memStore[table] = [];
-      memStore[table].unshift(data);
-      syncToDisk();
-      return data as T;
+      if (!error && data) {
+        if (!memStore[table]) memStore[table] = [];
+        memStore[table].push(data);
+        syncToDisk();
+        return data as T;
+      }
+      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
+        missingSupabaseTables.add(table);
+      }
+    } catch (err) {
+      // fallback to memory
     }
-  } catch (err) {
-    // fallback to memory
   }
 
   if (!memStore[table]) memStore[table] = [];
-  memStore[table].unshift(itemWithId);
+  memStore[table].push(itemWithId);
   syncToDisk();
   return itemWithId as T;
 }
 
-export async function updateWorkflowRecord<T>(table: string, id: string, updates: any): Promise<T> {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from(table)
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+export async function batchInsertWorkflowRecords<T extends { id?: string }>(table: string, records: any[]): Promise<T[]> {
+  initPersistedStore();
+  if (!records || records.length === 0) return [];
 
-    if (!error && data) {
-      if (memStore[table]) {
-        const idx = memStore[table].findIndex((i) => i.id === id);
-        if (idx >= 0) memStore[table][idx] = { ...memStore[table][idx], ...data };
+  const itemsWithIds: any[] = records.map((record, idx) => ({
+    id: record.id || (typeof crypto !== 'undefined' ? crypto.randomUUID() : 'rec-' + Date.now() + '-' + idx),
+    created_at: record.created_at || new Date().toISOString(),
+    ...record,
+  }));
+
+  if (!missingSupabaseTables.has(table)) {
+    try {
+      const supabase = await createClient();
+      const { data, error } = await supabase.from(table).insert(itemsWithIds).select();
+      if (!error && data && data.length > 0) {
+        if (!memStore[table]) memStore[table] = [];
+        memStore[table].push(...data);
         syncToDisk();
+        return data as T[];
       }
-      return data as T;
+      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
+        missingSupabaseTables.add(table);
+      }
+    } catch (err) {
+      // fallback to memory
     }
-  } catch (err) {
-    // fallback to memory
+  }
+
+  if (!memStore[table]) memStore[table] = [];
+  memStore[table].push(...itemsWithIds);
+  syncToDisk();
+  return itemsWithIds as T[];
+}
+
+export async function updateWorkflowRecord<T>(table: string, id: string, updates: any): Promise<T> {
+  initPersistedStore();
+  if (!missingSupabaseTables.has(table)) {
+    try {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from(table)
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        if (memStore[table]) {
+          const idx = memStore[table].findIndex((i) => i.id === id);
+          if (idx >= 0) memStore[table][idx] = { ...memStore[table][idx], ...data };
+          else memStore[table].push(data);
+          syncToDisk();
+        }
+        return data as T;
+      }
+      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
+        missingSupabaseTables.add(table);
+      }
+    } catch (err) {
+      // fallback to memory
+    }
   }
 
   if (memStore[table]) {
@@ -169,6 +223,11 @@ export async function updateWorkflowRecord<T>(table: string, id: string, updates
       memStore[table][idx] = { ...memStore[table][idx], ...updates };
       syncToDisk();
       return memStore[table][idx] as T;
+    } else {
+      const newRec = { id, created_at: new Date().toISOString(), ...updates };
+      memStore[table].push(newRec);
+      syncToDisk();
+      return newRec as T;
     }
   }
 
@@ -176,11 +235,17 @@ export async function updateWorkflowRecord<T>(table: string, id: string, updates
 }
 
 export async function deleteWorkflowRecord(table: string, id: string): Promise<boolean> {
-  try {
-    const supabase = await createClient();
-    await supabase.from(table).delete().eq('id', id);
-  } catch (err) {
-    // ignore
+  initPersistedStore();
+  if (!missingSupabaseTables.has(table)) {
+    try {
+      const supabase = await createClient();
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
+        missingSupabaseTables.add(table);
+      }
+    } catch (err) {
+      // ignore
+    }
   }
 
   if (memStore[table]) {
@@ -192,11 +257,17 @@ export async function deleteWorkflowRecord(table: string, id: string): Promise<b
 }
 
 export async function deleteWorkflowRecordsByFilter(table: string, filterKey: string, filterValue: any): Promise<boolean> {
-  try {
-    const supabase = await createClient();
-    await supabase.from(table).delete().eq(filterKey, filterValue);
-  } catch (err) {
-    // ignore
+  initPersistedStore();
+  if (!missingSupabaseTables.has(table)) {
+    try {
+      const supabase = await createClient();
+      const { error } = await supabase.from(table).delete().eq(filterKey, filterValue);
+      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
+        missingSupabaseTables.add(table);
+      }
+    } catch (err) {
+      // ignore
+    }
   }
 
   if (memStore[table]) {

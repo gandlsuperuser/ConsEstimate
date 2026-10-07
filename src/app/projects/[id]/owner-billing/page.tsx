@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { OwnerBilling, OwnerBillingItem, EstimateLine, ChangeOrder, Project } from '@/types';
 
@@ -133,6 +133,8 @@ export default function OwnerBillingPage() {
   const [printMode, setPrintMode] = useState<'all' | 'g702_only' | 'g703_only'>('all');
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [isEditingOrigSum, setIsEditingOrigSum] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatusMsg, setSaveStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   /* G702 header & certificate fields */
   const [header, setHeader] = useState({
@@ -173,6 +175,11 @@ export default function OwnerBillingPage() {
 
   /* G703 continuation sheet rows — initialized with 28 lines by default */
   const [rows, setRows] = useState<OwnerBillingItem[]>(() => createInitialRows(DEFAULT_G703_ROWS));
+  const rowsRef = useRef<OwnerBillingItem[]>(rows);
+
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   /* Estimate lines for import & division aggregation */
   const [estimateLines, setEstimateLines] = useState<EstimateLine[]>([]);
@@ -661,62 +668,101 @@ export default function OwnerBillingPage() {
 
   /* ---- save / submit ---- */
   const handleSave = async (status: 'draft' | 'submitted') => {
-    // Preserve all rows in their exact position and order without stripping empty rows
-    let lastActiveIdx = rows.length - 1;
-    while (
-      lastActiveIdx >= DEFAULT_G703_ROWS &&
-      lastActiveIdx >= 0 &&
-      !rows[lastActiveIdx].description.trim() &&
-      !rows[lastActiveIdx].scheduled_value &&
-      !rows[lastActiveIdx].work_completed_this_period &&
-      !rows[lastActiveIdx].work_completed_previous &&
-      !rows[lastActiveIdx].stored_materials
-    ) {
-      lastActiveIdx--;
-    }
-    const rowsToSave = rows.slice(0, lastActiveIdx + 1);
-
-    const payload = {
-      project_id: projectId,
-      ...header,
-      change_order_additions: totals.total_additions,
-      change_order_deductions: totals.total_deductions,
-      net_change_orders: totals.net_co,
-      total_completed_and_stored: totals.total_completed_and_stored,
-      amount_certified: header.amount_certified || Math.max(0, totals.current_payment_due),
-      status,
-      items: rowsToSave.map((r, idx) => ({
-        item_number: idx + 1,
-        description: r.description || '',
-        scheduled_value: Number(r.scheduled_value) || 0,
-        work_completed_previous: Number(r.work_completed_previous) || 0,
-        work_completed_this_period: Number(r.work_completed_this_period) || 0,
-        stored_materials: Number(r.stored_materials) || 0,
-        total_completed: Number(r.total_completed) || 0,
-        pct_complete: Number(r.pct_complete) || 0,
-        balance_to_finish: Number(r.balance_to_finish) || 0,
-        retainage: Number(r.retainage) || 0,
-        scheduled_value_formula: r.scheduled_value_formula,
-        work_completed_previous_formula: r.work_completed_previous_formula,
-        work_completed_this_period_formula: r.work_completed_this_period_formula,
-        stored_materials_formula: r.stored_materials_formula,
-      })),
-    };
+    setIsSaving(true);
+    setSaveStatusMsg(null);
 
     try {
+      const currentRows = rowsRef.current && rowsRef.current.length > 0 ? rowsRef.current : rows;
+
+      // Preserve all rows in their exact position and order without stripping empty rows
+      let lastActiveIdx = currentRows.length - 1;
+      while (
+        lastActiveIdx >= DEFAULT_G703_ROWS &&
+        lastActiveIdx >= 0 &&
+        !(currentRows[lastActiveIdx]?.description || '').trim() &&
+        !currentRows[lastActiveIdx]?.scheduled_value &&
+        !currentRows[lastActiveIdx]?.work_completed_this_period &&
+        !currentRows[lastActiveIdx]?.work_completed_previous &&
+        !currentRows[lastActiveIdx]?.stored_materials
+      ) {
+        lastActiveIdx--;
+      }
+      const rowsToSave = currentRows.slice(0, lastActiveIdx + 1);
+
+      const payload = {
+        project_id: projectId,
+        ...header,
+        original_contract_sum: Number(header.original_contract_sum) || 1044266.65,
+        change_order_additions: totals.total_additions,
+        change_order_deductions: totals.total_deductions,
+        net_change_orders: totals.net_co,
+        contract_sum_to_date: totals.contract_sum_to_date,
+        total_completed_and_stored: totals.total_completed_and_stored,
+        retainage_completed_pct: Number(header.retainage_completed_pct) || 0,
+        retainage_stored_pct: Number(header.retainage_stored_pct) || 0,
+        retainage_amount: totals.total_retainage,
+        total_earned_less_retainage: totals.total_earned_less_retainage,
+        less_previous_certificates: Number(header.less_previous_certificates) || 0,
+        current_payment_due: totals.current_payment_due,
+        balance_to_finish_incl_retainage: totals.balance_to_finish_incl_retainage,
+        amount_certified: header.amount_certified || Math.max(0, totals.current_payment_due),
+        status,
+        items: rowsToSave.map((r, idx) => ({
+          item_number: idx + 1,
+          description: r.description || '',
+          scheduled_value: Number(r.scheduled_value) || 0,
+          work_completed_previous: Number(r.work_completed_previous) || 0,
+          work_completed_this_period: Number(r.work_completed_this_period) || 0,
+          stored_materials: Number(r.stored_materials) || 0,
+          total_completed: Number(r.total_completed) || 0,
+          pct_complete: Number(r.pct_complete) || 0,
+          balance_to_finish: Number(r.balance_to_finish) || 0,
+          retainage: Number(r.retainage) || 0,
+          scheduled_value_formula: r.scheduled_value_formula,
+          work_completed_previous_formula: r.work_completed_previous_formula,
+          work_completed_this_period_formula: r.work_completed_this_period_formula,
+          stored_materials_formula: r.stored_materials_formula,
+        })),
+      };
+
       const isEditing = editingBilling !== null;
       const res = await fetch('/api/owner-billing', {
         method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isEditing ? { id: editingBilling.id, ...payload } : payload),
       });
-      if (res.ok) {
-        setActiveView('list');
-        setEditingBilling(null);
-        await fetchData();
+
+      const resData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(resData?.error || `Server returned error (${res.status})`);
       }
-    } catch (err) {
-      console.error(err);
+
+      const savedBilling = resData.billing || editingBilling;
+      if (savedBilling) {
+        setEditingBilling(savedBilling);
+      }
+
+      setSaveStatusMsg({
+        type: 'success',
+        text: status === 'submitted'
+          ? `✓ Application #${header.application_number} saved & submitted successfully!`
+          : `✓ Application #${header.application_number} draft saved successfully!`,
+      });
+
+      await fetchData();
+
+      setTimeout(() => {
+        setSaveStatusMsg(prev => prev?.type === 'success' ? null : prev);
+      }, 5000);
+    } catch (err: any) {
+      console.error('Error saving owner billing:', err);
+      setSaveStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to save application. Please verify your connection and try again.',
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -856,15 +902,14 @@ export default function OwnerBillingPage() {
             backgroundColor: '#ffffff',
           });
 
-          const rect = el702.getBoundingClientRect();
-          const imgWidth = maxContentWidth;
-          const imgHeight = (rect.height * imgWidth) / rect.width;
+          const imgProps = pdf.getImageProperties(imgData702);
+          const aspect = imgProps.width / imgProps.height;
+          let renderWidth = maxContentWidth;
+          let renderHeight = renderWidth / aspect;
 
-          let renderWidth = imgWidth;
-          let renderHeight = imgHeight;
           if (renderHeight > maxContentHeight) {
             renderHeight = maxContentHeight;
-            renderWidth = (rect.width * renderHeight) / rect.height;
+            renderWidth = renderHeight * aspect;
           }
 
           const posX = margin + (maxContentWidth - renderWidth) / 2;
@@ -884,13 +929,14 @@ export default function OwnerBillingPage() {
             backgroundColor: '#ffffff',
           });
 
-          const rect = el703.getBoundingClientRect();
-          const imgWidth = maxContentWidth;
-          let renderWidth = imgWidth;
-          let renderHeight = (rect.height * imgWidth) / rect.width;
+          const imgProps = pdf.getImageProperties(imgData703);
+          const aspect = imgProps.width / imgProps.height;
+          let renderWidth = maxContentWidth;
+          let renderHeight = renderWidth / aspect;
+
           if (renderHeight > maxContentHeight) {
             renderHeight = maxContentHeight;
-            renderWidth = (rect.width * renderHeight) / rect.height;
+            renderWidth = renderHeight * aspect;
           }
 
           const posX = margin + (maxContentWidth - renderWidth) / 2;
@@ -907,13 +953,14 @@ export default function OwnerBillingPage() {
             backgroundColor: '#ffffff',
           });
 
-          const rect = el703.getBoundingClientRect();
-          const imgWidth = maxContentWidth;
-          let renderWidth = imgWidth;
-          let renderHeight = (rect.height * imgWidth) / rect.width;
+          const imgProps = pdf.getImageProperties(imgData703);
+          const aspect = imgProps.width / imgProps.height;
+          let renderWidth = maxContentWidth;
+          let renderHeight = renderWidth / aspect;
+
           if (renderHeight > maxContentHeight) {
             renderHeight = maxContentHeight;
-            renderWidth = (rect.width * renderHeight) / rect.height;
+            renderWidth = renderHeight * aspect;
           }
 
           const posX = margin + (maxContentWidth - renderWidth) / 2;
@@ -922,6 +969,7 @@ export default function OwnerBillingPage() {
           pdf.addImage(imgData703, 'JPEG', posX, posY, renderWidth, renderHeight);
         }
       }
+
 
       // Automatically trigger direct file download
       pdf.save(docName);
@@ -1158,18 +1206,39 @@ export default function OwnerBillingPage() {
 
             <button
               onClick={() => handleSave('draft')}
-              className="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white text-xs font-black px-4 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-gray-600 active:scale-95"
+              disabled={isSaving}
+              className="bg-gray-800 hover:bg-gray-700 disabled:opacity-60 text-gray-200 hover:text-white text-xs font-black px-4 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-gray-600 active:scale-95"
             >
-              <span>💾</span> Save Draft
+              {isSaving ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  <span>Save Draft</span>
+                </>
+              )}
             </button>
 
             {/* THE BIG UNMISSABLE SAVE & SUBMIT BUTTON */}
             <button
               onClick={() => handleSave('submitted')}
-              className="bg-emerald-500 hover:bg-emerald-400 text-gray-950 text-sm font-black px-6 py-2.5 rounded-lg shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 cursor-pointer border-2 border-emerald-300 active:scale-95 ring-4 ring-emerald-500/20 animate-pulse hover:animate-none"
+              disabled={isSaving}
+              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-700 disabled:opacity-60 text-gray-950 text-sm font-black px-6 py-2.5 rounded-lg shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 cursor-pointer border-2 border-emerald-300 active:scale-95 ring-4 ring-emerald-500/20"
             >
-              <span className="text-base">✓</span>
-              <span>SAVE &amp; SUBMIT APPLICATION</span>
+              {isSaving ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-gray-950 border-t-transparent rounded-full animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-base">✓</span>
+                  <span>SAVE &amp; SUBMIT APPLICATION</span>
+                </>
+              )}
             </button>
 
             {/* SAVE AS PDF BUTTON (Saves 2 Pages Together) */}
@@ -1194,6 +1263,29 @@ export default function OwnerBillingPage() {
           </div>
         </div>
       </div>
+
+      {/* Save Status Notification Banner */}
+      {saveStatusMsg && (
+        <div
+          className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-bold transition-all shadow-md print:hidden ${
+            saveStatusMsg.type === 'success'
+              ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
+              : 'bg-red-950/90 border-red-500 text-red-200'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-base font-black">{saveStatusMsg.type === 'success' ? '✓' : '⚠️'}</span>
+            <span className="text-xs sm:text-sm">{saveStatusMsg.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSaveStatusMsg(null)}
+            className="text-gray-400 hover:text-white px-2 py-0.5 rounded cursor-pointer text-sm font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/*  FINANCIAL SUMMARY BAR: THE BUDGET · THE DRAW · THE BALANCE  */}
@@ -1521,8 +1613,8 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-bold text-black">
                       ORIGINAL CONTRACT SUM...................................
                     </td>
-                    <td className="p-1 text-right font-bold w-4">$</td>
-                    <td className="p-1 text-right w-28 border-l border-black bg-white">
+                    <td className="p-1 text-right font-black text-black w-4">$</td>
+                    <td className="p-1 text-right w-28 border-l border-black bg-white text-black font-black">
                       <span className="hidden print:inline font-black text-black">
                         {header.original_contract_sum > 0 ? fmt(header.original_contract_sum) : ''}
                       </span>
@@ -1551,9 +1643,9 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-bold text-black">
                       Net change by Change Orders.............................
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-bold border-l border-black bg-white">
-                      {totals.net_co !== 0 ? fmt(totals.net_co) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.net_co !== 0 ? fmt(totals.net_co) : '$0.00'}
                     </td>
                   </tr>
 
@@ -1563,9 +1655,9 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-black text-black">
                       CONTRACT SUM TO DATE (Line 1 +/- 2)............
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {totals.contract_sum_to_date > 0 ? fmt(totals.contract_sum_to_date) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.contract_sum_to_date > 0 ? fmt(totals.contract_sum_to_date) : '$0.00'}
                     </td>
                   </tr>
 
@@ -1574,11 +1666,11 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-black text-black text-center">4.</td>
                     <td className="p-1 font-bold text-black">
                       TOTAL COMPLETED &amp; STORED TO DATE-$
-                      <div className="text-[7.5px] text-gray-600 font-normal">(Column G on Continuation Sheet)</div>
+                      <div className="text-[7.5px] text-gray-800 font-normal">(Column G on Continuation Sheet)</div>
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {totals.total_completed_and_stored > 0 ? fmt(totals.total_completed_and_stored) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.total_completed_and_stored > 0 ? fmt(totals.total_completed_and_stored) : '$0.00'}
                     </td>
                   </tr>
 
@@ -1590,37 +1682,37 @@ export default function OwnerBillingPage() {
                     </td>
                   </tr>
                   <tr className="border-b border-black">
-                    <td className="p-1 pl-4 text-black">
+                    <td className="p-1 pl-4 text-black font-semibold">
                       a.{' '}
                       <input
                         type="number"
                         value={header.retainage_completed_pct || ''}
                         onChange={e => setHeader(h => ({ ...h, retainage_completed_pct: parseFloat(e.target.value) || 0 }))}
-                        className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
+                        className="w-8 text-center font-black text-black border-b border-black focus:outline-none bg-transparent"
                       />
                       % of Completed Work
-                      <div className="text-[7.5px] text-gray-600 font-normal">(Columns D+E on Continuation Sheet)</div>
+                      <div className="text-[7.5px] text-gray-800 font-normal">(Columns D+E on Continuation Sheet)</div>
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-semibold border-l border-black bg-white">
-                      {totals.retainage_on_completed > 0 ? fmt(totals.retainage_on_completed) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.retainage_on_completed > 0 ? fmt(totals.retainage_on_completed) : '$0.00'}
                     </td>
                   </tr>
                   <tr className="border-b border-black">
-                    <td className="p-1 pl-4 text-black">
+                    <td className="p-1 pl-4 text-black font-semibold">
                       b.{' '}
                       <input
                         type="number"
                         value={header.retainage_stored_pct || ''}
                         onChange={e => setHeader(h => ({ ...h, retainage_stored_pct: parseFloat(e.target.value) || 0 }))}
-                        className="w-8 text-center font-bold border-b border-black focus:outline-none bg-transparent"
+                        className="w-8 text-center font-black text-black border-b border-black focus:outline-none bg-transparent"
                       />
                       % of Stored Material
-                      <div className="text-[7.5px] text-gray-600 font-normal">(Column F on Continuation Sheet)</div>
+                      <div className="text-[7.5px] text-gray-800 font-normal">(Column F on Continuation Sheet)</div>
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-semibold border-l border-black bg-white">
-                      {totals.retainage_on_stored > 0 ? fmt(totals.retainage_on_stored) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.retainage_on_stored > 0 ? fmt(totals.retainage_on_stored) : '$0.00'}
                     </td>
                   </tr>
 
@@ -1631,9 +1723,9 @@ export default function OwnerBillingPage() {
                       Total Retainage (Line 5a + 5b or<br />
                       Total in Column I of Continuation Sheet)---
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {totals.total_retainage > 0 ? fmt(totals.total_retainage) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.total_retainage > 0 ? fmt(totals.total_retainage) : '$0.00'}
                     </td>
                   </tr>
 
@@ -1642,11 +1734,11 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-black text-black text-center">6.</td>
                     <td className="p-1 font-black text-black">
                       TOTAL EARNED LESS RETAINAGE..............
-                      <div className="text-[7.5px] text-gray-600 font-normal">(Line 4 less Line 5 Total)</div>
+                      <div className="text-[7.5px] text-gray-800 font-normal">(Line 4 less Line 5 Total)</div>
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {totals.total_earned_less_retainage > 0 ? fmt(totals.total_earned_less_retainage) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.total_earned_less_retainage > 0 ? fmt(totals.total_earned_less_retainage) : '$0.00'}
                     </td>
                   </tr>
 
@@ -1655,14 +1747,14 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-black text-black text-center">7.</td>
                     <td className="p-1 font-bold text-black">
                       LESS PREVIOUS CERTIFICATES FOR PAYMENT
-                      <div className="text-[7.5px] text-gray-600 font-normal">(Line 6 from prior Certificate)</div>
+                      <div className="text-[7.5px] text-gray-800 font-normal">(Line 6 from prior Certificate)</div>
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right w-28 border-l border-black bg-white">
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right w-28 border-l border-black bg-white text-black font-black">
                       <CurrencyInput
                         value={header.less_previous_certificates}
                         onChange={val => setHeader(h => ({ ...h, less_previous_certificates: val }))}
-                        className="w-full text-right font-bold text-black focus:outline-none bg-transparent"
+                        className="w-full text-right font-black text-black focus:outline-none bg-transparent"
                         allowEmpty={true}
                         showDollarSign={false}
                       />
@@ -1675,9 +1767,9 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-black text-black">
                       CURRENT PAYMENT DUE................................
                     </td>
-                    <td className="p-1 text-right font-black">$</td>
-                    <td className="p-1 text-right font-black text-[10px] border-l border-black bg-white">
-                      {totals.current_payment_due > 0 ? fmt(totals.current_payment_due) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-[10px] text-black border-l border-black bg-white">
+                      {totals.current_payment_due > 0 ? fmt(totals.current_payment_due) : '$0.00'}
                     </td>
                   </tr>
 
@@ -1686,11 +1778,11 @@ export default function OwnerBillingPage() {
                     <td className="p-1 font-black text-black text-center">9.</td>
                     <td className="p-1 font-bold text-black">
                       BALANCE TO FINISH, INCLUDING RETAINAGE
-                      <div className="text-[7.5px] text-gray-600 font-normal">(Line 3 less Line 6)</div>
+                      <div className="text-[7.5px] text-gray-800 font-normal">(Line 3 less Line 6)</div>
                     </td>
-                    <td className="p-1 text-right font-bold">$</td>
-                    <td className="p-1 text-right font-black border-l border-black bg-white">
-                      {totals.balance_to_finish_incl_retainage > 0 ? fmt(totals.balance_to_finish_incl_retainage) : ''}
+                    <td className="p-1 text-right font-black text-black">$</td>
+                    <td className="p-1 text-right font-black text-black border-l border-black bg-white">
+                      {totals.balance_to_finish_incl_retainage > 0 ? fmt(totals.balance_to_finish_incl_retainage) : '$0.00'}
                     </td>
                   </tr>
                 </tbody>
@@ -1701,54 +1793,54 @@ export default function OwnerBillingPage() {
             <div className="border border-black">
               <table className="w-full text-[8px] border-collapse">
                 <thead>
-                  <tr className="border-b border-black bg-gray-100 font-black">
-                    <th className="p-1 text-left border-r border-black w-56">CHANGE ORDER SUMMARY</th>
-                    <th className="p-1 text-center border-r border-black w-24">ADDITIONS</th>
-                    <th className="p-1 text-center w-24">DEDUCTIONS</th>
+                  <tr className="border-b border-black bg-gray-100 font-black text-black">
+                    <th className="p-1 text-left border-r border-black w-56 text-black">CHANGE ORDER SUMMARY</th>
+                    <th className="p-1 text-center border-r border-black w-24 text-black">ADDITIONS</th>
+                    <th className="p-1 text-center w-24 text-black">DEDUCTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b border-black">
-                    <td className="p-1 text-black border-r border-black">
+                    <td className="p-1 text-black font-medium border-r border-black">
                       Total changes approved in previous months by Owner
                     </td>
-                    <td className="p-1 border-r border-black">
+                    <td className="p-1 border-r border-black text-black font-bold">
                       <CurrencyInput
                         value={header.change_order_additions_prev}
                         onChange={val => setHeader(h => ({ ...h, change_order_additions_prev: val }))}
-                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px] text-black font-bold"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
                     </td>
-                    <td className="p-1">
+                    <td className="p-1 text-black font-bold">
                       <CurrencyInput
                         value={header.change_order_deductions_prev}
                         onChange={val => setHeader(h => ({ ...h, change_order_deductions_prev: val }))}
-                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px] text-black font-bold"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
                     </td>
                   </tr>
                   <tr className="border-b border-black">
-                    <td className="p-1 text-black border-r border-black">
+                    <td className="p-1 text-black font-medium border-r border-black">
                       Total approved this Month
                     </td>
-                    <td className="p-1 border-r border-black">
+                    <td className="p-1 border-r border-black text-black font-bold">
                       <CurrencyInput
                         value={header.change_order_additions_curr}
                         onChange={val => setHeader(h => ({ ...h, change_order_additions_curr: val }))}
-                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px] text-black font-bold"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
                     </td>
-                    <td className="p-1">
+                    <td className="p-1 text-black font-bold">
                       <CurrencyInput
                         value={header.change_order_deductions_curr}
                         onChange={val => setHeader(h => ({ ...h, change_order_deductions_curr: val }))}
-                        className="w-full text-right focus:outline-none bg-transparent text-[8px]"
+                        className="w-full text-right focus:outline-none bg-transparent text-[8px] text-black font-bold"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
@@ -1758,24 +1850,25 @@ export default function OwnerBillingPage() {
                     <td className="p-1 text-right font-black text-black border-r border-black">
                       TOTALS
                     </td>
-                    <td className="p-1 text-right border-r border-black font-bold">
+                    <td className="p-1 text-right border-r border-black font-black text-black">
                       {totals.total_additions > 0 ? `$${fmt(totals.total_additions)}` : ''}
                     </td>
-                    <td className="p-1 text-right font-bold">
+                    <td className="p-1 text-right font-black text-black">
                       {totals.total_deductions > 0 ? `$${fmt(totals.total_deductions)}` : ''}
                     </td>
                   </tr>
-                  <tr className="font-black bg-gray-100">
+                  <tr className="font-black bg-gray-100 text-black">
                     <td className="p-1 text-black border-r border-black">
                       NET CHANGES by Change Order
                     </td>
-                    <td className="p-1 text-right" colSpan={2}>
+                    <td className="p-1 text-right font-black text-black" colSpan={2}>
                       {totals.net_co !== 0 ? `$${fmt(totals.net_co)}` : ''}
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
           </div>
 
           {/* ---------------- RIGHT COLUMN ---------------- */}
@@ -1817,48 +1910,48 @@ export default function OwnerBillingPage() {
               </div>
 
               {/* Notary Jurat */}
-              <div className="pt-1 text-[8px] space-y-1">
+              <div className="pt-1 text-[8px] space-y-1 text-black">
                 <div className="flex gap-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold">State of:</span>
+                    <span className="font-bold text-black">State of:</span>
                     <input
                       type="text"
                       value={header.state_of}
                       onChange={e => setHeader(h => ({ ...h, state_of: e.target.value }))}
-                      className="w-24 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
+                      className="w-24 font-bold uppercase text-black border-b border-black focus:outline-none bg-transparent"
                     />
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold">County of:</span>
+                    <span className="font-bold text-black">County of:</span>
                     <input
                       type="text"
                       value={header.county_of}
                       onChange={e => setHeader(h => ({ ...h, county_of: e.target.value }))}
-                      className="w-24 font-bold uppercase border-b border-black focus:outline-none bg-transparent"
+                      className="w-24 font-bold uppercase text-black border-b border-black focus:outline-none bg-transparent"
                     />
                   </div>
                 </div>
 
                 <div className="flex items-baseline gap-1">
-                  <span>Subscribed and sworn to before me this</span>
+                  <span className="text-black font-medium">Subscribed and sworn to before me this</span>
                   <input
                     type="text"
                     value={header.notary_day}
                     onChange={e => setHeader(h => ({ ...h, notary_day: e.target.value }))}
-                    className="w-10 text-center font-bold border-b border-black focus:outline-none bg-transparent"
+                    className="w-10 text-center font-bold text-black border-b border-black focus:outline-none bg-transparent"
                   />
-                  <span>day of</span>
+                  <span className="text-black font-medium">day of</span>
                   <input
                     type="text"
                     value={header.notary_month_year}
                     onChange={e => setHeader(h => ({ ...h, notary_month_year: e.target.value }))}
-                    className="w-28 font-bold border-b border-black focus:outline-none bg-transparent"
+                    className="w-28 font-bold text-black border-b border-black focus:outline-none bg-transparent"
                   />
                 </div>
 
                 <div className="space-y-1 pt-1">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold shrink-0">Notary Public:</span>
+                    <span className="font-bold shrink-0 text-black">Notary Public:</span>
                     <input
                       type="text"
                       value={header.notary_public}
@@ -1867,16 +1960,17 @@ export default function OwnerBillingPage() {
                     />
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold shrink-0">My Commission expires:</span>
+                    <span className="font-bold shrink-0 text-black">My Commission expires:</span>
                     <input
                       type="text"
                       value={header.notary_commission_expires}
                       onChange={e => setHeader(h => ({ ...h, notary_commission_expires: e.target.value }))}
-                      className="w-36 font-bold border-b border-black focus:outline-none bg-transparent"
+                      className="w-36 font-bold text-black border-b border-black focus:outline-none bg-transparent"
                     />
                   </div>
                 </div>
               </div>
+
             </div>
 
             {/* ARCHITECT CERTIFICATE FOR PAYMENT */}
@@ -1958,14 +2052,14 @@ export default function OwnerBillingPage() {
         }`}
       >
         {/* Title & Actions */}
-        <div className="bg-gray-900 text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 print:bg-white print:text-black print:border-b-2 print:border-black">
+        <div className="g703-title-bar bg-gray-900 text-white px-5 py-3 flex items-center justify-between gap-3 print:bg-white print:text-black print:border-b-2 print:border-black">
           <div className="flex items-center gap-4">
             <div>
               <h2 className="text-sm sm:text-base font-black tracking-wide uppercase flex items-center gap-2">
                 <span>Continuation Sheet</span>
                 <span className="text-[10px] font-bold bg-gray-800 text-gray-300 px-2 py-0.5 rounded print:hidden">G703</span>
               </h2>
-              <p className="text-[10px] text-gray-400 print:text-gray-600 mt-0.5">
+              <p className="text-[10px] text-gray-400 print:text-gray-800 mt-0.5 font-medium">
                 AIA Document G703™ — Attachment to Application #{header.application_number}
               </p>
             </div>
@@ -1991,15 +2085,15 @@ export default function OwnerBillingPage() {
             </div>
           </div>
 
-          <div className="text-right text-[10px] text-gray-400 print:text-gray-600">
+          <div className="text-right text-[10px] text-gray-400 print:text-black">
             <p>APPLICATION NUMBER: <span className="font-black text-white print:text-black">{header.application_number}</span></p>
             <p>PERIOD TO: <span className="font-bold text-white print:text-black">{header.period_to}</span></p>
           </div>
         </div>
 
         {/* CONTINUATION SHEET FINANCIAL STRIP: BUDGET · DRAW · BALANCE */}
-        <div className="bg-gray-950 text-white px-5 py-2.5 border-t border-gray-800 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden">
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+        <div className="g703-summary-strip bg-gray-950 text-white px-5 py-2 border-t border-gray-800 flex items-center justify-between gap-4 text-xs overflow-hidden">
+          <div className="flex items-center gap-4 sm:gap-6 flex-nowrap whitespace-nowrap">
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase tracking-wider font-extrabold text-blue-400">The Budget:</span>
               <span className="font-black text-white text-sm">${fmt(contractBudget)}</span>
@@ -2007,81 +2101,80 @@ export default function OwnerBillingPage() {
             <div className="h-4 w-px bg-gray-800" />
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400">The Draw:</span>
-              <span className="font-black text-emerald-400 text-sm bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
+              <span className="the-draw-badge font-black text-emerald-400 text-sm bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
                 ${fmt(currentDraw)}
               </span>
             </div>
             <div className="h-4 w-px bg-gray-800" />
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-400">The Balance:</span>
-              <span className="font-black text-amber-400 text-sm bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30">
+              <span className="the-balance-badge font-black text-amber-400 text-sm bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30">
                 ${fmt(remainingBalance)}
               </span>
             </div>
           </div>
-          <div className="text-[11px] text-gray-400 flex items-center gap-3">
+          <div className="text-[11px] text-gray-400 flex items-center gap-3 flex-nowrap whitespace-nowrap">
             <span>Completed &amp; Stored: <strong className="text-white">${fmt(totals.total_completed_and_stored)}</strong></span>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px] min-w-[1050px] border-collapse">
+          <table className="w-full text-[11px] min-w-[1050px] border-collapse bg-white">
             <thead>
               {/* Column Letter headers */}
-              <tr className="bg-gray-100 border-b border-gray-300 print:border-black">
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-14 print:w-10 print:border-black">A</th>
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 print:border-black">B</th>
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">C</th>
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black" colSpan={2}>
-                  D &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; E
-                </th>
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">F</th>
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-28 print:border-black">G</th>
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-14 print:border-black">%</th>
-                <th className="p-1 text-center font-bold text-gray-500 border-r border-gray-300 w-24 print:border-black">H</th>
-                <th className="p-1 text-center font-bold text-gray-500 w-24">I</th>
-                <th className="p-1 w-6 print:hidden"></th>
+              <tr className="bg-gray-100 border-b border-gray-300 print:border-black font-bold text-gray-900">
+                <th className="p-1 text-center border-r border-gray-300 w-12 print:border-black">A</th>
+                <th className="p-1 text-center border-r border-gray-300 min-w-[180px] print:border-black">B</th>
+                <th className="p-1 text-center border-r border-gray-300 w-28 print:border-black">C</th>
+                <th className="p-1 text-center border-r border-gray-300 w-28 print:border-black">D</th>
+                <th className="p-1 text-center border-r border-gray-300 w-28 print:border-black">E</th>
+                <th className="p-1 text-center border-r border-gray-300 w-24 print:border-black">F</th>
+                <th className="p-1 text-center border-r border-gray-300 w-28 print:border-black">G</th>
+                <th className="p-1 text-center border-r border-gray-300 w-14 print:border-black">%</th>
+                <th className="p-1 text-center border-r border-gray-300 w-28 print:border-black">H</th>
+                <th className="p-1 text-center border-r border-gray-300 w-24 print:border-black">I</th>
+                <th className="p-1 w-8 print:hidden"></th>
               </tr>
               {/* Detailed headers */}
-              <tr className="bg-gray-50 border-b-2 border-gray-400 text-[9px] print:border-black">
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 w-14 print:w-10 print:border-black">
+              <tr className="bg-gray-50 border-b-2 border-gray-400 text-[9px] print:border-black font-bold text-gray-900">
+                <th className="p-1.5 text-center border-r border-gray-300 w-12 print:border-black">
                   Item<br />No
                 </th>
-                <th className="p-1.5 text-left font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                <th className="p-1.5 text-left border-r border-gray-300 min-w-[180px] print:border-black">
                   Description of Work
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                <th className="p-1.5 text-center border-r border-gray-300 w-28 print:border-black">
                   Scheduled<br />Value
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 w-28 print:border-black">
+                <th className="p-1.5 text-center border-r border-gray-300 w-28 print:border-black">
                   Work Completed<br />
-                  <span className="text-[8px] text-gray-500">From Previous<br />App (D+E)</span>
+                  <span className="text-[8px] text-gray-600">From Previous<br />App (D+E)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 w-28 print:border-black">
+                <th className="p-1.5 text-center border-r border-gray-300 w-28 print:border-black">
                   Work Completed<br />
-                  <span className="text-[8px] text-gray-500">This Period</span>
+                  <span className="text-[8px] text-gray-600">This Period</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                <th className="p-1.5 text-center border-r border-gray-300 w-24 print:border-black">
                   Materials<br />Presently<br />Stored<br />
-                  <span className="text-[8px] text-gray-500">(Not in D or E)</span>
+                  <span className="text-[8px] text-gray-600">(Not in D or E)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                <th className="p-1.5 text-center border-r border-gray-300 w-28 print:border-black">
                   Total<br />Completed<br />&amp; Stored<br />
-                  <span className="text-[8px] text-gray-500">(D+E+F)</span>
+                  <span className="text-[8px] text-gray-600">(D+E+F)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                <th className="p-1.5 text-center border-r border-gray-300 w-14 print:border-black">
                   G/C<br />
-                  <span className="text-[8px] text-gray-500">%</span>
+                  <span className="text-[8px] text-gray-600">%</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700 border-r border-gray-300 print:border-black">
+                <th className="p-1.5 text-center border-r border-gray-300 w-28 print:border-black">
                   Balance<br />To Finish<br />
-                  <span className="text-[8px] text-gray-500">(C - G)</span>
+                  <span className="text-[8px] text-gray-600">(C - G)</span>
                 </th>
-                <th className="p-1.5 text-center font-bold text-gray-700">
+                <th className="p-1.5 text-center border-r border-gray-300 w-24">
                   Retainage<br />
-                  <span className="text-[8px] text-gray-500">(If Variable)</span>
+                  <span className="text-[8px] text-gray-600">(If Variable)</span>
                 </th>
-                <th className="p-1.5 print:hidden"></th>
+                <th className="p-1.5 w-8 print:hidden"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 print:divide-black">
@@ -2120,7 +2213,7 @@ export default function OwnerBillingPage() {
                     }`}
                   >
                     {/* A — Item No & Reorder Controls */}
-                    <td className="p-0.5 border-r border-gray-200 bg-gray-50/50 print:border-black text-[10px]">
+                    <td className="p-0.5 border-r border-gray-300 bg-gray-50/50 print:border-black text-[10px] w-12">
                       <div className="flex items-center justify-between gap-0.5 px-1">
                         {/* Drag handle */}
                         <span
@@ -2141,7 +2234,7 @@ export default function OwnerBillingPage() {
                         </span>
 
                         {/* Item number */}
-                        <span className="font-bold text-gray-600 flex-1 text-center select-none">
+                        <span className="font-bold text-gray-900 flex-1 text-center select-none">
                           {row.item_number}
                         </span>
 
@@ -2179,18 +2272,18 @@ export default function OwnerBillingPage() {
                       </div>
                     </td>
                     {/* B — Description — NO PLACEHOLDER */}
-                    <td className="p-1 border-r border-gray-200 print:border-black">
+                    <td className="p-1 border-r border-gray-300 print:border-black min-w-[180px]">
                       <input
                         type="text"
                         draggable={false}
                         onDragStart={e => e.stopPropagation()}
                         value={row.description}
                         onChange={e => updateRow(idx, 'description', e.target.value)}
-                        className="w-full text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        className="w-full text-[11px] font-semibold text-gray-900 focus:outline-none bg-transparent px-1"
                       />
                     </td>
-                    {/* C — Scheduled Value — NO PLACEHOLDER */}
-                    <td className="p-1 border-r border-gray-200 print:border-black">
+                    {/* C — Scheduled Value */}
+                    <td className="p-1 border-r border-gray-300 print:border-black w-28">
                       <CurrencyInput
                         value={row.scheduled_value}
                         formula={row.scheduled_value_formula}
@@ -2199,13 +2292,13 @@ export default function OwnerBillingPage() {
                         onFormulaChange={(f, v) => updateRowWithFormula(idx, 'scheduled_value', v, f)}
                         onEvaluateFormula={text => parseAndEvaluateFormula(text, 'scheduled_value', idx, rows)}
                         getSuggestions={query => getFormulaSuggestions(query, 'scheduled_value', idx, rows)}
-                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        className="w-full text-right text-[11px] font-semibold text-gray-900 focus:outline-none bg-transparent px-1"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
                     </td>
-                    {/* D — From Previous — NO PLACEHOLDER */}
-                    <td className="p-1 border-r border-gray-200 print:border-black">
+                    {/* D — From Previous */}
+                    <td className="p-1 border-r border-gray-300 print:border-black w-28">
                       <CurrencyInput
                         value={row.work_completed_previous}
                         formula={row.work_completed_previous_formula}
@@ -2214,13 +2307,13 @@ export default function OwnerBillingPage() {
                         onFormulaChange={(f, v) => updateRowWithFormula(idx, 'work_completed_previous', v, f)}
                         onEvaluateFormula={text => parseAndEvaluateFormula(text, 'work_completed_previous', idx, rows)}
                         getSuggestions={query => getFormulaSuggestions(query, 'work_completed_previous', idx, rows)}
-                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        className="w-full text-right text-[11px] font-semibold text-gray-900 focus:outline-none bg-transparent px-1"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
                     </td>
-                    {/* E — This Period — NO PLACEHOLDER */}
-                    <td className="p-1 border-r border-gray-200 print:border-black">
+                    {/* E — This Period */}
+                    <td className="p-1 border-r border-gray-300 print:border-black w-28">
                       <CurrencyInput
                         value={row.work_completed_this_period}
                         formula={row.work_completed_this_period_formula}
@@ -2229,13 +2322,13 @@ export default function OwnerBillingPage() {
                         onFormulaChange={(f, v) => updateRowWithFormula(idx, 'work_completed_this_period', v, f)}
                         onEvaluateFormula={text => parseAndEvaluateFormula(text, 'work_completed_this_period', idx, rows)}
                         getSuggestions={query => getFormulaSuggestions(query, 'work_completed_this_period', idx, rows)}
-                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        className="w-full text-right text-[11px] font-bold text-gray-900 focus:outline-none bg-transparent px-1"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
                     </td>
-                    {/* F — Stored — NO PLACEHOLDER */}
-                    <td className="p-1 border-r border-gray-200 print:border-black">
+                    {/* F — Stored */}
+                    <td className="p-1 border-r border-gray-300 print:border-black w-24">
                       <CurrencyInput
                         value={row.stored_materials}
                         formula={row.stored_materials_formula}
@@ -2244,33 +2337,33 @@ export default function OwnerBillingPage() {
                         onFormulaChange={(f, v) => updateRowWithFormula(idx, 'stored_materials', v, f)}
                         onEvaluateFormula={text => parseAndEvaluateFormula(text, 'stored_materials', idx, rows)}
                         getSuggestions={query => getFormulaSuggestions(query, 'stored_materials', idx, rows)}
-                        className="w-full text-right text-[11px] font-medium text-procore-text focus:outline-none bg-transparent px-1"
+                        className="w-full text-right text-[11px] font-semibold text-gray-900 focus:outline-none bg-transparent px-1"
                         allowEmpty={true}
                         showDollarSign={true}
                       />
                     </td>
-                    {/* G — Total — EMPTY IF NO DATA */}
-                    <td className="p-1 text-right font-bold text-[11px] text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
+                    {/* G — Total */}
+                    <td className="p-1 text-right font-bold text-[11px] text-gray-900 border-r border-gray-300 bg-gray-50/40 px-2 print:border-black w-28">
                       {hasData && row.total_completed > 0 ? formatCurrencyUSD(row.total_completed) : ''}
                     </td>
-                    {/* G/C % — EMPTY IF NO DATA */}
-                    <td className="p-1 text-center font-bold text-[11px] border-r border-gray-200 bg-gray-50/30 print:border-black">
+                    {/* G/C % */}
+                    <td className="p-1 text-center font-bold text-[11px] border-r border-gray-300 bg-gray-50/40 print:border-black w-14">
                       {hasData && row.pct_complete > 0 ? (
-                        <span className={row.pct_complete >= 100 ? 'text-emerald-700' : 'text-blue-700'}>
+                        <span className={row.pct_complete >= 100 ? 'text-emerald-700 font-bold' : 'text-blue-700 font-bold'}>
                           {row.pct_complete}%
                         </span>
                       ) : ''}
                     </td>
-                    {/* H — Balance — EMPTY IF NO DATA */}
-                    <td className="p-1 text-right text-[11px] font-medium text-procore-text border-r border-gray-200 bg-gray-50/30 px-2 print:border-black">
+                    {/* H — Balance */}
+                    <td className="p-1 text-right text-[11px] font-bold text-gray-900 border-r border-gray-300 bg-gray-50/40 px-2 print:border-black w-28">
                       {hasData && row.scheduled_value > 0 ? formatCurrencyUSD(row.balance_to_finish) : ''}
                     </td>
-                    {/* I — Retainage — EMPTY IF NO DATA */}
-                    <td className="p-1 text-right text-[11px] font-medium text-amber-700 bg-gray-50/30 px-2">
+                    {/* I — Retainage */}
+                    <td className="p-1 text-right text-[11px] font-semibold text-amber-900 bg-gray-50/40 px-2 w-24">
                       {hasData && row.retainage > 0 ? formatCurrencyUSD(row.retainage) : ''}
                     </td>
                     {/* Row action buttons: Insert empty row & Delete */}
-                    <td className="p-0.5 text-center print:hidden whitespace-nowrap">
+                    <td className="p-0.5 text-center print:hidden whitespace-nowrap w-8">
                       <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"
@@ -2294,49 +2387,50 @@ export default function OwnerBillingPage() {
                 );
               })}
             </tbody>
-            {/* Totals row - Reconciles Column C to Contract Sum ($1,044,266.65) and Column E/G to Draw ($290,292.89) */}
+            {/* Totals row - Reconciles Column C to Contract Sum ($1,044,266.65) and Column E/G to Draw ($212,146.19) */}
             <tfoot>
               <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold text-[11px] print:border-black">
                 <td className="p-2 text-center border-r border-gray-300 print:border-black" colSpan={2}>
-                  <span className="uppercase text-gray-700 font-black text-[10px] tracking-wider">TOTALS</span>
+                  <span className="uppercase text-gray-900 font-black text-[10px] tracking-wider">TOTALS</span>
                 </td>
                 {/* Column C: Scheduled Value */}
-                <td className="p-2 text-right border-r border-gray-300 font-black text-gray-900 print:border-black">
+                <td className="p-2 text-right border-r border-gray-300 font-black text-gray-900 print:border-black w-28">
                   {totals.scheduled_total > 0 ? formatCurrencyUSD(totals.scheduled_total) : '$0.00'}
                 </td>
                 {/* Column D: Work Completed From Previous */}
-                <td className="p-2 text-right border-r border-gray-300 text-gray-700 print:border-black">
+                <td className="p-2 text-right border-r border-gray-300 font-bold text-gray-900 print:border-black w-28">
                   {totals.prev_total > 0 ? formatCurrencyUSD(totals.prev_total) : ''}
                 </td>
                 {/* Column E: Work Completed This Period */}
-                <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">
+                <td className="p-2 text-right border-r border-gray-300 text-emerald-800 font-black print:border-black w-28">
                   {totals.this_period_total > 0 ? formatCurrencyUSD(totals.this_period_total) : '$0.00'}
                 </td>
                 {/* Column F: Materials Stored */}
-                <td className="p-2 text-right border-r border-gray-300 text-gray-700 print:border-black">
+                <td className="p-2 text-right border-r border-gray-300 font-bold text-gray-900 print:border-black w-24">
                   {totals.stored_total > 0 ? formatCurrencyUSD(totals.stored_total) : ''}
                 </td>
                 {/* Column G: Total Completed & Stored */}
-                <td className="p-2 text-right border-r border-gray-300 text-emerald-700 font-black print:border-black">
+                <td className="p-2 text-right border-r border-gray-300 text-emerald-800 font-black print:border-black w-28">
                   {totals.total_completed_and_stored > 0 ? formatCurrencyUSD(totals.total_completed_and_stored) : '$0.00'}
                 </td>
                 {/* Column G/C%: Complete */}
-                <td className="p-2 text-center border-r border-gray-300 font-bold text-gray-700 print:border-black">
+                <td className="p-2 text-center border-r border-gray-300 font-black text-gray-900 print:border-black w-14">
                   {totals.scheduled_total > 0 ? `${Math.round((totals.total_completed_and_stored / totals.scheduled_total) * 100)}%` : ''}
                 </td>
                 {/* Column H: Balance to Finish */}
-                <td className="p-2 text-right border-r border-gray-300 font-black text-gray-900 print:border-black">
+                <td className="p-2 text-right border-r border-gray-300 font-black text-gray-900 print:border-black w-28">
                   {totals.balance_total > 0 ? formatCurrencyUSD(totals.balance_total) : '$0.00'}
                 </td>
                 {/* Column I: Retainage */}
-                <td className="p-2 text-right print:border-black text-gray-700 font-medium">
+                <td className="p-2 text-right border-r border-gray-300 print:border-black text-gray-900 font-bold w-24">
                   {totals.total_retainage > 0 ? formatCurrencyUSD(totals.total_retainage) : ''}
                 </td>
-                <td className="print:hidden"></td>
+                <td className="print:hidden w-8"></td>
               </tr>
             </tfoot>
           </table>
         </div>
+
 
         {/* Add row button & Sort */}
         <div className="px-4 py-2.5 border-t border-gray-200 print:hidden flex flex-wrap justify-between items-center gap-3 bg-gray-50/50">
@@ -2408,17 +2502,35 @@ export default function OwnerBillingPage() {
 
           <button
             onClick={() => handleSave('draft')}
-            className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all border border-gray-600 cursor-pointer"
+            disabled={isSaving}
+            className="bg-gray-800 hover:bg-gray-700 disabled:opacity-60 text-gray-300 hover:text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all border border-gray-600 cursor-pointer flex items-center gap-1.5"
           >
-            Save Draft
+            {isSaving ? (
+              <>
+                <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <span>Save Draft</span>
+            )}
           </button>
 
           <button
             onClick={() => handleSave('submitted')}
-            className="bg-emerald-500 hover:bg-emerald-400 text-gray-950 text-xs sm:text-sm font-black px-5 py-2 rounded-xl shadow-lg transition-all border border-emerald-300 cursor-pointer flex items-center gap-1.5 active:scale-95"
+            disabled={isSaving}
+            className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-700 disabled:opacity-60 text-gray-950 text-xs sm:text-sm font-black px-5 py-2 rounded-xl shadow-lg transition-all border border-emerald-300 cursor-pointer flex items-center gap-1.5 active:scale-95"
           >
-            <span>✓</span>
-            <span>SAVE &amp; SUBMIT</span>
+            {isSaving ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-gray-950 border-t-transparent rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <span>✓</span>
+                <span>SAVE &amp; SUBMIT</span>
+              </>
+            )}
           </button>
         </div>
       </div>

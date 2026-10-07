@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getWorkflowData, insertWorkflowRecord, updateWorkflowRecord, deleteWorkflowRecord, deleteWorkflowRecordsByFilter } from '@/lib/workflow-store';
+import { getWorkflowData, insertWorkflowRecord, batchInsertWorkflowRecords, updateWorkflowRecord, deleteWorkflowRecord, deleteWorkflowRecordsByFilter } from '@/lib/workflow-store';
 import { OwnerBilling, OwnerBillingItem } from '@/types';
 
 export async function GET(request: NextRequest) {
@@ -101,28 +101,26 @@ export async function POST(request: NextRequest) {
       status,
     });
 
-    // Save continuation sheet items sequentially to maintain exact order
+    // Save continuation sheet items in batch to maintain exact sheet order instantly
     if (items && items.length > 0) {
-      for (let idx = 0; idx < items.length; idx++) {
-        const item = items[idx];
-        await insertWorkflowRecord<OwnerBillingItem>('owner_billing_items', {
-          billing_id: newBilling.id,
-          item_number: item.item_number ?? idx + 1,
-          description: item.description || '',
-          scheduled_value: Number(item.scheduled_value || 0),
-          work_completed_previous: Number(item.work_completed_previous || 0),
-          work_completed_this_period: Number(item.work_completed_this_period || 0),
-          stored_materials: Number(item.stored_materials || 0),
-          total_completed: Number(item.total_completed || 0),
-          pct_complete: Number(item.pct_complete || 0),
-          balance_to_finish: Number(item.balance_to_finish || 0),
-          retainage: Number(item.retainage || 0),
-          scheduled_value_formula: item.scheduled_value_formula || undefined,
-          work_completed_previous_formula: item.work_completed_previous_formula || undefined,
-          work_completed_this_period_formula: item.work_completed_this_period_formula || undefined,
-          stored_materials_formula: item.stored_materials_formula || undefined,
-        });
-      }
+      const itemsToInsert = items.map((item: any, idx: number) => ({
+        billing_id: newBilling.id,
+        item_number: item.item_number ?? idx + 1,
+        description: item.description || '',
+        scheduled_value: Number(item.scheduled_value || 0),
+        work_completed_previous: Number(item.work_completed_previous || 0),
+        work_completed_this_period: Number(item.work_completed_this_period || 0),
+        stored_materials: Number(item.stored_materials || 0),
+        total_completed: Number(item.total_completed || 0),
+        pct_complete: Number(item.pct_complete || 0),
+        balance_to_finish: Number(item.balance_to_finish || 0),
+        retainage: Number(item.retainage || 0),
+        scheduled_value_formula: item.scheduled_value_formula || undefined,
+        work_completed_previous_formula: item.work_completed_previous_formula || undefined,
+        work_completed_this_period_formula: item.work_completed_this_period_formula || undefined,
+        stored_materials_formula: item.stored_materials_formula || undefined,
+      }));
+      await batchInsertWorkflowRecords<OwnerBillingItem>('owner_billing_items', itemsToInsert);
     }
 
     return NextResponse.json({ success: true, billing: newBilling }, { status: 201 });
@@ -137,34 +135,53 @@ export async function PATCH(request: NextRequest) {
     const { id, items, ...updates } = body;
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-    const updated = await updateWorkflowRecord<OwnerBilling>('owner_billings', id, updates);
+    const original_contract_sum = Number(updates.original_contract_sum ?? body.original_contract_sum ?? 0);
+    const net_change_orders = Number(updates.net_change_orders ?? body.net_change_orders ?? 0);
+    const total_completed_and_stored = Number(updates.total_completed_and_stored ?? body.total_completed_and_stored ?? 0);
+    const retainage_completed_pct = Number(updates.retainage_completed_pct ?? body.retainage_completed_pct ?? 0);
+    const less_previous_certificates = Number(updates.less_previous_certificates ?? body.less_previous_certificates ?? 0);
+
+    const contract_sum_to_date = original_contract_sum + net_change_orders;
+    const retainage_amount = (total_completed_and_stored * retainage_completed_pct) / 100;
+    const total_earned_less_retainage = total_completed_and_stored - retainage_amount;
+    const current_payment_due = total_earned_less_retainage - less_previous_certificates;
+    const balance_to_finish_incl_retainage = contract_sum_to_date - total_earned_less_retainage;
+
+    const fullUpdates = {
+      ...updates,
+      contract_sum_to_date: updates.contract_sum_to_date ?? contract_sum_to_date,
+      retainage_amount: updates.retainage_amount ?? retainage_amount,
+      total_earned_less_retainage: updates.total_earned_less_retainage ?? total_earned_less_retainage,
+      current_payment_due: updates.current_payment_due ?? Math.max(0, current_payment_due),
+      balance_to_finish_incl_retainage: updates.balance_to_finish_incl_retainage ?? Math.max(0, balance_to_finish_incl_retainage),
+    };
+
+    const updated = await updateWorkflowRecord<OwnerBilling>('owner_billings', id, fullUpdates);
 
     // Replace items if provided
     if (items && Array.isArray(items)) {
       // Cleanly delete existing items atomically
       await deleteWorkflowRecordsByFilter('owner_billing_items', 'billing_id', id);
 
-      // Insert new items sequentially to maintain exact sheet order
-      for (let idx = 0; idx < items.length; idx++) {
-        const item = items[idx];
-        await insertWorkflowRecord<OwnerBillingItem>('owner_billing_items', {
-          billing_id: id,
-          item_number: item.item_number ?? idx + 1,
-          description: item.description || '',
-          scheduled_value: Number(item.scheduled_value || 0),
-          work_completed_previous: Number(item.work_completed_previous || 0),
-          work_completed_this_period: Number(item.work_completed_this_period || 0),
-          stored_materials: Number(item.stored_materials || 0),
-          total_completed: Number(item.total_completed || 0),
-          pct_complete: Number(item.pct_complete || 0),
-          balance_to_finish: Number(item.balance_to_finish || 0),
-          retainage: Number(item.retainage || 0),
-          scheduled_value_formula: item.scheduled_value_formula || undefined,
-          work_completed_previous_formula: item.work_completed_previous_formula || undefined,
-          work_completed_this_period_formula: item.work_completed_this_period_formula || undefined,
-          stored_materials_formula: item.stored_materials_formula || undefined,
-        });
-      }
+      const itemsToInsert = items.map((item: any, idx: number) => ({
+        billing_id: id,
+        item_number: item.item_number ?? idx + 1,
+        description: item.description || '',
+        scheduled_value: Number(item.scheduled_value || 0),
+        work_completed_previous: Number(item.work_completed_previous || 0),
+        work_completed_this_period: Number(item.work_completed_this_period || 0),
+        stored_materials: Number(item.stored_materials || 0),
+        total_completed: Number(item.total_completed || 0),
+        pct_complete: Number(item.pct_complete || 0),
+        balance_to_finish: Number(item.balance_to_finish || 0),
+        retainage: Number(item.retainage || 0),
+        scheduled_value_formula: item.scheduled_value_formula || undefined,
+        work_completed_previous_formula: item.work_completed_previous_formula || undefined,
+        work_completed_this_period_formula: item.work_completed_this_period_formula || undefined,
+        stored_materials_formula: item.stored_materials_formula || undefined,
+      }));
+
+      await batchInsertWorkflowRecords<OwnerBillingItem>('owner_billing_items', itemsToInsert);
     }
 
     return NextResponse.json({ success: true, billing: updated });

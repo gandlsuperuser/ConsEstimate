@@ -134,8 +134,134 @@
     color: #a1a1aa;
     opacity: 1;
   }
-  .project-workspace [data-export-paper] {
-    color: #111827;
-    color-scheme: light;
+  /* High-Contrast Print & PDF Paper Export Rules */
+  .project-workspace [data-export-paper],
+  [data-export-paper] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    color-scheme: light !important;
+  }
+
+  [data-export-paper] [class*="print:hidden"],
+  [data-export-paper] .print\:hidden,
+  [data-export-paper] [data-screen-only="true"] {
+    display: none !important;
+  }
+
+  [data-export-paper] [class*="bg-gray-900"],
+  [data-export-paper] [class*="bg-gray-950"],
+  [data-export-paper] [class*="bg-zinc-900"],
+  [data-export-paper] [class*="bg-black"] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  [data-export-paper] [class*="text-white"],
+  [data-export-paper] [class*="text-gray-100"],
+  [data-export-paper] [class*="text-gray-200"],
+  [data-export-paper] [class*="text-gray-300"],
+  [data-export-paper] [class*="text-gray-400"] {
+    color: #000000 !important;
+  }
+
+  /* G703 Continuation Title Bar Paper Export */
+  [data-export-paper] .g703-title-bar {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #000000 !important;
+  }
+
+  [data-export-paper] .g703-title-bar * {
+    color: #000000 !important;
+  }
+
+  /* G703 Continuation Summary Strip Paper Export */
+  [data-export-paper] .g703-summary-strip {
+    background-color: #f8fafc !important;
+    color: #000000 !important;
+    border-top: 1px solid #000000 !important;
+    border-bottom: 2px solid #000000 !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+  }
+
+  [data-export-paper] .g703-summary-strip * {
+    color: #000000 !important;
+  }
+
+  [data-export-paper] .g703-summary-strip .the-draw-badge {
+    color: #047857 !important;
+    background-color: #ecfdf5 !important;
+    border: 1px solid #047857 !important;
+  }
+
+  [data-export-paper] .g703-summary-strip .the-balance-badge {
+    color: #b45309 !important;
+    background-color: #fffbeb !important;
+    border: 1px solid #b45309 !important;
+  }
+
+  [data-export-paper] table {
+    background-color: #ffffff !important;
+    border-color: #000000 !important;
+  }
+
+  [data-export-paper] th,
+  [data-export-paper] td {
+    color: #000000 !important;
+    border-color: #000000 !important;
+  }
+
+  [data-export-paper] thead th {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+    border-color: #000000 !important;
+  }
+
+  [data-export-paper] tfoot td,
+  [data-export-paper] tfoot th {
+    background-color: #f8fafc !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+    border-color: #000000 !important;
+  }
+
+  [data-export-paper] input,
+  [data-export-paper] textarea,
+  [data-export-paper] select {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    background-color: transparent !important;
+    border-color: #000000 !important;
+  }
+
+  [data-export-paper] [class*="text-procore"],
+  [data-export-paper] [class*="text-gray-900"],
+  [data-export-paper] [class*="text-gray-800"],
+  [data-export-paper] [class*="text-gray-700"],
+  [data-export-paper] [class*="text-gray-600"],
+  [data-export-paper] [class*="text-gray-500"] {
+    color: #000000 !important;
+  }
+
+  [data-export-paper] [class*="text-emerald"] {
+    color: #047857 !important;
+    font-weight: 700 !important;
+  }
+
+  [data-export-paper] [class*="text-blue"] {
+    color: #1d4ed8 !important;
+    font-weight: 700 !important;
+  }
+
+  [data-export-paper] [class*="text-amber"] {
+    color: #b45309 !important;
+    font-weight: 700 !important;
+  }
+
+  [data-export-paper] .overflow-x-auto {
+    overflow: visible !important;
   }
 }
+

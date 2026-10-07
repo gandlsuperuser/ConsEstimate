@@ -115,6 +115,16 @@ export default function CurrencyInput({
     const val = e.target.value;
     setTempText(val);
     updateSuggestionsForText(val);
+
+    // Immediately update parent state for regular numeric inputs so typing updates totals
+    // and is never lost when saving directly from a focused input
+    const trimmed = val.trim();
+    const isFormula = trimmed.startsWith('/') || trimmed.startsWith('=') || /sum/i.test(trimmed);
+    if (!isFormula) {
+      const cleaned = trimmed.replace(/[^0-9.-]/g, '');
+      const parsed = cleaned === '' ? 0 : parseFloat(cleaned) || 0;
+      onChange(parsed);
+    }
   };
 
   const applyFormulaText = (formulaToApply: string) => {
