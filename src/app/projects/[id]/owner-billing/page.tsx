@@ -135,6 +135,27 @@ export default function OwnerBillingPage() {
   const [isEditingOrigSum, setIsEditingOrigSum] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatusMsg, setSaveStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isFullWidth, setIsFullWidth] = useState(true);
+
+  useEffect(() => {
+    try {
+      const mode = localStorage.getItem('consestimate_workspace_width_mode');
+      setIsFullWidth(mode === 'fullscreen' || !mode);
+    } catch {}
+
+    const handleWidthChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setIsFullWidth(customEvent.detail === 'fullscreen');
+    };
+    window.addEventListener('consestimate-workspace-width-change', handleWidthChange);
+    return () => window.removeEventListener('consestimate-workspace-width-change', handleWidthChange);
+  }, []);
+
+  const toggleFullScreenWidth = () => {
+    const nextMode = isFullWidth ? 'standard' : 'fullscreen';
+    setIsFullWidth(!isFullWidth);
+    window.dispatchEvent(new CustomEvent('consestimate-set-workspace-width', { detail: nextMode }));
+  };
 
   /* G702 header & certificate fields */
   const [header, setHeader] = useState({
@@ -1319,6 +1340,32 @@ export default function OwnerBillingPage() {
                   <span>Save as PDF (2 Pages)</span>
                 </>
               )}
+            </button>
+
+            {/* FULL SCREEN / WORKSPACE WIDTH TOGGLE BUTTON */}
+            <button
+              type="button"
+              onClick={toggleFullScreenWidth}
+              className={`text-xs font-black px-3.5 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border ${
+                isFullWidth
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white border-blue-400'
+                  : 'bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white border-gray-600'
+              }`}
+              title={
+                isFullWidth
+                  ? 'Full Screen active (100% browser width). Click to switch to Standard (1400px) width.'
+                  : 'Click to expand UI to Full Screen (100% browser width)'
+              }
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                />
+              </svg>
+              <span>{isFullWidth ? 'Full Screen (100%)' : 'Full Screen'}</span>
             </button>
           </div>
         </div>
@@ -2560,6 +2607,22 @@ export default function OwnerBillingPage() {
           >
             <span>📄</span>
             <span>{generatingPdf ? 'Saving...' : 'Save as PDF'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleFullScreenWidth}
+            className={`text-xs font-bold px-2.5 py-2 rounded-xl transition-all border cursor-pointer flex items-center gap-1 ${
+              isFullWidth
+                ? 'bg-blue-600/30 text-blue-300 border-blue-500/50 hover:bg-blue-600/40'
+                : 'bg-gray-800 text-gray-300 hover:text-white border-gray-600'
+            }`}
+            title="Toggle Full Screen (100% browser width) / Standard width"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+            </svg>
+            <span className="hidden md:inline">{isFullWidth ? 'Full' : 'Boxed'}</span>
           </button>
 
           {saveStatusMsg && (
