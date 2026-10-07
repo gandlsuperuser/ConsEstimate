@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getWorkflowData, insertWorkflowRecord, batchInsertWorkflowRecords, updateWorkflowRecord, deleteWorkflowRecord, deleteWorkflowRecordsByFilter } from '@/lib/workflow-store';
 import { OwnerBilling, OwnerBillingItem } from '@/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get('projectId');
@@ -21,7 +24,16 @@ export async function GET(request: NextRequest) {
     })
   );
 
-  return NextResponse.json({ billings: billingsWithItems });
+  return NextResponse.json(
+    { billings: billingsWithItems },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -121,9 +133,10 @@ export async function POST(request: NextRequest) {
         stored_materials_formula: item.stored_materials_formula || undefined,
       }));
       await batchInsertWorkflowRecords<OwnerBillingItem>('owner_billing_items', itemsToInsert);
+      return NextResponse.json({ success: true, billing: { ...newBilling, items: itemsToInsert } }, { status: 201 });
     }
 
-    return NextResponse.json({ success: true, billing: newBilling }, { status: 201 });
+    return NextResponse.json({ success: true, billing: { ...newBilling, items: [] } }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error creating owner billing' }, { status: 500 });
   }
@@ -159,11 +172,12 @@ export async function PATCH(request: NextRequest) {
     const updated = await updateWorkflowRecord<OwnerBilling>('owner_billings', id, fullUpdates);
 
     // Replace items if provided
+    let insertedItems: any[] = [];
     if (items && Array.isArray(items)) {
       // Cleanly delete existing items atomically
       await deleteWorkflowRecordsByFilter('owner_billing_items', 'billing_id', id);
 
-      const itemsToInsert = items.map((item: any, idx: number) => ({
+      insertedItems = items.map((item: any, idx: number) => ({
         billing_id: id,
         item_number: item.item_number ?? idx + 1,
         description: item.description || '',
@@ -181,10 +195,16 @@ export async function PATCH(request: NextRequest) {
         stored_materials_formula: item.stored_materials_formula || undefined,
       }));
 
-      await batchInsertWorkflowRecords<OwnerBillingItem>('owner_billing_items', itemsToInsert);
+      await batchInsertWorkflowRecords<OwnerBillingItem>('owner_billing_items', insertedItems);
     }
 
-    return NextResponse.json({ success: true, billing: updated });
+    return NextResponse.json({
+      success: true,
+      billing: {
+        ...updated,
+        items: items && Array.isArray(items) ? insertedItems : undefined,
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error updating owner billing' }, { status: 500 });
   }

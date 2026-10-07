@@ -235,11 +235,12 @@ export default function OwnerBillingPage() {
   /* ---- fetch ---- */
   const fetchData = useCallback(async () => {
     try {
+      const cb = Date.now();
       const [billRes, elRes, coRes, projRes] = await Promise.all([
-        fetch(`/api/owner-billing?projectId=${projectId}`),
-        fetch(`/api/estimate-lines?projectId=${projectId}`),
-        fetch(`/api/change-orders?projectId=${projectId}`),
-        fetch(`/api/projects/${projectId}`),
+        fetch(`/api/owner-billing?projectId=${projectId}&_cb=${cb}`, { cache: 'no-store' }),
+        fetch(`/api/estimate-lines?projectId=${projectId}&_cb=${cb}`, { cache: 'no-store' }),
+        fetch(`/api/change-orders?projectId=${projectId}&_cb=${cb}`, { cache: 'no-store' }),
+        fetch(`/api/projects/${projectId}?_cb=${cb}`, { cache: 'no-store' }),
       ]);
       const billData = await billRes.json();
       const elData = await elRes.json();
@@ -292,6 +293,7 @@ export default function OwnerBillingPage() {
       updated[idx] = recalcRow(updated[idx]);
       // Re-evaluate all other formulas (e.g. cascading sums / subtotals)
       updated = recalculateAllFormulas(updated);
+      rowsRef.current = updated;
       return updated;
     });
   };
@@ -313,6 +315,7 @@ export default function OwnerBillingPage() {
       updated[idx] = recalcRow(updated[idx]);
       // Cascading formula recalculation
       updated = recalculateAllFormulas(updated);
+      rowsRef.current = updated;
       return updated;
     });
   };
@@ -324,7 +327,9 @@ export default function OwnerBillingPage() {
       const newRow = emptyRow(targetIdx + 1);
       updated.splice(targetIdx, 0, newRow);
       const renumbered = updated.map((r, i) => ({ ...r, item_number: i + 1 }));
-      return recalculateAllFormulas(renumbered);
+      const evaluated = recalculateAllFormulas(renumbered);
+      rowsRef.current = evaluated;
+      return evaluated;
     });
   };
 
@@ -335,11 +340,15 @@ export default function OwnerBillingPage() {
   const deleteRow = (idx: number) => {
     setRows(prev => {
       if (prev.length <= 1) {
-        return [emptyRow(1)];
+        const init = [emptyRow(1)];
+        rowsRef.current = init;
+        return init;
       }
       const updated = prev.filter((_, i) => i !== idx);
       const renumbered = updated.map((r, i) => ({ ...r, item_number: i + 1 }));
-      return recalculateAllFormulas(renumbered);
+      const evaluated = recalculateAllFormulas(renumbered);
+      rowsRef.current = evaluated;
+      return evaluated;
     });
   };
 
@@ -362,6 +371,7 @@ export default function OwnerBillingPage() {
           res.push(emptyRow(i + 1));
         }
       }
+      rowsRef.current = res;
       return res;
     });
   };
@@ -376,7 +386,9 @@ export default function OwnerBillingPage() {
       const updated = [...prev];
       const [movedItem] = updated.splice(fromIdx, 1);
       updated.splice(toIdx, 0, movedItem);
-      return updated.map((r, i) => ({ ...r, item_number: i + 1 }));
+      const renumbered = updated.map((r, i) => ({ ...r, item_number: i + 1 }));
+      rowsRef.current = renumbered;
+      return renumbered;
     });
   };
 
@@ -661,7 +673,9 @@ export default function OwnerBillingPage() {
     while (renumbered.length < DEFAULT_G703_ROWS) {
       renumbered.push(emptyRow(renumbered.length + 1));
     }
-    setRows(renumbered);
+    const evaluated = recalculateAllFormulas(renumbered);
+    rowsRef.current = evaluated;
+    setRows(evaluated);
     setShowImportModal(false);
     setSelectedImportIds(new Set());
   };
@@ -670,6 +684,11 @@ export default function OwnerBillingPage() {
   const handleSave = async (status: 'draft' | 'submitted') => {
     setIsSaving(true);
     setSaveStatusMsg(null);
+
+    // Defensively flush any active element so pending cell edits commit
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
 
     try {
       const currentRows = rowsRef.current && rowsRef.current.length > 0 ? rowsRef.current : rows;
@@ -738,9 +757,21 @@ export default function OwnerBillingPage() {
         throw new Error(resData?.error || `Server returned error (${res.status})`);
       }
 
-      const savedBilling = resData.billing || editingBilling;
+      const returnedBilling = resData.billing;
+      const savedBilling: OwnerBilling = {
+        ...(returnedBilling || editingBilling || {}),
+        items: (returnedBilling?.items && returnedBilling.items.length > 0) ? returnedBilling.items : rowsToSave,
+      } as OwnerBilling;
+
       if (savedBilling) {
         setEditingBilling(savedBilling);
+        setBillings(prev => {
+          const exists = prev.some(b => b.id === savedBilling.id);
+          if (exists) {
+            return prev.map(b => b.id === savedBilling.id ? savedBilling : b);
+          }
+          return [savedBilling, ...prev];
+        });
       }
 
       setSaveStatusMsg({
@@ -805,10 +836,30 @@ export default function OwnerBillingPage() {
     });
 
     // Load rows strictly in saved order without changing positions or auto-sorting
+    const retainagePct = Number(b.retainage_completed_pct) || Number(header.retainage_completed_pct) || 0;
     const loadedRows = (b.items && b.items.length > 0)
       ? [...b.items]
           .sort((a, b) => (Number(a.item_number) || 0) - (Number(b.item_number) || 0))
-          .map(item => recalcRow(item))
+          .map(item => {
+            const stored = Number(item.stored_materials) || 0;
+            const completedPrev = Number(item.work_completed_previous) || 0;
+            const completedPeriod = Number(item.work_completed_this_period) || 0;
+            const total_completed = completedPrev + completedPeriod + stored;
+            const scheduled = Number(item.scheduled_value) || 0;
+            const pct_complete = scheduled > 0 ? Math.round((total_completed / scheduled) * 100) : 0;
+            const balance_to_finish = scheduled - total_completed;
+            const retainage = total_completed * (retainagePct / 100);
+            return {
+              ...item,
+              stored_materials: stored,
+              work_completed_previous: completedPrev,
+              work_completed_this_period: completedPeriod,
+              total_completed,
+              pct_complete,
+              balance_to_finish,
+              retainage,
+            };
+          })
       : [];
 
     const finalRows = loadedRows.map((r, i) => ({ ...r, item_number: i + 1 }));
@@ -816,6 +867,7 @@ export default function OwnerBillingPage() {
       finalRows.push(emptyRow(finalRows.length + 1));
     }
     const evaluatedRows = recalculateAllFormulas(finalRows);
+    rowsRef.current = evaluatedRows;
     setRows(evaluatedRows);
     setEditingBilling(b);
     setActiveView('form');
@@ -858,7 +910,9 @@ export default function OwnerBillingPage() {
       architect_signature_by: '',
       architect_signature_date: '',
     });
-    setRows(createInitialRows(DEFAULT_G703_ROWS));
+    const initialRows = createInitialRows(DEFAULT_G703_ROWS);
+    rowsRef.current = initialRows;
+    setRows(initialRows);
     setEditingBilling(null);
     setActiveView('form');
   };
@@ -1264,26 +1318,28 @@ export default function OwnerBillingPage() {
         </div>
       </div>
 
-      {/* Save Status Notification Banner */}
+      {/* Floating Save Status Notification Banner (Always visible on screen) */}
       {saveStatusMsg && (
-        <div
-          className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-bold transition-all shadow-md print:hidden ${
-            saveStatusMsg.type === 'success'
-              ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
-              : 'bg-red-950/90 border-red-500 text-red-200'
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="text-base font-black">{saveStatusMsg.type === 'success' ? '✓' : '⚠️'}</span>
-            <span className="text-xs sm:text-sm">{saveStatusMsg.text}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSaveStatusMsg(null)}
-            className="text-gray-400 hover:text-white px-2 py-0.5 rounded cursor-pointer text-sm font-bold"
+        <div className="fixed top-5 right-5 z-50 max-w-md animate-in fade-in slide-in-from-top-3 duration-200 print:hidden">
+          <div
+            className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs font-bold shadow-2xl backdrop-blur-md ${
+              saveStatusMsg.type === 'success'
+                ? 'bg-emerald-950/95 border-emerald-500 text-emerald-200 ring-4 ring-emerald-500/20'
+                : 'bg-red-950/95 border-red-500 text-red-200 ring-4 ring-red-500/20'
+            }`}
           >
-            ✕
-          </button>
+            <div className="flex items-center gap-2.5">
+              <span className="text-base font-black">{saveStatusMsg.type === 'success' ? '✓' : '⚠️'}</span>
+              <span className="text-xs sm:text-sm">{saveStatusMsg.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSaveStatusMsg(null)}
+              className="text-gray-400 hover:text-white px-2 py-0.5 rounded cursor-pointer text-sm font-bold ml-2"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
@@ -2499,6 +2555,12 @@ export default function OwnerBillingPage() {
             <span>📄</span>
             <span>{generatingPdf ? 'Saving...' : 'Save as PDF'}</span>
           </button>
+
+          {saveStatusMsg && (
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all ${saveStatusMsg.type === 'success' ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/60' : 'bg-red-950/90 text-red-300 border border-red-500/60'}`}>
+              {saveStatusMsg.type === 'success' ? '✓ Saved' : '⚠️ Error'}
+            </span>
+          )}
 
           <button
             onClick={() => handleSave('draft')}

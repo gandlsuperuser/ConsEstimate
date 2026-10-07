@@ -370,15 +370,15 @@
       ],
       "original_contract_sum": 1044266.65,
       "net_change_orders": 0,
-      "contract_sum_to_date": 1044266.65,
+      "contract_sum_to_date": 0,
       "total_completed_and_stored": 290292.89,
       "retainage_completed_pct": 0,
       "retainage_stored_pct": 0,
       "retainage_amount": 0,
-      "total_earned_less_retainage": 290292.89,
+      "total_earned_less_retainage": 0,
       "less_previous_certificates": 0,
-      "current_payment_due": 290292.89,
-      "balance_to_finish_incl_retainage": 753973.76,
+      "current_payment_due": 0,
+      "balance_to_finish_incl_retainage": 0,
       "change_order_additions": 0,
       "change_order_deductions": 0,
       "project_name": "CONVIVA - JOURDANTON CLINIC",
@@ -884,23 +884,23 @@
       "retainage": 0
     },
     {
-      "id": "c4f3a04c-8a07-4927-9fea-0972830d5978",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "3e3fd23c-38f1-4dde-828a-d205cccba851",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 1,
       "description": "Division 01: General Requirements",
       "scheduled_value": 94600,
       "work_completed_previous": 0,
       "work_completed_this_period": 37733.33,
-      "stored_materials": 0,
-      "total_completed": 37733.33,
+      "stored_materials": 9480,
+      "total_completed": 47213.33,
       "pct_complete": 40,
       "balance_to_finish": 56866.67,
       "retainage": 0
     },
     {
-      "id": "c4497462-190c-4e96-b65d-b9f5aa57bd8d",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "736695e6-da9f-41a5-8a20-40964b95faa3",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 2,
       "description": "Division 02: Existing Conditions / Demolition",
@@ -914,8 +914,8 @@
       "retainage": 0
     },
     {
-      "id": "94edeb50-9bc9-4464-b2a0-47e1a335b795",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "affad8b1-e750-49b9-821c-ee220373993e",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 3,
       "description": "Division 03: Concrete",
@@ -929,8 +929,8 @@
       "retainage": 0
     },
     {
-      "id": "46922aa1-c45d-4151-8fe6-d954bf92ffed",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "3c65f3bd-8448-47a7-9f7c-b91e8df51d09",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 4,
       "description": "Division 04: Masonry",
@@ -944,8 +944,8 @@
       "retainage": 0
     },
     {
-      "id": "74902dc7-d5fa-4c22-bd6a-a748a7b7a28e",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "883fb30a-21c5-467f-bdd3-9056138e516c",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 5,
       "description": "Division 05: Metals",
@@ -959,8 +959,8 @@
       "retainage": 0
     },
     {
-      "id": "8ef5c3ff-0315-46fd-a634-bb85334a69de",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "f30445c1-b186-4459-b39d-b7ad7dcd541d",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 6,
       "description": "Division 06: Wood, Plastics & Composites",
@@ -974,8 +974,8 @@
       "retainage": 0
     },
     {
-      "id": "64aceb63-0c34-42d0-9342-fb27fb935502",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "df47ee40-f20e-4db3-9c73-6d9060d8451a",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 7,
       "description": "Division 07: Thermal & Moisture Protection",
@@ -989,8 +989,8 @@
       "retainage": 0
     },
     {
-      "id": "dca14d65-4cf6-4888-82e1-f12d3c0c9b70",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "8dcc9564-9630-4821-a62a-c122f9e668f2",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 8,
       "description": "Division 08: A Windows &Glazing (Glazing)",
@@ -1004,8 +1004,8 @@
       "retainage": 0
     },
     {
-      "id": "29d99ff2-cf48-493d-83d9-bf3577bd5662",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "e3736efa-5e3a-4ac9-9e10-f784a664473d",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 9,
       "description": "Division 08: All Door Locks",
@@ -1019,8 +1019,8 @@
       "retainage": 0
     },
     {
-      "id": "d07e750f-ac7d-48f7-8a1f-9425c88c23e5",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "c7c1b986-a4ae-48bf-b914-3ac95f4763ad",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 10,
       "description": "Division 08: Wood Doors & Hardware",
@@ -1034,8 +1034,8 @@
       "retainage": 0
     },
     {
-      "id": "7933159f-8c72-4b60-9ea3-832033d30d36",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "e065c3ed-8d61-45a7-a042-aa72c481eb0f",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 11,
       "description": "Division 09: Finishes",
@@ -1049,8 +1049,8 @@
       "retainage": 0
     },
     {
-      "id": "d9c68183-87de-4614-9ad5-c4c3b3b06c30",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "75b11fb8-37a1-4bce-aef9-476823256a6c",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 12,
       "description": "Division 10: Specialties",
@@ -1064,8 +1064,8 @@
       "retainage": 0
     },
     {
-      "id": "198779b3-c5cd-47ce-8dd8-aa4791612124",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "7580213e-0c7b-47b5-b535-7d9a0182d48b",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 13,
       "description": "Division 11: Equipment",
@@ -1079,8 +1079,8 @@
       "retainage": 0
     },
     {
-      "id": "05068ee3-77d8-4f1f-8613-b6851460aabb",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "68daffdb-a241-47a7-a610-57fd9a561da8",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 14,
       "description": "Division 22: Plumbing",
@@ -1094,8 +1094,8 @@
       "retainage": 0
     },
     {
-      "id": "5dedcb66-7e11-40b5-b0c3-2612f0f1d245",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "66497fcf-80c3-4795-a48a-68c9e2ae838f",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 15,
       "description": "Division 23: HVAC",
@@ -1109,8 +1109,8 @@
       "retainage": 0
     },
     {
-      "id": "3ff1e4f4-9d9b-4df3-b92a-3a38a45c1337",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "5da3eda8-8b1d-4934-812b-5ec0b601442c",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 16,
       "description": "Division 26: Electrical",
@@ -1124,8 +1124,8 @@
       "retainage": 0
     },
     {
-      "id": "ccafd96d-9f90-4161-a132-95d07bd8cbce",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "6002bf1e-79a0-4e24-98a4-77c36c2340b4",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 17,
       "description": "Alternate #1: Additional plumbing allowances for the service hook up from city",
@@ -1139,8 +1139,8 @@
       "retainage": 0
     },
     {
-      "id": "775950fb-18f5-43f6-afee-2331f94a9a4f",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "e32622b6-99fa-430e-ac20-c2f3c4b51598",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 18,
       "description": "Alternate #2: fire alarm system allowances",
@@ -1154,8 +1154,8 @@
       "retainage": 0
     },
     {
-      "id": "dc9daba1-b7f9-45ca-a06f-9a9da7604eaa",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "8ccf1ad1-4814-4335-aaad-88012f10b3e5",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 19,
       "description": "Alternate #3: Temporary power generator 3-phase 300kw allowances",
@@ -1169,8 +1169,8 @@
       "retainage": 0
     },
     {
-      "id": "d1c16ef4-1d0f-449c-879c-04e829420dc9",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "7eaf6661-0e21-420a-97b0-9c25a180680d",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 20,
       "description": "Permit Allowance",
@@ -1184,8 +1184,8 @@
       "retainage": 0
     },
     {
-      "id": "3c9621be-c88f-4137-8feb-7640587b6e8f",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "bf6ab1e4-0634-49f7-8ec3-fa663d1a3d89",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 21,
       "description": "Insurance",
@@ -1199,8 +1199,8 @@
       "retainage": 0
     },
     {
-      "id": "f6edebe7-64c7-4ba0-b07f-dbe8700f6754",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "fea713cf-acbf-4e03-8383-a4cae7cc5db0",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 22,
       "description": "Overhead & Profit",
@@ -1214,8 +1214,8 @@
       "retainage": 0
     },
     {
-      "id": "833ddcec-e8f7-4a09-b165-835839fe2fc6",
-      "created_at": "2026-10-07T16:10:55.058Z",
+      "id": "63cec309-84a5-4ed2-800a-b07f74ccb9ec",
+      "created_at": "2026-10-07T16:43:31.913Z",
       "billing_id": "9bf48039-e272-46c3-92cd-b8993d845ae0",
       "item_number": 23,
       "description": "Taxes",
