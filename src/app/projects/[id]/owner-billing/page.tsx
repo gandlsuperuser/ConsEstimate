@@ -985,16 +985,19 @@ export default function OwnerBillingPage() {
 
           const imgProps = pdf.getImageProperties(imgData703);
           const aspect = imgProps.width / imgProps.height;
-          let renderWidth = maxContentWidth;
+          const margin703 = 6;
+          const maxW703 = pageWidth - (margin703 * 2);
+          const maxH703 = pageHeight - (margin703 * 2);
+          let renderWidth = maxW703;
           let renderHeight = renderWidth / aspect;
 
-          if (renderHeight > maxContentHeight) {
-            renderHeight = maxContentHeight;
+          if (renderHeight > maxH703) {
+            renderHeight = maxH703;
             renderWidth = renderHeight * aspect;
           }
 
-          const posX = margin + (maxContentWidth - renderWidth) / 2;
-          const posY = margin + (maxContentHeight - renderHeight) / 2;
+          const posX = margin703 + (maxW703 - renderWidth) / 2;
+          const posY = margin703 + (maxH703 - renderHeight) / 2;
 
           pdf.addImage(imgData703, 'JPEG', posX, posY, renderWidth, renderHeight);
         }
@@ -1009,16 +1012,19 @@ export default function OwnerBillingPage() {
 
           const imgProps = pdf.getImageProperties(imgData703);
           const aspect = imgProps.width / imgProps.height;
-          let renderWidth = maxContentWidth;
+          const margin703 = 6;
+          const maxW703 = pageWidth - (margin703 * 2);
+          const maxH703 = pageHeight - (margin703 * 2);
+          let renderWidth = maxW703;
           let renderHeight = renderWidth / aspect;
 
-          if (renderHeight > maxContentHeight) {
-            renderHeight = maxContentHeight;
+          if (renderHeight > maxH703) {
+            renderHeight = maxH703;
             renderWidth = renderHeight * aspect;
           }
 
-          const posX = margin + (maxContentWidth - renderWidth) / 2;
-          const posY = margin + (maxContentHeight - renderHeight) / 2;
+          const posX = margin703 + (maxW703 - renderWidth) / 2;
+          const posY = margin703 + (maxH703 - renderHeight) / 2;
 
           pdf.addImage(imgData703, 'JPEG', posX, posY, renderWidth, renderHeight);
         }
@@ -2445,7 +2451,7 @@ export default function OwnerBillingPage() {
             </tbody>
             {/* Totals row - Reconciles Column C to Contract Sum ($1,044,266.65) and Column E/G to Draw ($212,146.19) */}
             <tfoot>
-              <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold text-[11px] print:border-black">
+              <tr className="bg-gray-100 border-t-2 border-b-2 border-gray-400 font-bold text-[11px] print:border-black">
                 <td className="p-2 text-center border-r border-gray-300 print:border-black" colSpan={2}>
                   <span className="uppercase text-gray-900 font-black text-[10px] tracking-wider">TOTALS</span>
                 </td>

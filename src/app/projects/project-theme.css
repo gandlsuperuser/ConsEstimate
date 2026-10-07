@@ -140,6 +140,9 @@
     background-color: #ffffff !important;
     color: #000000 !important;
     color-scheme: light !important;
+    overflow: visible !important;
+    max-height: none !important;
+    border-radius: 0 !important;
   }
 
   [data-export-paper] [class*="print:hidden"],
@@ -219,11 +222,21 @@
     border-color: #000000 !important;
   }
 
+  [data-export-paper] tfoot {
+    display: table-footer-group !important;
+  }
+
+  [data-export-paper] tfoot tr {
+    display: table-row !important;
+  }
+
   [data-export-paper] tfoot td,
   [data-export-paper] tfoot th {
-    background-color: #f8fafc !important;
+    background-color: #f1f5f9 !important;
     color: #000000 !important;
     font-weight: 800 !important;
+    border-top: 2px solid #000000 !important;
+    border-bottom: 2px solid #000000 !important;
     border-color: #000000 !important;
   }
 
@@ -260,7 +273,9 @@
     font-weight: 700 !important;
   }
 
-  [data-export-paper] .overflow-x-auto {
+  [data-export-paper] .overflow-x-auto,
+  [data-export-paper] .overflow-hidden,
+  [data-export-paper] [class*="overflow-"] {
     overflow: visible !important;
   }
 }
