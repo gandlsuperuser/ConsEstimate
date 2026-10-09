@@ -1232,6 +1232,16 @@
   "vendor_partners": [],
   "audit_activities": [
     {
+      "id": "rec-1791572401159",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_logged",
+      "module": "Expenses",
+      "description": "Logged $15,000.00 invoice #1059 from Reyes Electrical Contractors (Phase 1 Electrical Gear: Exterior 600A Disconnect & Interior Panel Boards) - Conviva Jourdanton",
+      "timestamp": "2026-10-09T19:00:01.159Z",
+      "created_at": "2026-10-09T19:00:01.164Z"
+    },
+    {
       "id": "rec-1789926414244",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "actor_name": "Admin",
