@@ -23,9 +23,15 @@ A native iOS application built with **SwiftUI** and grounded in **Apple Human In
    - Full-screen pinch-to-zoom receipt viewer with native sharing (`ShareLink`).
    - Swipe to delete with deletion confirmations and tactile haptics (`UIImpactFeedbackGenerator`).
 
-4. **1-Tap Quick Scanner**
-   - Designed for project managers and superintendents on the job site.
-   - Open camera, photograph invoice, auto-fill detected fields, and tap **"Upload to Project"** in seconds.
+4. **Expense Edit & Field Approval Workflow (Phase 2)**
+   - Edit any scanned expense in-place via `EditExpenseSheet` (vendor name autocomplete, category picker, amount, date, notes, and receipt photo replacement).
+   - 1-Tap Field Audit: Instantly **Approve**, **Flag for Review**, or reset status with audit timestamps embedded in the record.
+   - Filter feed by approval status chips: *All*, *Approved*, *Pending Review*, *Flagged*.
+
+5. **Professional PDF & CSV Report Generator**
+   - Direct on-device vector PDF generation (`ExpenseReportService`) formatted to US Letter with header branding, KPI summary cards, and itemized ledger table.
+   - Excel-compatible CSV export for seamless accounting or GC distribution.
+   - Native iOS share sheet integration (`ShareActivityView`) for AirDrop, Files, Printing, or Messaging.
 
 ---
 
@@ -42,19 +48,21 @@ App/
 │   │   └── AppConfig.swift         # Supabase endpoints & known constants
 │   ├── Models/
 │   │   ├── Project.swift           # Project data model
-│   │   ├── Expense.swift           # Expense & creation models
+│   │   ├── Expense.swift           # Expense, ExpenseApprovalStatus, & Update inputs
 │   │   └── ExpenseCategory.swift   # Categories with SF Symbols & theme colors
 │   ├── Services/
-│   │   ├── SupabaseService.swift   # REST API & Storage client
+│   │   ├── SupabaseService.swift   # REST API & Storage client (fetch, create, update, delete)
 │   │   ├── ReceiptOCRService.swift # Apple Vision on-device OCR engine
+│   │   ├── ExpenseReportService.swift # High-resolution PDF & CSV report generator
 │   │   └── HapticsService.swift    # iOS tactile feedback
 │   ├── Views/
 │   │   ├── MainTabView.swift       # Root tab navigation
 │   │   ├── Expenses/
-│   │   │   ├── ExpensesView.swift      # Main dashboard & expense feed
-│   │   │   ├── ExpenseRowView.swift    # HIG-compliant table row
-│   │   │   ├── ExpenseDetailView.swift # Detailed view with receipt viewer
-│   │   │   └── AddExpenseSheet.swift   # New expense modal with OCR
+│   │   │   ├── ExpensesView.swift      # Main dashboard with status filters & export
+│   │   │   ├── ExpenseRowView.swift    # HIG-compliant table row with status badge
+│   │   │   ├── ExpenseDetailView.swift # Detailed view with 1-tap approval & edit
+│   │   │   ├── AddExpenseSheet.swift   # New expense modal with OCR
+│   │   │   └── EditExpenseSheet.swift  # Edit existing expense & audit notes
 │   │   ├── Scanner/
 │   │   │   ├── QuickScannerView.swift   # 1-tap rapid field scan screen
 │   │   │   ├── CameraPicker.swift       # Camera / photo picker wrapper
@@ -63,7 +71,8 @@ App/
 │   │   │   └── ProjectsView.swift      # Projects rollup & status cards
 │   │   └── Components/
 │   │       ├── CategoryBadge.swift     # Styled category pill
-│   │       └── StatMetricCard.swift    # Top summary metrics card
+│   │       ├── StatMetricCard.swift    # Top summary metrics card
+│   │       └── ShareActivityView.swift # Native iOS share sheet wrapper
 │   └── Assets.xcassets/            # App icons and dynamic accent colors
 ```
 

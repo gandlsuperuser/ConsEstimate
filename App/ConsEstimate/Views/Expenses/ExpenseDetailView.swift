@@ -1,24 +1,44 @@
 import SwiftUI
 
 struct ExpenseDetailView: View {
-    let expense: Expense
+    let initialExpense: Expense
+    var projects: [Project] = []
     var onDelete: (() -> Void)? = nil
+    var onUpdate: ((Expense) -> Void)? = nil
     
     @Environment(\.dismiss) private var dismiss
+    @State private var currentExpense: Expense
+    @State private var showingEditSheet = false
     @State private var showingImageViewer = false
     @State private var showingDeleteAlert = false
+    @State private var showingFlagDialog = false
+    @State private var flagComment = ""
     @State private var isDeleting = false
+    @State private var isUpdatingStatus = false
     @State private var errorMessage: String?
+    
+    init(
+        expense: Expense,
+        projects: [Project] = [],
+        onDelete: (() -> Void)? = nil,
+        onUpdate: ((Expense) -> Void)? = nil
+    ) {
+        self.initialExpense = expense
+        self.projects = projects
+        self.onDelete = onDelete
+        self.onUpdate = onUpdate
+        _currentExpense = State(initialValue: expense)
+    }
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 // Top Amount Card
                 VStack(spacing: 8) {
                     HStack {
-                        CategoryBadge(category: expense.categoryEnum)
+                        CategoryBadge(category: currentExpense.categoryEnum)
                         Spacer()
-                        if let conf = expense.scanConfidence {
+                        if let conf = currentExpense.scanConfidence {
                             HStack(spacing: 4) {
                                 Image(systemName: "sparkles")
                                 Text("\(conf.capitalized) Confidence")
@@ -26,18 +46,18 @@ struct ExpenseDetailView: View {
                             .font(.caption2.bold())
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.green.opacity(0.15))
-                            .foregroundColor(.green)
+                            .background(Color.accentColor.opacity(0.12))
+                            .foregroundColor(.accentColor)
                             .clipShape(Capsule())
                         }
                     }
                     
-                    Text(expense.formattedAmount)
+                    Text(currentExpense.formattedAmount)
                         .font(.system(size: 40, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                         .padding(.top, 4)
                     
-                    Text(expense.vendor)
+                    Text(currentExpense.vendor)
                         .font(.title3.weight(.medium))
                         .foregroundColor(.secondary)
                 }
@@ -45,8 +65,100 @@ struct ExpenseDetailView: View {
                 .background(Color(.secondarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 
+                // Field Audit & Approval Bar
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("Field Audit Status", systemImage: "checkmark.shield.fill")
+                            .font(.headline)
+                        Spacer()
+                        
+                        // Status Pill
+                        HStack(spacing: 4) {
+                            Image(systemName: currentExpense.approvalStatus.iconName)
+                            Text(currentExpense.approvalStatus.title)
+                        }
+                        .font(.caption.bold())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(currentExpense.approvalStatus.color.opacity(0.15))
+                        .foregroundColor(currentExpense.approvalStatus.color)
+                        .clipShape(Capsule())
+                    }
+                    
+                    if let detail = currentExpense.statusDetail {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 4)
+                    }
+                    
+                    Divider()
+                    
+                    // Quick Action Buttons
+                    if isUpdatingStatus {
+                        HStack {
+                            Spacer()
+                            ProgressView("Updating status...")
+                                .font(.caption)
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        HStack(spacing: 8) {
+                            // Approve Button
+                            Button {
+                                updateStatus(to: .approved)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                    Text("Approve")
+                                }
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 38)
+                                .background(currentExpense.approvalStatus == .approved ? Color.green : Color.green.opacity(0.12))
+                                .foregroundColor(currentExpense.approvalStatus == .approved ? .white : .green)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            
+                            // Flag Button
+                            Button {
+                                showingFlagDialog = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                    Text("Flag")
+                                }
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 38)
+                                .background(currentExpense.approvalStatus == .flagged ? Color.red : Color.red.opacity(0.12))
+                                .foregroundColor(currentExpense.approvalStatus == .flagged ? .white : .red)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            
+                            // Reset to Pending
+                            if currentExpense.approvalStatus != .pending {
+                                Button {
+                                    updateStatus(to: .pending)
+                                } label: {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .font(.subheadline.weight(.semibold))
+                                        .frame(width: 38, height: 38)
+                                        .background(Color(.systemGray5))
+                                        .foregroundColor(.secondary)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(16)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                
                 // Receipt Preview Card
-                if let receiptUrl = expense.receiptUrl, let url = URL(string: receiptUrl) {
+                if let receiptUrl = currentExpense.receiptUrl, let url = URL(string: receiptUrl) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Label("Attached Receipt", systemImage: "doc.text.image")
@@ -111,10 +223,10 @@ struct ExpenseDetailView: View {
                     
                     Divider()
                     
-                    DetailRow(title: "Expense Date", value: expense.expenseDate, icon: "calendar")
-                    DetailRow(title: "Category", value: expense.category, icon: expense.categoryEnum.iconName)
-                    DetailRow(title: "Project ID", value: expense.projectId, icon: "building.2")
-                    if let created = expense.createdAt {
+                    DetailRow(title: "Expense Date", value: currentExpense.expenseDate, icon: "calendar")
+                    DetailRow(title: "Category", value: currentExpense.category, icon: currentExpense.categoryEnum.iconName)
+                    DetailRow(title: "Project ID", value: currentExpense.projectId, icon: "building.2")
+                    if let created = currentExpense.createdAt {
                         DetailRow(title: "Logged At", value: String(created.prefix(10)), icon: "clock")
                     }
                 }
@@ -122,13 +234,13 @@ struct ExpenseDetailView: View {
                 .background(Color(.secondarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 
-                // Notes
-                if let notes = expense.notes, !notes.isEmpty {
+                // Notes & Scope
+                if !currentExpense.cleanNotes.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Invoice Notes & Scope", systemImage: "note.text")
                             .font(.headline)
                         
-                        Text(notes)
+                        Text(currentExpense.cleanNotes)
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
                             .lineSpacing(4)
@@ -167,18 +279,41 @@ struct ExpenseDetailView: View {
         .navigationTitle("Expense")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let receiptUrl = expense.receiptUrl, let url = URL(string: receiptUrl) {
-                ToolbarItem(placement: .primaryAction) {
-                    ShareLink(item: url) {
-                        Image(systemName: "square.and.arrow.up")
+            ToolbarItem(placement: .primaryAction) {
+                HStack(spacing: 12) {
+                    Button("Edit") {
+                        showingEditSheet = true
+                    }
+                    .font(.body.weight(.semibold))
+                    
+                    if let receiptUrl = currentExpense.receiptUrl, let url = URL(string: receiptUrl) {
+                        ShareLink(item: url) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
                     }
                 }
             }
         }
-        .fullScreenCover(isPresented: $showingImageViewer) {
-            if let receiptUrl = expense.receiptUrl {
-                ReceiptImageViewer(imageURLString: receiptUrl, title: "\(expense.vendor) Receipt")
+        .sheet(isPresented: $showingEditSheet) {
+            EditExpenseSheet(expense: currentExpense, projects: projects) { updated in
+                self.currentExpense = updated
+                self.onUpdate?(updated)
             }
+        }
+        .fullScreenCover(isPresented: $showingImageViewer) {
+            if let receiptUrl = currentExpense.receiptUrl {
+                ReceiptImageViewer(imageURLString: receiptUrl, title: "\(currentExpense.vendor) Receipt")
+            }
+        }
+        .alert("Flag Expense for Review", isPresented: $showingFlagDialog) {
+            TextField("Reason (e.g. Needs revised invoice, missing waiver)", text: $flagComment)
+            Button("Cancel", role: .cancel) { flagComment = "" }
+            Button("Flag Expense", role: .destructive) {
+                updateStatus(to: .flagged, comment: flagComment)
+                flagComment = ""
+            }
+        } message: {
+            Text("Provide a reason why this $\(currentExpense.formattedAmount) invoice from \(currentExpense.vendor) is flagged.")
         }
         .alert("Delete Expense?", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
@@ -186,23 +321,50 @@ struct ExpenseDetailView: View {
                 deleteRecord()
             }
         } message: {
-            Text("Are you sure you want to delete this $\(String(format: "%.2f", expense.amount)) expense from \(expense.vendor)? This action cannot be undone.")
+            Text("Are you sure you want to delete this $\(String(format: "%.2f", currentExpense.amount)) expense from \(currentExpense.vendor)? This action cannot be undone.")
+        }
+    }
+    
+    private func updateStatus(to newStatus: ExpenseApprovalStatus, comment: String? = nil) {
+        isUpdatingStatus = true
+        let updatedNotes = currentExpense.notesWithStatus(newStatus, comment: comment)
+        
+        let input = UpdateExpenseInput(
+            notes: updatedNotes
+        )
+        
+        Task {
+            do {
+                let updated = try await SupabaseService.shared.updateExpense(id: currentExpense.id, input: input)
+                await MainActor.run {
+                    self.currentExpense = updated
+                    self.isUpdatingStatus = false
+                    HapticsService.notification(newStatus == .approved ? .success : .warning)
+                    self.onUpdate?(updated)
+                }
+            } catch {
+                await MainActor.run {
+                    self.isUpdatingStatus = false
+                    self.errorMessage = error.localizedDescription
+                    HapticsService.notification(.error)
+                }
+            }
         }
     }
     
     private func deleteRecord() {
         isDeleting = true
-        HapticsService.medium()
+        HapticsService.impact(.medium)
         Task {
             do {
-                try await SupabaseService.shared.deleteExpense(id: expense.id)
-                HapticsService.success()
+                try await SupabaseService.shared.deleteExpense(id: currentExpense.id)
+                HapticsService.notification(.success)
                 onDelete?()
                 dismiss()
             } catch {
                 isDeleting = false
                 errorMessage = error.localizedDescription
-                HapticsService.error()
+                HapticsService.notification(.error)
             }
         }
     }

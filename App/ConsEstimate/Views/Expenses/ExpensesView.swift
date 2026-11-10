@@ -5,23 +5,29 @@ struct ExpensesView: View {
     @State private var projects: [Project] = []
     @State private var selectedProjectId: String? = nil
     @State private var selectedCategory: ExpenseCategory? = nil
+    @State private var selectedStatus: ExpenseApprovalStatus? = nil
     @State private var searchText: String = ""
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
     @State private var showingAddSheet: Bool = false
+    
+    // Export State
+    @State private var reportShareURL: URL? = nil
+    @State private var isExportingReport: Bool = false
     
     // Summary Calculations
     private var filteredExpenses: [Expense] {
         expenses.filter { exp in
             let matchesProject = (selectedProjectId == nil || exp.projectId == selectedProjectId)
             let matchesCategory = (selectedCategory == nil || exp.category == selectedCategory?.rawValue)
+            let matchesStatus = (selectedStatus == nil || exp.approvalStatus == selectedStatus)
             let matchesSearch = searchText.isEmpty ||
                 exp.vendor.localizedCaseInsensitiveContains(searchText) ||
-                (exp.notes?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                exp.cleanNotes.localizedCaseInsensitiveContains(searchText) ||
                 exp.category.localizedCaseInsensitiveContains(searchText) ||
                 exp.formattedAmount.contains(searchText)
             
-            return matchesProject && matchesCategory && matchesSearch
+            return matchesProject && matchesCategory && matchesStatus && matchesSearch
         }
     }
     
@@ -36,20 +42,23 @@ struct ExpensesView: View {
         return formatter.string(from: NSNumber(value: totalSpend)) ?? String(format: "$%.2f", totalSpend)
     }
     
-    private var topCategory: String {
-        guard !filteredExpenses.isEmpty else { return "—" }
-        var categoryTotals = [String: Double]()
-        for e in filteredExpenses {
-            categoryTotals[e.category, default: 0] += e.amount
-        }
-        return categoryTotals.max(by: { $0.value < $1.value })?.key ?? "—"
+    private var approvedCount: Int {
+        filteredExpenses.filter { $0.approvalStatus == .approved }.count
+    }
+    
+    private var pendingCount: Int {
+        filteredExpenses.filter { $0.approvalStatus == .pending }.count
+    }
+    
+    private var flaggedCount: Int {
+        filteredExpenses.filter { $0.approvalStatus == .flagged }.count
     }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Top Metrics Bar
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     HStack(spacing: 10) {
                         StatMetricCard(
                             title: "Total Logged",
@@ -60,16 +69,16 @@ struct ExpensesView: View {
                         )
                         
                         StatMetricCard(
-                            title: "Top Category",
-                            value: topCategory,
-                            icon: "chart.pie.fill",
-                            color: .accentColor,
-                            subtitle: "Highest Spend"
+                            title: "Audit Status",
+                            value: "\(approvedCount) Approved",
+                            icon: "checkmark.seal.fill",
+                            color: approvedCount >= flaggedCount ? .accentColor : .orange,
+                            subtitle: "\(pendingCount) Pending • \(flaggedCount) Flagged"
                         )
                     }
                     .padding(.horizontal, 16)
                     
-                    // Category Filter Pills
+                    // Filter Bar: Categories
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             FilterChip(title: "All Categories", isSelected: selectedCategory == nil) {
@@ -91,8 +100,34 @@ struct ExpensesView: View {
                         }
                         .padding(.horizontal, 16)
                     }
+                    
+                    // Filter Bar: Approval Status
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            FilterChip(
+                                title: "All Status",
+                                isSelected: selectedStatus == nil
+                            ) {
+                                selectedStatus = nil
+                                HapticsService.selection()
+                            }
+                            
+                            ForEach(ExpenseApprovalStatus.allCases) { st in
+                                FilterChip(
+                                    title: st.title,
+                                    icon: st.iconName,
+                                    color: st.color,
+                                    isSelected: selectedStatus == st
+                                ) {
+                                    selectedStatus = (selectedStatus == st) ? nil : st
+                                    HapticsService.selection()
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
                 }
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .background(Color(.systemGroupedBackground))
                 
                 // Expense List
@@ -106,22 +141,42 @@ struct ExpensesView: View {
                         Image(systemName: "tray.fill")
                             .font(.system(size: 44))
                             .foregroundColor(.secondary)
-                        Text("No expenses found")
+                        Text("No matching expenses")
                             .font(.headline)
-                        Text("Tap + above or scan a receipt to log a new expense.")
+                        Text("Try resetting filters or tap + above to record a new invoice.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
+                        
+                        if selectedCategory != nil || selectedStatus != nil || selectedProjectId != nil {
+                            Button("Reset Filters") {
+                                selectedCategory = nil
+                                selectedStatus = nil
+                                selectedProjectId = nil
+                                HapticsService.impact(.light)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .padding(.top, 4)
+                        }
                     }
                     Spacer()
                 } else {
                     List {
                         ForEach(filteredExpenses) { expense in
                             NavigationLink {
-                                ExpenseDetailView(expense: expense) {
-                                    loadData()
-                                }
+                                ExpenseDetailView(
+                                    expense: expense,
+                                    projects: projects,
+                                    onDelete: {
+                                        expenses.removeAll { $0.id == expense.id }
+                                    },
+                                    onUpdate: { updated in
+                                        if let idx = expenses.firstIndex(where: { $0.id == updated.id }) {
+                                            expenses[idx] = updated
+                                        }
+                                    }
+                                )
                             } label: {
                                 ExpenseRowView(expense: expense)
                             }
@@ -180,12 +235,39 @@ struct ExpensesView: View {
                 }
                 
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAddSheet = true
-                        HapticsService.light()
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .bold))
+                    HStack(spacing: 14) {
+                        // Export Report Menu
+                        Menu {
+                            Button {
+                                exportPDFReport()
+                            } label: {
+                                Label("Export Summary PDF", systemImage: "doc.richtext")
+                            }
+                            
+                            Button {
+                                exportCSVReport()
+                            } label: {
+                                Label("Export Detail CSV (Excel)", systemImage: "tablecells")
+                            }
+                        } label: {
+                            if isExportingReport {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
+                        }
+                        .disabled(filteredExpenses.isEmpty || isExportingReport)
+                        
+                        // Add Button
+                        Button {
+                            showingAddSheet = true
+                            HapticsService.impact(.light)
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .bold))
+                        }
                     }
                 }
             }
@@ -194,8 +276,68 @@ struct ExpensesView: View {
                     loadData()
                 }
             }
+            .sheet(isPresented: Binding(
+                get: { reportShareURL != nil },
+                set: { if !$0 { reportShareURL = nil } }
+            )) {
+                if let url = reportShareURL {
+                    ShareActivityView(activityItems: [url])
+                }
+            }
             .task {
                 loadData()
+            }
+        }
+    }
+    
+    // MARK: - Export Logic
+    private func exportPDFReport() {
+        isExportingReport = true
+        HapticsService.impact(.light)
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let projectName = currentProjectName == "All Projects" ? nil : currentProjectName
+                let url = try ExpenseReportService.shared.generatePDF(
+                    expenses: self.filteredExpenses,
+                    projects: self.projects,
+                    title: "Expense & Audit Report",
+                    projectFilterName: projectName
+                )
+                DispatchQueue.main.async {
+                    self.reportShareURL = url
+                    self.isExportingReport = false
+                    HapticsService.notification(.success)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isExportingReport = false
+                    self.errorMessage = error.localizedDescription
+                    HapticsService.notification(.error)
+                }
+            }
+        }
+    }
+    
+    private func exportCSVReport() {
+        isExportingReport = true
+        HapticsService.impact(.light)
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let url = try ExpenseReportService.shared.generateCSV(
+                    expenses: self.filteredExpenses,
+                    projects: self.projects
+                )
+                DispatchQueue.main.async {
+                    self.reportShareURL = url
+                    self.isExportingReport = false
+                    HapticsService.notification(.success)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isExportingReport = false
+                    self.errorMessage = error.localizedDescription
+                    HapticsService.notification(.error)
+                }
             }
         }
     }
@@ -236,7 +378,7 @@ struct ExpensesView: View {
             let (p, e) = try await (fetchedProjects, fetchedExpenses)
             self.projects = p
             self.expenses = e
-            HapticsService.light()
+            HapticsService.impact(.light)
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -250,7 +392,7 @@ struct ExpensesView: View {
             }
         }
         expenses.removeAll { exp in toDelete.contains(where: { $0.id == exp.id }) }
-        HapticsService.medium()
+        HapticsService.impact(.medium)
     }
 }
 

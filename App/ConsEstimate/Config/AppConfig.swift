@@ -9,6 +9,8 @@ enum AppConfig {
     static let defaultProjectId = "1f2af6f8-7486-486c-b03e-334f6c88ec57"
     
     static let knownVendors = [
+        "Commercial Door Specialties",
+        "MG Building Materials",
         "MHAC",
         "Action Gypsum Supply",
         "Reyes Electrical Contractors",

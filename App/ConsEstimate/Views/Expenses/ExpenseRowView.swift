@@ -34,6 +34,19 @@ struct ExpenseRowView: View {
                 HStack(spacing: 6) {
                     CategoryBadge(category: expense.categoryEnum, showIcon: false)
                     
+                    // Approval Status Pill
+                    HStack(spacing: 3) {
+                        Image(systemName: expense.approvalStatus.iconName)
+                            .font(.system(size: 9))
+                        Text(expense.approvalStatus.shortTitle)
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(expense.approvalStatus.color.opacity(0.15))
+                    .foregroundColor(expense.approvalStatus.color)
+                    .clipShape(Capsule())
+                    
                     Text("•")
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -43,8 +56,8 @@ struct ExpenseRowView: View {
                         .foregroundColor(.secondary)
                 }
                 
-                if let notes = expense.notes, !notes.isEmpty {
-                    Text(notes)
+                if !expense.cleanNotes.isEmpty {
+                    Text(expense.cleanNotes)
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                         .lineLimit(1)

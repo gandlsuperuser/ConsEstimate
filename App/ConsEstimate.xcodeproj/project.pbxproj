@@ -9,11 +9,14 @@
 /* Begin PBXBuildFile section */
 		0366B786A5394C7DFFAD87CE /* Expense.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2C1B970DF984C5A75ABF2 /* Expense.swift */; };
 		14B709B4B26D126B703C8E39 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00EC73D337089136DB7C215 /* Project.swift */; };
+		242C499E57A7DAC9D79CA779 /* ExpenseReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05F729A5552B2373C29C25B1 /* ExpenseReportService.swift */; };
 		27AD741A364CA12CA6BB22D6 /* ConsEstimateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F87B6B623A66425DF54DB4A /* ConsEstimateApp.swift */; };
+		2DA7ABD2C0C4FE8C1E560C77 /* EditExpenseSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BEE3A53F31EBE898C5F775 /* EditExpenseSheet.swift */; };
 		3153729E36ADEB0D53A027A4 /* ReceiptImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497BF710F115478EF1127B4F /* ReceiptImageViewer.swift */; };
 		333C48A1BB6A62AD8AB36169 /* ExpenseRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF4F1DDC4E2E9EC8D95D261A /* ExpenseRowView.swift */; };
 		3C6CA72C57B77A33BA168C27 /* AddExpenseSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D9EB6F73FA566DFBDCCC00C /* AddExpenseSheet.swift */; };
 		58649DACE2536314B2CD48B1 /* ReceiptOCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8259DABE37FA1BC21F2FBD8A /* ReceiptOCRService.swift */; };
+		7E179A550F6231DF5CCDE360 /* ShareActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67C65C3328E4FEA05D4F96ED /* ShareActivityView.swift */; };
 		802B7F90A28AE5A59E8299EE /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F6803BBAA03E43A5B4CCD68 /* AppConfig.swift */; };
 		814145EF33A743592706F1E6 /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A4FBCE40DCCE060D91DAA82 /* CameraPicker.swift */; };
 		B7471F562255940D6B819A07 /* ProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFEC6495466C885F90F4A7F /* ProjectsView.swift */; };
@@ -31,6 +34,7 @@
 
 /* Begin PBXFileReference section */
 		00D9281A353980A7E6C5771A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		05F729A5552B2373C29C25B1 /* ExpenseReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseReportService.swift; sourceTree = "<group>"; };
 		08997D61D3E531C98F4CD26F /* ExpenseDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseDetailView.swift; sourceTree = "<group>"; };
 		09BB7DDF92F6CF28CC40FD8C /* StatMetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatMetricCard.swift; sourceTree = "<group>"; };
 		0A4FBCE40DCCE060D91DAA82 /* CameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPicker.swift; sourceTree = "<group>"; };
@@ -39,6 +43,7 @@
 		2D9EB6F73FA566DFBDCCC00C /* AddExpenseSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddExpenseSheet.swift; sourceTree = "<group>"; };
 		497BF710F115478EF1127B4F /* ReceiptImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptImageViewer.swift; sourceTree = "<group>"; };
 		563CC92A0AD510E723A596F5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		67C65C3328E4FEA05D4F96ED /* ShareActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareActivityView.swift; sourceTree = "<group>"; };
 		6F87B6B623A66425DF54DB4A /* ConsEstimateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsEstimateApp.swift; sourceTree = "<group>"; };
 		8259DABE37FA1BC21F2FBD8A /* ReceiptOCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptOCRService.swift; sourceTree = "<group>"; };
 		8483AD1CAD265863D3291CED /* QuickScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickScannerView.swift; sourceTree = "<group>"; };
@@ -52,12 +57,14 @@
 		E74FBFD4661AF7C049849FDD /* ExpenseCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseCategory.swift; sourceTree = "<group>"; };
 		EDFEC6495466C885F90F4A7F /* ProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsView.swift; sourceTree = "<group>"; };
 		F3A2C1B970DF984C5A75ABF2 /* Expense.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Expense.swift; sourceTree = "<group>"; };
+		F5BEE3A53F31EBE898C5F775 /* EditExpenseSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditExpenseSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		131710955EE86FA2462B10A4 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				05F729A5552B2373C29C25B1 /* ExpenseReportService.swift */,
 				B945213AF9B7002A791A1E03 /* HapticsService.swift */,
 				8259DABE37FA1BC21F2FBD8A /* ReceiptOCRService.swift */,
 				A9F0A2B7C8F202B93F4D1A09 /* SupabaseService.swift */,
@@ -77,6 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				0F3DCF2AE14EC32A75F59116 /* CategoryBadge.swift */,
+				67C65C3328E4FEA05D4F96ED /* ShareActivityView.swift */,
 				09BB7DDF92F6CF28CC40FD8C /* StatMetricCard.swift */,
 			);
 			path = Components;
@@ -130,6 +138,7 @@
 			isa = PBXGroup;
 			children = (
 				2D9EB6F73FA566DFBDCCC00C /* AddExpenseSheet.swift */,
+				F5BEE3A53F31EBE898C5F775 /* EditExpenseSheet.swift */,
 				08997D61D3E531C98F4CD26F /* ExpenseDetailView.swift */,
 				AF4F1DDC4E2E9EC8D95D261A /* ExpenseRowView.swift */,
 				DBFEFE6914DE8850C42BD949 /* ExpensesView.swift */,
@@ -235,9 +244,11 @@
 				814145EF33A743592706F1E6 /* CameraPicker.swift in Sources */,
 				EC49586BE2024C2A2799F33D /* CategoryBadge.swift in Sources */,
 				27AD741A364CA12CA6BB22D6 /* ConsEstimateApp.swift in Sources */,
+				2DA7ABD2C0C4FE8C1E560C77 /* EditExpenseSheet.swift in Sources */,
 				0366B786A5394C7DFFAD87CE /* Expense.swift in Sources */,
 				C2E7DF270669DD0DED502AED /* ExpenseCategory.swift in Sources */,
 				FF7C652EFED116E5287669F0 /* ExpenseDetailView.swift in Sources */,
+				242C499E57A7DAC9D79CA779 /* ExpenseReportService.swift in Sources */,
 				333C48A1BB6A62AD8AB36169 /* ExpenseRowView.swift in Sources */,
 				EC1FB304E0FB9324CEF220EF /* ExpensesView.swift in Sources */,
 				E3AF13B1562F4EB4E11E655A /* HapticsService.swift in Sources */,
@@ -247,6 +258,7 @@
 				CA820B96D5D14C8EAE9456B7 /* QuickScannerView.swift in Sources */,
 				3153729E36ADEB0D53A027A4 /* ReceiptImageViewer.swift in Sources */,
 				58649DACE2536314B2CD48B1 /* ReceiptOCRService.swift in Sources */,
+				7E179A550F6231DF5CCDE360 /* ShareActivityView.swift in Sources */,
 				B7520CFF6929FB39FBD5612A /* StatMetricCard.swift in Sources */,
 				D47D0F5CC6F61CDC20EB2432 /* SupabaseService.swift in Sources */,
 			);

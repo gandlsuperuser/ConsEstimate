@@ -64,11 +64,16 @@ export async function POST(request: NextRequest) {
       items = [],
     } = body;
 
-    const contract_sum_to_date = Number(original_contract_sum) + Number(net_change_orders);
-    const retainage_amount = (Number(total_completed_and_stored) * Number(retainage_completed_pct)) / 100;
-    const total_earned_less_retainage = Number(total_completed_and_stored) - retainage_amount;
-    const current_payment_due = total_earned_less_retainage - Number(less_previous_certificates);
-    const balance_to_finish_incl_retainage = contract_sum_to_date - total_earned_less_retainage;
+    const contract_sum_to_date = Math.round((Number(original_contract_sum) + Number(net_change_orders)) * 100) / 100;
+    const this_period_sum = Array.isArray(items) && items.length > 0
+      ? items.reduce((s: number, i: any) => s + (Number(i.work_completed_this_period) || 0), 0)
+      : Number(total_completed_and_stored);
+    const retainage_amount = body.retainage_amount !== undefined
+      ? Math.round(Number(body.retainage_amount) * 100) / 100
+      : Math.round(((this_period_sum * Number(retainage_completed_pct)) / 100) * 100) / 100;
+    const total_earned_less_retainage = Math.round((Number(total_completed_and_stored) - retainage_amount) * 100) / 100;
+    const current_payment_due = Math.round((total_earned_less_retainage - Number(less_previous_certificates)) * 100) / 100;
+    const balance_to_finish_incl_retainage = Math.round((contract_sum_to_date - total_earned_less_retainage) * 100) / 100;
 
     const newBilling = await insertWorkflowRecord<OwnerBilling>('owner_billings', {
       project_id,
@@ -154,11 +159,16 @@ export async function PATCH(request: NextRequest) {
     const retainage_completed_pct = Number(updates.retainage_completed_pct ?? body.retainage_completed_pct ?? 0);
     const less_previous_certificates = Number(updates.less_previous_certificates ?? body.less_previous_certificates ?? 0);
 
-    const contract_sum_to_date = original_contract_sum + net_change_orders;
-    const retainage_amount = (total_completed_and_stored * retainage_completed_pct) / 100;
-    const total_earned_less_retainage = total_completed_and_stored - retainage_amount;
-    const current_payment_due = total_earned_less_retainage - less_previous_certificates;
-    const balance_to_finish_incl_retainage = contract_sum_to_date - total_earned_less_retainage;
+    const contract_sum_to_date = Math.round((original_contract_sum + net_change_orders) * 100) / 100;
+    const this_period_sum = Array.isArray(items) && items.length > 0
+      ? items.reduce((s: number, i: any) => s + (Number(i.work_completed_this_period) || 0), 0)
+      : total_completed_and_stored;
+    const retainage_amount = updates.retainage_amount !== undefined
+      ? Math.round(Number(updates.retainage_amount) * 100) / 100
+      : Math.round(((this_period_sum * retainage_completed_pct) / 100) * 100) / 100;
+    const total_earned_less_retainage = Math.round((total_completed_and_stored - retainage_amount) * 100) / 100;
+    const current_payment_due = Math.round((total_earned_less_retainage - less_previous_certificates) * 100) / 100;
+    const balance_to_finish_incl_retainage = Math.round((contract_sum_to_date - total_earned_less_retainage) * 100) / 100;
 
     const fullUpdates = {
       ...updates,

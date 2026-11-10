@@ -130,6 +130,37 @@ final class SupabaseService {
         return created
     }
     
+    // MARK: - Update Expense
+    func updateExpense(id: String, input: UpdateExpenseInput) async throws -> Expense {
+        let url = baseURL.appendingPathComponent("rest/v1/expenses")
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "id", value: "eq.\(id)")
+        ]
+        
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "PATCH"
+        for (k, v) in makeHeaders() {
+            request.setValue(v, forHTTPHeaderField: k)
+        }
+        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(input)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let msg = String(data: data, encoding: .utf8) ?? "Failed to update expense"
+            throw NSError(domain: "SupabaseService", code: (response as? HTTPURLResponse)?.statusCode ?? -1, userInfo: [NSLocalizedDescriptionKey: msg])
+        }
+        
+        let results = try JSONDecoder().decode([Expense].self, from: data)
+        guard let updated = results.first else {
+            throw NSError(domain: "SupabaseService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No expense returned after update"])
+        }
+        return updated
+    }
+    
     // MARK: - Delete Expense
     func deleteExpense(id: String) async throws {
         let url = baseURL.appendingPathComponent("rest/v1/expenses")

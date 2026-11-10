@@ -292,12 +292,15 @@ export default function OwnerBillingPage() {
   }, [fetchData]);
 
   /* ---- auto-calculate row fields ---- */
-  const recalcRow = useCallback((row: OwnerBillingItem): OwnerBillingItem => {
-    const total_completed = (Number(row.work_completed_previous) || 0) + (Number(row.work_completed_this_period) || 0) + (Number(row.stored_materials) || 0);
+  const recalcRow = useCallback((row: OwnerBillingItem, retainagePctOverride?: number): OwnerBillingItem => {
+    const completedThisPeriod = Number(row.work_completed_this_period) || 0;
+    const total_completed = Math.round(((Number(row.work_completed_previous) || 0) + completedThisPeriod + (Number(row.stored_materials) || 0)) * 100) / 100;
     const scheduled = Number(row.scheduled_value) || 0;
     const pct_complete = scheduled > 0 ? Math.round((total_completed / scheduled) * 100) : 0;
-    const balance_to_finish = scheduled - total_completed;
-    const retainage = total_completed * ((Number(header.retainage_completed_pct) || 0) / 100);
+    const balance_to_finish = Math.round((scheduled - total_completed) * 100) / 100;
+    const pct = retainagePctOverride !== undefined ? retainagePctOverride : (Number(header.retainage_completed_pct) || 0);
+    // Apply retainage only to work completed this period (not previously billed work)
+    const retainage = Math.round(completedThisPeriod * (pct / 100) * 100) / 100;
     return { ...row, total_completed, pct_complete, balance_to_finish, retainage };
   }, [header.retainage_completed_pct]);
 
@@ -471,11 +474,12 @@ export default function OwnerBillingPage() {
 
     const total_completed_and_stored = completed_total;
 
-    // Retainage split
-    const work_completed_total = (prev_total > 0 || this_period_total > 0) ? (prev_total + this_period_total) : completed_total;
-    const retainage_on_completed = work_completed_total * ((Number(header.retainage_completed_pct) || 0) / 100);
-    const retainage_on_stored = stored_total * ((Number(header.retainage_stored_pct) || 0) / 100);
-    const total_retainage = retainage_total > 0 ? retainage_total : (retainage_on_completed + retainage_on_stored);
+    // Retainage split — apply retainage only to work completed this period (Column E), not previously billed work
+    const retainage_on_completed = retainage_total > 0
+      ? retainage_total
+      : Math.round(this_period_total * ((Number(header.retainage_completed_pct) || 0) / 100) * 100) / 100;
+    const retainage_on_stored = Math.round(stored_total * ((Number(header.retainage_stored_pct) || 0) / 100) * 100) / 100;
+    const total_retainage = Math.round((retainage_on_completed + retainage_on_stored) * 100) / 100;
 
     const total_earned_less_retainage = Math.round((total_completed_and_stored - total_retainage) * 100) / 100;
     const current_payment_due = Math.round((total_earned_less_retainage - (Number(header.less_previous_certificates) || 0)) * 100) / 100;
@@ -818,6 +822,197 @@ export default function OwnerBillingPage() {
     }
   };
 
+  /* ---- duplicate application ---- */
+  const handleDuplicate = async (sourceBilling?: OwnerBilling, openAfterDuplicate = false) => {
+    setIsSaving(true);
+    setSaveStatusMsg(null);
+
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    try {
+      const nextAppNumber = Math.max(
+        0,
+        ...billings.map(b => Number(b.application_number) || 0),
+        Number(sourceBilling?.application_number || header.application_number) || 0
+      ) + 1;
+
+      let payload: Record<string, any>;
+      let duplicatedRows: OwnerBillingItem[] = [];
+
+      if (sourceBilling) {
+        const sortedItems = [...(sourceBilling.items || [])].sort(
+          (a, b) => (a.item_number || 0) - (b.item_number || 0)
+        );
+        duplicatedRows = sortedItems.map((r, idx) => ({
+          ...r,
+          id: `dup-${Date.now()}-${idx}`,
+          billing_id: '',
+          item_number: idx + 1,
+        }));
+
+        payload = {
+          project_id: projectId,
+          owner_name: sourceBilling.owner_name || '',
+          owner_address: sourceBilling.owner_address || '',
+          contractor_name: sourceBilling.contractor_name || '',
+          contractor_address: sourceBilling.contractor_address || '',
+          project_name: sourceBilling.project_name || project?.name || '',
+          project_address: sourceBilling.project_address || project?.address || '',
+          contract_for: sourceBilling.contract_for || project?.name || '',
+          via_architect: sourceBilling.via_architect || '',
+          application_number: nextAppNumber,
+          period_to: sourceBilling.period_to || new Date().toISOString().split('T')[0],
+          project_nos: sourceBilling.project_nos || '',
+          contract_date: sourceBilling.contract_date || '',
+          purchase_order: sourceBilling.purchase_order || '',
+          distribution_to: sourceBilling.distribution_to || ['Const. Mgr'],
+          original_contract_sum: Number(sourceBilling.original_contract_sum) || 1044266.65,
+          change_order_additions: Number(sourceBilling.change_order_additions) || 0,
+          change_order_deductions: Number(sourceBilling.change_order_deductions) || 0,
+          net_change_orders: Number(sourceBilling.net_change_orders) || 0,
+          contract_sum_to_date: Number(sourceBilling.contract_sum_to_date) || 0,
+          total_completed_and_stored: Number(sourceBilling.total_completed_and_stored) || 0,
+          retainage_completed_pct: Number(sourceBilling.retainage_completed_pct) || 0,
+          retainage_stored_pct: Number(sourceBilling.retainage_stored_pct) || 0,
+          retainage_amount: Number(sourceBilling.retainage_amount) || 0,
+          total_earned_less_retainage: Number(sourceBilling.total_earned_less_retainage) || 0,
+          less_previous_certificates: Number(sourceBilling.less_previous_certificates) || 0,
+          current_payment_due: Number(sourceBilling.current_payment_due) || 0,
+          balance_to_finish_incl_retainage: Number(sourceBilling.balance_to_finish_incl_retainage) || 0,
+          amount_certified: Number(sourceBilling.amount_certified) || Math.max(0, Number(sourceBilling.current_payment_due) || 0),
+          contractor_signature_by: sourceBilling.contractor_signature_by || '',
+          contractor_signature_date: sourceBilling.contractor_signature_date || '',
+          state_of: sourceBilling.state_of || '',
+          county_of: sourceBilling.county_of || '',
+          notary_day: sourceBilling.notary_day || '',
+          notary_month_year: sourceBilling.notary_month_year || '',
+          notary_public: sourceBilling.notary_public || '',
+          notary_commission_expires: sourceBilling.notary_commission_expires || '',
+          architect_signature_by: sourceBilling.architect_signature_by || '',
+          architect_signature_date: sourceBilling.architect_signature_date || '',
+          status: 'draft',
+          items: duplicatedRows.map((r, idx) => ({
+            item_number: idx + 1,
+            description: r.description || '',
+            scheduled_value: Number(r.scheduled_value) || 0,
+            work_completed_previous: Number(r.work_completed_previous) || 0,
+            work_completed_this_period: Number(r.work_completed_this_period) || 0,
+            stored_materials: Number(r.stored_materials) || 0,
+            total_completed: Number(r.total_completed) || 0,
+            pct_complete: Number(r.pct_complete) || 0,
+            balance_to_finish: Number(r.balance_to_finish) || 0,
+            retainage: Number(r.retainage) || 0,
+            scheduled_value_formula: r.scheduled_value_formula,
+            work_completed_previous_formula: r.work_completed_previous_formula,
+            work_completed_this_period_formula: r.work_completed_this_period_formula,
+            stored_materials_formula: r.stored_materials_formula,
+          })),
+        };
+      } else {
+        const currentRows = rowsRef.current && rowsRef.current.length > 0 ? rowsRef.current : rows;
+        let lastActiveIdx = currentRows.length - 1;
+        while (
+          lastActiveIdx >= DEFAULT_G703_ROWS &&
+          lastActiveIdx >= 0 &&
+          !(currentRows[lastActiveIdx]?.description || '').trim() &&
+          !currentRows[lastActiveIdx]?.scheduled_value &&
+          !currentRows[lastActiveIdx]?.work_completed_this_period &&
+          !currentRows[lastActiveIdx]?.work_completed_previous &&
+          !currentRows[lastActiveIdx]?.stored_materials
+        ) {
+          lastActiveIdx--;
+        }
+        duplicatedRows = currentRows.slice(0, lastActiveIdx + 1);
+
+        payload = {
+          project_id: projectId,
+          ...header,
+          application_number: nextAppNumber,
+          original_contract_sum: Number(header.original_contract_sum) || 1044266.65,
+          change_order_additions: totals.total_additions,
+          change_order_deductions: totals.total_deductions,
+          net_change_orders: totals.net_co,
+          contract_sum_to_date: totals.contract_sum_to_date,
+          total_completed_and_stored: totals.total_completed_and_stored,
+          retainage_completed_pct: Number(header.retainage_completed_pct) || 0,
+          retainage_stored_pct: Number(header.retainage_stored_pct) || 0,
+          retainage_amount: totals.total_retainage,
+          total_earned_less_retainage: totals.total_earned_less_retainage,
+          less_previous_certificates: Number(header.less_previous_certificates) || 0,
+          current_payment_due: totals.current_payment_due,
+          balance_to_finish_incl_retainage: totals.balance_to_finish_incl_retainage,
+          amount_certified: header.amount_certified || Math.max(0, totals.current_payment_due),
+          status: 'draft',
+          items: duplicatedRows.map((r, idx) => ({
+            item_number: idx + 1,
+            description: r.description || '',
+            scheduled_value: Number(r.scheduled_value) || 0,
+            work_completed_previous: Number(r.work_completed_previous) || 0,
+            work_completed_this_period: Number(r.work_completed_this_period) || 0,
+            stored_materials: Number(r.stored_materials) || 0,
+            total_completed: Number(r.total_completed) || 0,
+            pct_complete: Number(r.pct_complete) || 0,
+            balance_to_finish: Number(r.balance_to_finish) || 0,
+            retainage: Number(r.retainage) || 0,
+            scheduled_value_formula: r.scheduled_value_formula,
+            work_completed_previous_formula: r.work_completed_previous_formula,
+            work_completed_this_period_formula: r.work_completed_this_period_formula,
+            stored_materials_formula: r.stored_materials_formula,
+          })),
+        };
+      }
+
+      const res = await fetch('/api/owner-billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData?.error || `Server returned error (${res.status})`);
+      }
+
+      const returnedBilling = resData.billing;
+      const savedBilling: OwnerBilling = {
+        ...(returnedBilling || payload),
+        items: (returnedBilling?.items && returnedBilling.items.length > 0) ? returnedBilling.items : duplicatedRows,
+      } as OwnerBilling;
+
+      setBillings(prev => [savedBilling, ...prev]);
+
+      if (!sourceBilling || openAfterDuplicate) {
+        setHeader(h => ({ ...h, application_number: nextAppNumber }));
+        setEditingBilling(savedBilling);
+        if (sourceBilling && openAfterDuplicate) {
+          openBilling(savedBilling);
+        }
+      }
+
+      const srcNum = sourceBilling ? sourceBilling.application_number : header.application_number;
+      setSaveStatusMsg({
+        type: 'success',
+        text: `✓ Duplicated Application #${srcNum} → Application #${nextAppNumber} (Draft)!`,
+      });
+
+      await fetchData();
+
+      setTimeout(() => {
+        setSaveStatusMsg(prev => prev?.type === 'success' ? null : prev);
+      }, 5000);
+    } catch (err: any) {
+      console.error('Error duplicating owner billing:', err);
+      setSaveStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to duplicate application.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   /* ---- open existing billing for edit ---- */
   const openBilling = (b: OwnerBilling) => {
     setHeader({
@@ -865,11 +1060,11 @@ export default function OwnerBillingPage() {
             const stored = Number(item.stored_materials) || 0;
             const completedPrev = Number(item.work_completed_previous) || 0;
             const completedPeriod = Number(item.work_completed_this_period) || 0;
-            const total_completed = completedPrev + completedPeriod + stored;
+            const total_completed = Math.round((completedPrev + completedPeriod + stored) * 100) / 100;
             const scheduled = Number(item.scheduled_value) || 0;
             const pct_complete = scheduled > 0 ? Math.round((total_completed / scheduled) * 100) : 0;
-            const balance_to_finish = scheduled - total_completed;
-            const retainage = total_completed * (retainagePct / 100);
+            const balance_to_finish = Math.round((scheduled - total_completed) * 100) / 100;
+            const retainage = Math.round(completedPeriod * (retainagePct / 100) * 100) / 100;
             return {
               ...item,
               stored_materials: stored,
@@ -939,21 +1134,22 @@ export default function OwnerBillingPage() {
   };
 
   /* ---- direct high-resolution PDF download handler ---- */
-  const handleSaveAsPDF = async (mode: 'all' | 'g702_only' | 'g703_only') => {
+  const handleSaveAsPDF = async (mode: 'all' | 'g702_only' | 'g703_only', billingOverride?: OwnerBilling) => {
     setGeneratingPdf(true);
     try {
       const { toPaperJpeg: toJpeg } = await import('@/lib/paper-export');
       const { jsPDF } = await import('jspdf');
 
-      const cleanProjectName = (header.project_name || project?.name || 'Project')
+      const appNum = billingOverride?.application_number ?? header.application_number;
+      const cleanProjectName = (billingOverride?.project_name || header.project_name || project?.name || 'Project')
         .trim()
         .replace(/[^a-zA-Z0-9_-]/g, '_');
 
       const docName = mode === 'g702_only'
-        ? `AIA_G702_Application_${header.application_number}_${cleanProjectName}.pdf`
+        ? `AIA_G702_Application_${appNum}_${cleanProjectName}.pdf`
         : mode === 'g703_only'
-        ? `AIA_G703_Continuation_Sheet_${header.application_number}_${cleanProjectName}.pdf`
-        : `AIA_G702_G703_Application_${header.application_number}_${cleanProjectName}.pdf`;
+        ? `AIA_G703_Continuation_Sheet_${appNum}_${cleanProjectName}.pdf`
+        : `AIA_G702_G703_Application_${appNum}_${cleanProjectName}.pdf`;
 
       // Standard Letter Landscape format: 279.4mm x 215.9mm (11in x 8.5in)
       const pdf = new jsPDF({
@@ -1094,6 +1290,31 @@ export default function OwnerBillingPage() {
 
     return (
       <div className="space-y-6">
+        {/* Floating Status Notification Banner */}
+        {saveStatusMsg && (
+          <div className="fixed top-5 right-5 z-50 max-w-md animate-in fade-in slide-in-from-top-3 duration-200 print:hidden">
+            <div
+              className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs font-bold shadow-2xl backdrop-blur-md ${
+                saveStatusMsg.type === 'success'
+                  ? 'bg-emerald-950/95 border-emerald-500 text-emerald-200 ring-4 ring-emerald-500/20'
+                  : 'bg-red-950/95 border-red-500 text-red-200 ring-4 ring-red-500/20'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-base font-black">{saveStatusMsg.type === 'success' ? '✓' : '⚠️'}</span>
+                <span className="text-xs sm:text-sm">{saveStatusMsg.text}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSaveStatusMsg(null)}
+                className="text-gray-400 hover:text-white px-2 py-0.5 rounded cursor-pointer text-sm font-bold ml-2"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-xl border border-procore-border shadow-xs">
           <div>
@@ -1199,9 +1420,17 @@ export default function OwnerBillingPage() {
                             Open Form
                           </button>
                           <button
+                            onClick={() => handleDuplicate(b)}
+                            disabled={isSaving}
+                            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold text-[11px] px-2.5 py-1 rounded shadow-2xs cursor-pointer"
+                            title="Duplicate this Application as a new Draft"
+                          >
+                            📋 Duplicate
+                          </button>
+                          <button
                             onClick={() => {
                               openBilling(b);
-                              setTimeout(() => handleSaveAsPDF('all'), 300);
+                              setTimeout(() => handleSaveAsPDF('all', b), 350);
                             }}
                             className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-2.5 py-1 rounded shadow-2xs cursor-pointer"
                             title="Save 2-Page Application as PDF"
@@ -1283,6 +1512,15 @@ export default function OwnerBillingPage() {
               className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-3.5 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-blue-400"
             >
               <span className="text-sm">📥</span> Import from Estimate
+            </button>
+
+            <button
+              onClick={() => handleDuplicate()}
+              disabled={isSaving}
+              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs font-black px-3.5 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-indigo-400 active:scale-95"
+              title="Duplicate this Application into a new Draft Application"
+            >
+              <span className="text-sm">📋</span> Duplicate App
             </button>
 
             <button
@@ -1724,9 +1962,6 @@ export default function OwnerBillingPage() {
                     </td>
                     <td className="p-1 text-right font-black text-black w-4">$</td>
                     <td className="p-1 text-right w-28 border-l border-black bg-white text-black font-black">
-                      <span className="hidden print:inline font-black text-black">
-                        {header.original_contract_sum > 0 ? fmt(header.original_contract_sum) : ''}
-                      </span>
                       <input
                         type="text"
                         value={
@@ -1740,7 +1975,7 @@ export default function OwnerBillingPage() {
                           const raw = e.target.value.replace(/[^0-9.-]+/g, '');
                           setHeader(h => ({ ...h, original_contract_sum: parseFloat(raw) || 0 }));
                         }}
-                        className="w-full text-right font-black text-black focus:outline-none bg-transparent print:hidden"
+                        className="w-full text-right font-black text-black focus:outline-none bg-transparent"
                         title="Original Contract Sum (Total Budget: $1,044,266.65)"
                       />
                     </td>
@@ -1796,11 +2031,19 @@ export default function OwnerBillingPage() {
                       <input
                         type="number"
                         value={header.retainage_completed_pct || ''}
-                        onChange={e => setHeader(h => ({ ...h, retainage_completed_pct: parseFloat(e.target.value) || 0 }))}
+                        onChange={e => {
+                          const nextPct = parseFloat(e.target.value) || 0;
+                          setHeader(h => ({ ...h, retainage_completed_pct: nextPct }));
+                          setRows(prev => {
+                            const updated = prev.map(r => recalcRow(r, nextPct));
+                            rowsRef.current = updated;
+                            return updated;
+                          });
+                        }}
                         className="w-8 text-center font-black text-black border-b border-black focus:outline-none bg-transparent"
                       />
                       % of Completed Work
-                      <div className="text-[7.5px] text-gray-800 font-normal">(Columns D+E on Continuation Sheet)</div>
+                      <div className="text-[7.5px] text-gray-800 font-normal">(Column E on Continuation Sheet)</div>
                     </td>
                     <td className="p-1 text-right font-black text-black">$</td>
                     <td className="p-1 text-right font-black text-black border-l border-black bg-white">
