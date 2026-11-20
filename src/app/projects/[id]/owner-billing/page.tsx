@@ -474,10 +474,14 @@ export default function OwnerBillingPage() {
 
     const total_completed_and_stored = completed_total;
 
-    // Retainage split — apply retainage only to work completed this period (Column E), not previously billed work
-    const retainage_on_completed = retainage_total > 0
+    // Prior retainage is previously withheld retainage (Previous Completed - Less Previous Certificates)
+    const prior_retainage = Math.max(0, Math.round((prev_total - (Number(header.less_previous_certificates) || 0)) * 100) / 100);
+
+    // Retainage split — apply retainage only to work completed this period (Column E), plus prior withheld retainage
+    const retainage_this_period = retainage_total > 0
       ? retainage_total
       : Math.round(this_period_total * ((Number(header.retainage_completed_pct) || 0) / 100) * 100) / 100;
+    const retainage_on_completed = Math.round((prior_retainage + retainage_this_period) * 100) / 100;
     const retainage_on_stored = Math.round(stored_total * ((Number(header.retainage_stored_pct) || 0) / 100) * 100) / 100;
     const total_retainage = Math.round((retainage_on_completed + retainage_on_stored) * 100) / 100;
 
@@ -845,12 +849,28 @@ export default function OwnerBillingPage() {
         const sortedItems = [...(sourceBilling.items || [])].sort(
           (a, b) => (a.item_number || 0) - (b.item_number || 0)
         );
-        duplicatedRows = sortedItems.map((r, idx) => ({
-          ...r,
-          id: `dup-${Date.now()}-${idx}`,
-          billing_id: '',
-          item_number: idx + 1,
-        }));
+        // Advance previous completed (Col D) to the total completed (Col G) from source application,
+        // and reset work completed this period (Col E) to 0.
+        duplicatedRows = sortedItems.map((r, idx) => {
+          const prevCompleted = Number(r.total_completed) || ((Number(r.work_completed_previous) || 0) + (Number(r.work_completed_this_period) || 0));
+          const sched = Number(r.scheduled_value) || 0;
+          return {
+            ...r,
+            id: `dup-${Date.now()}-${idx}`,
+            billing_id: '',
+            item_number: idx + 1,
+            work_completed_previous: prevCompleted,
+            work_completed_this_period: 0,
+            stored_materials: 0,
+            total_completed: prevCompleted,
+            pct_complete: sched > 0 ? Math.round((prevCompleted / sched) * 100) : 0,
+            balance_to_finish: Math.round((sched - prevCompleted) * 100) / 100,
+            retainage: 0,
+          };
+        });
+
+        const priorEarnedLessRetainage = Number(sourceBilling.total_earned_less_retainage) ||
+          Math.round(((Number(sourceBilling.total_completed_and_stored) || 0) - (Number(sourceBilling.retainage_amount) || 0)) * 100) / 100;
 
         payload = {
           project_id: projectId,
@@ -877,11 +897,11 @@ export default function OwnerBillingPage() {
           retainage_completed_pct: Number(sourceBilling.retainage_completed_pct) || 0,
           retainage_stored_pct: Number(sourceBilling.retainage_stored_pct) || 0,
           retainage_amount: Number(sourceBilling.retainage_amount) || 0,
-          total_earned_less_retainage: Number(sourceBilling.total_earned_less_retainage) || 0,
-          less_previous_certificates: Number(sourceBilling.less_previous_certificates) || 0,
-          current_payment_due: Number(sourceBilling.current_payment_due) || 0,
-          balance_to_finish_incl_retainage: Number(sourceBilling.balance_to_finish_incl_retainage) || 0,
-          amount_certified: Number(sourceBilling.amount_certified) || Math.max(0, Number(sourceBilling.current_payment_due) || 0),
+          total_earned_less_retainage: priorEarnedLessRetainage,
+          less_previous_certificates: priorEarnedLessRetainage,
+          current_payment_due: 0,
+          balance_to_finish_incl_retainage: Math.round(((Number(sourceBilling.contract_sum_to_date) || 0) - priorEarnedLessRetainage) * 100) / 100,
+          amount_certified: 0,
           contractor_signature_by: sourceBilling.contractor_signature_by || '',
           contractor_signature_date: sourceBilling.contractor_signature_date || '',
           state_of: sourceBilling.state_of || '',
@@ -898,12 +918,12 @@ export default function OwnerBillingPage() {
             description: r.description || '',
             scheduled_value: Number(r.scheduled_value) || 0,
             work_completed_previous: Number(r.work_completed_previous) || 0,
-            work_completed_this_period: Number(r.work_completed_this_period) || 0,
-            stored_materials: Number(r.stored_materials) || 0,
+            work_completed_this_period: 0,
+            stored_materials: 0,
             total_completed: Number(r.total_completed) || 0,
             pct_complete: Number(r.pct_complete) || 0,
             balance_to_finish: Number(r.balance_to_finish) || 0,
-            retainage: Number(r.retainage) || 0,
+            retainage: 0,
             scheduled_value_formula: r.scheduled_value_formula,
             work_completed_previous_formula: r.work_completed_previous_formula,
             work_completed_this_period_formula: r.work_completed_this_period_formula,
@@ -924,7 +944,24 @@ export default function OwnerBillingPage() {
         ) {
           lastActiveIdx--;
         }
-        duplicatedRows = currentRows.slice(0, lastActiveIdx + 1);
+        const activeRows = currentRows.slice(0, lastActiveIdx + 1);
+        duplicatedRows = activeRows.map((r, idx) => {
+          const prevCompleted = Number(r.total_completed) || ((Number(r.work_completed_previous) || 0) + (Number(r.work_completed_this_period) || 0));
+          const sched = Number(r.scheduled_value) || 0;
+          return {
+            ...r,
+            id: `dup-${Date.now()}-${idx}`,
+            billing_id: '',
+            item_number: idx + 1,
+            work_completed_previous: prevCompleted,
+            work_completed_this_period: 0,
+            stored_materials: 0,
+            total_completed: prevCompleted,
+            pct_complete: sched > 0 ? Math.round((prevCompleted / sched) * 100) : 0,
+            balance_to_finish: Math.round((sched - prevCompleted) * 100) / 100,
+            retainage: 0,
+          };
+        });
 
         payload = {
           project_id: projectId,
@@ -940,22 +977,22 @@ export default function OwnerBillingPage() {
           retainage_stored_pct: Number(header.retainage_stored_pct) || 0,
           retainage_amount: totals.total_retainage,
           total_earned_less_retainage: totals.total_earned_less_retainage,
-          less_previous_certificates: Number(header.less_previous_certificates) || 0,
-          current_payment_due: totals.current_payment_due,
+          less_previous_certificates: totals.total_earned_less_retainage,
+          current_payment_due: 0,
           balance_to_finish_incl_retainage: totals.balance_to_finish_incl_retainage,
-          amount_certified: header.amount_certified || Math.max(0, totals.current_payment_due),
+          amount_certified: 0,
           status: 'draft',
           items: duplicatedRows.map((r, idx) => ({
             item_number: idx + 1,
             description: r.description || '',
             scheduled_value: Number(r.scheduled_value) || 0,
             work_completed_previous: Number(r.work_completed_previous) || 0,
-            work_completed_this_period: Number(r.work_completed_this_period) || 0,
-            stored_materials: Number(r.stored_materials) || 0,
+            work_completed_this_period: 0,
+            stored_materials: 0,
             total_completed: Number(r.total_completed) || 0,
             pct_complete: Number(r.pct_complete) || 0,
             balance_to_finish: Number(r.balance_to_finish) || 0,
-            retainage: Number(r.retainage) || 0,
+            retainage: 0,
             scheduled_value_formula: r.scheduled_value_formula,
             work_completed_previous_formula: r.work_completed_previous_formula,
             work_completed_this_period_formula: r.work_completed_this_period_formula,
