@@ -1704,6 +1704,26 @@
   "vendor_partners": [],
   "audit_activities": [
     {
+      "id": "rec-1795133245698-allied",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_logged",
+      "module": "Expenses",
+      "description": "Logged $9,406.88 proposal/estimate #2867 from Allied Associates Commercial Floors, Inc. (Mohawk LVP Knotty Oak & Adhesive) - Conviva Jourdanton",
+      "timestamp": "2026-11-20T00:07:25.698Z",
+      "created_at": "2026-11-20T00:07:25.698Z"
+    },
+    {
+      "id": "rec-1795133245698-mhac",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "actor_name": "Admin",
+      "action_type": "expense_updated",
+      "module": "Expenses",
+      "description": "Replaced prior $18,995.00 MHAC HVAC equipment expense with $26,900.00 invoice #10658 from MHAC (Lennox Complete HVAC System) - Conviva Jourdanton",
+      "timestamp": "2026-11-20T00:07:25.698Z",
+      "created_at": "2026-11-20T00:07:25.698Z"
+    },
+    {
       "id": "rec-1792797365988",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "actor_name": "Admin",
@@ -2368,6 +2388,32 @@
       "link": "/pay-apps",
       "is_read": true,
       "created_at": "2026-08-31T20:09:52.391Z"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "exp-mhac-10658-26900",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "category": "HVAC",
+      "vendor": "MHAC",
+      "expense_date": "2026-11-15",
+      "amount": 26900,
+      "receipt_url": "/receipts/MHAC_Invoice_10658_26900_Conviva.png",
+      "scan_confidence": "high",
+      "notes": "Invoice #10658 | MHAC (San Antonio, TX | 210-848-7212) | Bill To: BTX Contractor | Job: Conviva Job | Invoice Date: 11/15/2026 | Scope: Lennox Complete HVAC Equipment System (8 units) — MMPD048S6S-71 (Qty 2), MMD024S6-1P (Qty 2), MMD048S6-1P (Qty 2), ML14KP1-060-230 (Qty 1), CBK48MVT-060-71 (Qty 1) | Subtotal: $26,900.00 | Tax (6.00%): $0.00 | Total Amount Due: $26,900.00 | Project: Conviva - Jourdanton / HVAC (Replaces prior $18,995 invoice)",
+      "created_at": "2026-11-17T19:35:00.000Z"
+    },
+    {
+      "id": "exp-allied-2867-9406",
+      "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
+      "category": "Flooring",
+      "vendor": "Allied Associates Commercial Floors, Inc.",
+      "expense_date": "2026-11-19",
+      "amount": 9406.88,
+      "receipt_url": "/receipts/Allied_Flooring_Estimate_2867_Conviva.jpg",
+      "scan_confidence": "high",
+      "notes": "Proposal / Estimate #2867 | Allied Associates Commercial Floors, Inc. (Universal City, TX | 210-646-9090) | Bill To: BTX Contractors LLC (Attn: Ralph Ayala) | Project: Conviva Jourdanton, 1105 Oak Street, Jourdanton, TX 78026 (Attn: Li Mo & Ralph Ayala) | Date: 11/19/2026 | Scope: Mohawk LVP - Secoya C2103, Color #148 Knotty Oak (72 cartons @ $99.25 = $7,146.00, ~3,000 sq ft), Mohawk Adhesive - M99 Premium Pressure Sensitive LVP Adhesive 4-Gal Pails (3 pails @ $364.00 = $1,092.00), Freight from GA to SAT ($462.00) | Subtotal: $8,700.00 | Sales Tax (8.125%): $706.88 | Total: $9,406.88",
+      "created_at": "2026-11-20T00:07:25.698Z"
     }
   ]
 }

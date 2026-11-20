@@ -110,7 +110,7 @@ export interface EstimateAlternate {
   total: number;
 }
 
-export const DEFAULT_ESTIMATE_ALTERNATES: EstimateAlternate[] = [
+const DEFAULT_ESTIMATE_ALTERNATES: EstimateAlternate[] = [
   { id: 1, number: 1, desc: 'Additional plumbing allowances for the service hook up from city', total: 16500.00 },
   { id: 2, number: 2, desc: 'fire alarm system allowances', total: 7000.00 },
   { id: 3, number: 3, desc: 'Temporary power generator 3-phase 300kw allowances', total: 12000.00 },

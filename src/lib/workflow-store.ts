@@ -4,6 +4,8 @@ import { createClient } from './supabase-server';
 
 const STORE_PATH = path.join(process.cwd(), 'data', 'workflow_store.json');
 
+let supabaseOfflineUntil = 0;
+
 // In-memory fallback cache for smooth offline/local development
 const memStore: Record<string, any[]> = {
   bid_packages: [],
@@ -30,6 +32,7 @@ const memStore: Record<string, any[]> = {
   estimate_catalog_items: [],
   btx_estimates: [],
   submittal_extensions: [],
+  expenses: [],
   in_app_notifications: [
     {
       id: 'notif-1',
@@ -88,9 +91,20 @@ function syncToDisk() {
 
 const missingSupabaseTables = new Set<string>();
 
+function isSupabaseOffline(): boolean {
+  return Date.now() < supabaseOfflineUntil;
+}
+
+function markSupabaseOffline(err?: any) {
+  const msg = (err?.message || String(err || '')).toLowerCase();
+  if (msg.includes('enotfound') || msg.includes('fetch failed') || msg.includes('connect') || msg.includes('timeout')) {
+    supabaseOfflineUntil = Date.now() + 60000;
+  }
+}
+
 export async function getWorkflowData<T>(table: string, projectId?: string, filterKey = 'project_id'): Promise<T[]> {
   initPersistedStore();
-  if (!missingSupabaseTables.has(table)) {
+  if (!missingSupabaseTables.has(table) && !isSupabaseOffline()) {
     try {
       const supabase = await createClient();
       let query = supabase.from(table).select('*');
@@ -102,11 +116,15 @@ export async function getWorkflowData<T>(table: string, projectId?: string, filt
       if (!error && data && data.length > 0) {
         return data as T[];
       }
-      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
-        missingSupabaseTables.add(table);
+      if (error) {
+        if (error.message?.includes('schema cache') || error.message?.includes('Could not find the table')) {
+          missingSupabaseTables.add(table);
+        } else {
+          markSupabaseOffline(error);
+        }
       }
     } catch (err) {
-      // Supabase table may not be migrated yet, fallback to memory
+      markSupabaseOffline(err);
     }
   }
 
@@ -125,7 +143,7 @@ export async function insertWorkflowRecord<T extends { id?: string }>(table: str
     ...record,
   };
 
-  if (!missingSupabaseTables.has(table)) {
+  if (!missingSupabaseTables.has(table) && !isSupabaseOffline()) {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
@@ -140,11 +158,15 @@ export async function insertWorkflowRecord<T extends { id?: string }>(table: str
         syncToDisk();
         return data as T;
       }
-      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
-        missingSupabaseTables.add(table);
+      if (error) {
+        if (error.message?.includes('schema cache') || error.message?.includes('Could not find the table')) {
+          missingSupabaseTables.add(table);
+        } else {
+          markSupabaseOffline(error);
+        }
       }
     } catch (err) {
-      // fallback to memory
+      markSupabaseOffline(err);
     }
   }
 
@@ -164,7 +186,7 @@ export async function batchInsertWorkflowRecords<T extends { id?: string }>(tabl
     ...record,
   }));
 
-  if (!missingSupabaseTables.has(table)) {
+  if (!missingSupabaseTables.has(table) && !isSupabaseOffline()) {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase.from(table).insert(itemsWithIds).select();
@@ -174,11 +196,15 @@ export async function batchInsertWorkflowRecords<T extends { id?: string }>(tabl
         syncToDisk();
         return data as T[];
       }
-      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
-        missingSupabaseTables.add(table);
+      if (error) {
+        if (error.message?.includes('schema cache') || error.message?.includes('Could not find the table')) {
+          missingSupabaseTables.add(table);
+        } else {
+          markSupabaseOffline(error);
+        }
       }
     } catch (err) {
-      // fallback to memory
+      markSupabaseOffline(err);
     }
   }
 
@@ -190,7 +216,7 @@ export async function batchInsertWorkflowRecords<T extends { id?: string }>(tabl
 
 export async function updateWorkflowRecord<T>(table: string, id: string, updates: any): Promise<T> {
   initPersistedStore();
-  if (!missingSupabaseTables.has(table)) {
+  if (!missingSupabaseTables.has(table) && !isSupabaseOffline()) {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
@@ -209,11 +235,15 @@ export async function updateWorkflowRecord<T>(table: string, id: string, updates
         }
         return data as T;
       }
-      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
-        missingSupabaseTables.add(table);
+      if (error) {
+        if (error.message?.includes('schema cache') || error.message?.includes('Could not find the table')) {
+          missingSupabaseTables.add(table);
+        } else {
+          markSupabaseOffline(error);
+        }
       }
     } catch (err) {
-      // fallback to memory
+      markSupabaseOffline(err);
     }
   }
 
@@ -236,15 +266,19 @@ export async function updateWorkflowRecord<T>(table: string, id: string, updates
 
 export async function deleteWorkflowRecord(table: string, id: string): Promise<boolean> {
   initPersistedStore();
-  if (!missingSupabaseTables.has(table)) {
+  if (!missingSupabaseTables.has(table) && !isSupabaseOffline()) {
     try {
       const supabase = await createClient();
       const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
-        missingSupabaseTables.add(table);
+      if (error) {
+        if (error.message?.includes('schema cache') || error.message?.includes('Could not find the table')) {
+          missingSupabaseTables.add(table);
+        } else {
+          markSupabaseOffline(error);
+        }
       }
     } catch (err) {
-      // ignore
+      markSupabaseOffline(err);
     }
   }
 
@@ -258,15 +292,19 @@ export async function deleteWorkflowRecord(table: string, id: string): Promise<b
 
 export async function deleteWorkflowRecordsByFilter(table: string, filterKey: string, filterValue: any): Promise<boolean> {
   initPersistedStore();
-  if (!missingSupabaseTables.has(table)) {
+  if (!missingSupabaseTables.has(table) && !isSupabaseOffline()) {
     try {
       const supabase = await createClient();
       const { error } = await supabase.from(table).delete().eq(filterKey, filterValue);
-      if (error && (error.message?.includes('schema cache') || error.message?.includes('Could not find the table'))) {
-        missingSupabaseTables.add(table);
+      if (error) {
+        if (error.message?.includes('schema cache') || error.message?.includes('Could not find the table')) {
+          missingSupabaseTables.add(table);
+        } else {
+          markSupabaseOffline(error);
+        }
       }
     } catch (err) {
-      // ignore
+      markSupabaseOffline(err);
     }
   }
 
