@@ -458,7 +458,7 @@
       "created_at": "2026-11-20T18:12:52.962Z",
       "project_id": "1f2af6f8-7486-486c-b03e-334f6c88ec57",
       "application_number": 3,
-      "period_to": "2026-10-31",
+      "period_to": "2026-09-30",
       "owner_name": "Humana / Conviva Care Center",
       "owner_address": "Jourdanton, TX",
       "contractor_name": "BTX Contractors",
@@ -480,8 +480,8 @@
       "retainage_stored_pct": 0,
       "retainage_amount": 9141,
       "total_earned_less_retainage": 294415.19,
-      "less_previous_certificates": 294415.19,
-      "current_payment_due": 0,
+      "less_previous_certificates": 212146.19,
+      "current_payment_due": 82269,
       "balance_to_finish_incl_retainage": 749851.46,
       "change_order_additions": 0,
       "change_order_deductions": 0,
@@ -496,7 +496,7 @@
       "notary_month_year": "October",
       "notary_public": "Helen Guerra",
       "notary_commission_expires": "1-28-30",
-      "amount_certified": 0,
+      "amount_certified": 82269,
       "architect_signature_by": "",
       "architect_signature_date": "",
       "status": "draft"
@@ -1754,14 +1754,14 @@
       "item_number": 1,
       "description": "Division 01: General Requirements",
       "scheduled_value": 94600,
-      "work_completed_previous": 23670,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 14190,
+      "work_completed_this_period": 9480,
       "stored_materials": 0,
       "total_completed": 23670,
       "pct_complete": 25,
       "balance_to_finish": 70930,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 948,
+      "created_at": "2026-11-20T18:49:44.750Z"
     },
     {
       "id": "item-app3-2",
@@ -1776,7 +1776,7 @@
       "pct_complete": 40,
       "balance_to_finish": 32763.97,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-3",
@@ -1791,7 +1791,7 @@
       "pct_complete": 100,
       "balance_to_finish": 0,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-4",
@@ -1806,7 +1806,7 @@
       "pct_complete": 0,
       "balance_to_finish": 11066,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-5",
@@ -1821,7 +1821,7 @@
       "pct_complete": 36,
       "balance_to_finish": 1563.99,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-6",
@@ -1829,14 +1829,14 @@
       "item_number": 6,
       "description": "Division 06: Wood, Plastics & Composites",
       "scheduled_value": 95640.03,
-      "work_completed_previous": 10882,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 8000,
+      "work_completed_this_period": 2882,
       "stored_materials": 0,
       "total_completed": 10882,
       "pct_complete": 11,
       "balance_to_finish": 84758.03,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 288.2,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-7",
@@ -1844,14 +1844,14 @@
       "item_number": 7,
       "description": "Division 07: Thermal & Moisture Protection",
       "scheduled_value": 48703.45,
-      "work_completed_previous": 21983.48,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 16234.48,
+      "work_completed_this_period": 5749,
       "stored_materials": 0,
       "total_completed": 21983.48,
       "pct_complete": 45,
       "balance_to_finish": 26719.97,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 574.9,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-8",
@@ -1859,14 +1859,14 @@
       "item_number": 8,
       "description": "Division 08: A Windows &Glazing (Glazing)",
       "scheduled_value": 5800,
-      "work_completed_previous": 3290.33,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 1933.33,
+      "work_completed_this_period": 1357,
       "stored_materials": 0,
       "total_completed": 3290.33,
       "pct_complete": 57,
       "balance_to_finish": 2509.67,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 135.7,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-9",
@@ -1881,7 +1881,7 @@
       "pct_complete": 33,
       "balance_to_finish": 5133.34,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-10",
@@ -1889,14 +1889,14 @@
       "item_number": 10,
       "description": "Division 08: Wood Doors & Hardware",
       "scheduled_value": 24374,
-      "work_completed_previous": 15256.66,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 8126.66,
+      "work_completed_this_period": 7130,
       "stored_materials": 0,
       "total_completed": 15256.66,
       "pct_complete": 63,
       "balance_to_finish": 9117.34,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 713,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-11",
@@ -1904,14 +1904,14 @@
       "item_number": 11,
       "description": "Division 09: Finishes",
       "scheduled_value": 166947.95,
-      "work_completed_previous": 74641.31,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 55649.31,
+      "work_completed_this_period": 18992,
       "stored_materials": 0,
       "total_completed": 74641.31,
       "pct_complete": 45,
       "balance_to_finish": 92306.64,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 1899.2,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-12",
@@ -1926,7 +1926,7 @@
       "pct_complete": 100,
       "balance_to_finish": 0,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-13",
@@ -1941,7 +1941,7 @@
       "pct_complete": 0,
       "balance_to_finish": 11250,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-14",
@@ -1949,14 +1949,14 @@
       "item_number": 14,
       "description": "Division 22: Plumbing",
       "scheduled_value": 73166.65,
-      "work_completed_previous": 24769.33,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 14633.33,
+      "work_completed_this_period": 10136,
       "stored_materials": 0,
       "total_completed": 24769.33,
       "pct_complete": 34,
       "balance_to_finish": 48397.32,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 1013.6,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-15",
@@ -1964,14 +1964,14 @@
       "item_number": 15,
       "description": "Division 23: HVAC",
       "scheduled_value": 121245.38,
-      "work_completed_previous": 40711.08,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 24249.08,
+      "work_completed_this_period": 16462,
       "stored_materials": 0,
       "total_completed": 40711.08,
       "pct_complete": 34,
       "balance_to_finish": 80534.3,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 1646.2,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-16",
@@ -1979,14 +1979,14 @@
       "item_number": 16,
       "description": "Division 26: Electrical",
       "scheduled_value": 104020,
-      "work_completed_previous": 40026,
-      "work_completed_this_period": 0,
+      "work_completed_previous": 20804,
+      "work_completed_this_period": 19222,
       "stored_materials": 0,
       "total_completed": 40026,
       "pct_complete": 38,
       "balance_to_finish": 63994,
-      "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "retainage": 1922.2,
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-17",
@@ -2001,7 +2001,7 @@
       "pct_complete": 0,
       "balance_to_finish": 16500,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-18",
@@ -2016,7 +2016,7 @@
       "pct_complete": 0,
       "balance_to_finish": 7000,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-19",
@@ -2031,7 +2031,7 @@
       "pct_complete": 0,
       "balance_to_finish": 12000,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-20",
@@ -2046,7 +2046,7 @@
       "pct_complete": 0,
       "balance_to_finish": 3000,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-21",
@@ -2061,7 +2061,7 @@
       "pct_complete": 0,
       "balance_to_finish": 5466,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-22",
@@ -2076,7 +2076,7 @@
       "pct_complete": 0,
       "balance_to_finish": 82844.08,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-23",
@@ -2091,7 +2091,7 @@
       "pct_complete": 0,
       "balance_to_finish": 72855.81,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-24",
@@ -2106,7 +2106,7 @@
       "pct_complete": 0,
       "balance_to_finish": 0,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-25",
@@ -2121,7 +2121,7 @@
       "pct_complete": 0,
       "balance_to_finish": 0,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-26",
@@ -2136,7 +2136,7 @@
       "pct_complete": 0,
       "balance_to_finish": 0,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-27",
@@ -2151,7 +2151,7 @@
       "pct_complete": 0,
       "balance_to_finish": 0,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     },
     {
       "id": "item-app3-28",
@@ -2166,7 +2166,7 @@
       "pct_complete": 0,
       "balance_to_finish": 0,
       "retainage": 0,
-      "created_at": "2026-11-20T18:24:19.042Z"
+      "created_at": "2026-11-20T18:49:44.751Z"
     }
   ],
   "vendor_partners": [],
